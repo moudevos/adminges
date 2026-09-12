@@ -11,11 +11,8 @@ export default function LoginPage() {
             <div>
               <div className="text-sm font-semibold tracking-[0.28em] text-slate-400">ADMINGES</div>
               <h1 className="mt-6 max-w-sm text-4xl font-semibold leading-tight">
-                Gestión comercial con datos accionables.
+                Gestión comercial.
               </h1>
-              <p className="mt-5 max-w-sm text-sm leading-6 text-slate-400">
-                Ventas, inventario, promotores, horarios, cuotas y análisis en una sola plataforma.
-              </p>
             </div>
             <p className="text-xs text-slate-500">Acceso restringido a personal autorizado.</p>
           </div>
