@@ -50,6 +50,10 @@ const createPromoterSchema = z.object({
     (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
     z.string().trim().email("Correo inválido.").max(160).optional(),
   ),
+  initial_password: z.preprocess(
+    (value) => (typeof value === "string" && value === "" ? undefined : value),
+    z.string().min(8, "La contraseña debe tener al menos 8 caracteres.").max(72).optional(),
+  ),
 });
 
 function validationMessage(error: z.ZodError) {
@@ -63,7 +67,7 @@ export async function createAppUser(
   const context = await getAuthorizationContext();
   if (!context) return { ok: false, message: "Sesión inválida o usuario desactivado." };
   if (!contextHasPermission(context, PERMISSIONS.usersCreate)) {
-    return { ok: false, message: "No tienes permiso para crear usuarios." };
+    return { ok: false, message: "No tienes permiso para crear usuarios internos." };
   }
 
   const parsed = createUserSchema.safeParse(Object.fromEntries(formData));
@@ -120,7 +124,7 @@ export async function createAppUser(
   }
 
   revalidatePath("/dashboard");
-  return { ok: true, message: "Usuario creado correctamente." };
+  return { ok: true, message: "Usuario interno creado correctamente." };
 }
 
 export async function createStore(
@@ -169,8 +173,56 @@ export async function createPromoter(
   const parsed = createPromoterSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, message: validationMessage(parsed.error) };
 
-  const { store_id, first_name, last_name, document, phone, email } = parsed.data;
+  const createLogin = formData.get("create_login") === "true";
+  const { store_id, first_name, last_name, document, phone, email, initial_password } = parsed.data;
+
+  if (createLogin && !email) {
+    return { ok: false, message: "El correo es obligatorio cuando creas acceso al sistema." };
+  }
+
+  if (createLogin && !initial_password) {
+    return { ok: false, message: "Define una contraseña inicial de al menos 8 caracteres." };
+  }
+
+  let authUserId: string | null = null;
+  const fullName = `${first_name} ${last_name}`.trim();
+
+  if (createLogin) {
+    const admin = createAdminClient();
+    const { data, error } = await admin.auth.admin.createUser({
+      email: email!.toLowerCase(),
+      password: initial_password!,
+      email_confirm: true,
+      user_metadata: { full_name: fullName },
+    });
+
+    if (error || !data.user) {
+      return {
+        ok: false,
+        message: error?.message ?? "No se pudo crear la cuenta de acceso del promotor.",
+      };
+    }
+
+    authUserId = data.user.id;
+
+    const { error: profileError } = await admin
+      .from("profiles")
+      .update({
+        full_name: fullName,
+        email: email!.toLowerCase(),
+        role: "promotor",
+        is_active: true,
+      })
+      .eq("id", authUserId);
+
+    if (profileError) {
+      await admin.auth.admin.deleteUser(authUserId);
+      return { ok: false, message: "No se pudo configurar el acceso del promotor." };
+    }
+  }
+
   const { error } = await context.supabase.from("promoters").insert({
+    user_id: authUserId,
     store_id,
     first_name,
     last_name,
@@ -181,12 +233,25 @@ export async function createPromoter(
   });
 
   if (error) {
+    if (authUserId) {
+      const admin = createAdminClient();
+      await admin.auth.admin.deleteUser(authUserId);
+    }
+
     return {
       ok: false,
-      message: error.code === "23505" ? "Ya existe un promotor con ese documento." : error.message,
+      message:
+        error.code === "23505"
+          ? "Ya existe un promotor con ese documento o cuenta asociada."
+          : error.message,
     };
   }
 
   revalidatePath("/dashboard");
-  return { ok: true, message: "Promotor creado correctamente." };
+  return {
+    ok: true,
+    message: createLogin
+      ? "Promotor y cuenta de acceso creados correctamente."
+      : "Promotor creado correctamente.",
+  };
 }
