@@ -69,9 +69,17 @@ export async function createAppUser(
   const parsed = createUserSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, message: validationMessage(parsed.error) };
 
-  const admin = createAdminClient();
   const { full_name, email, initial_password, role, store_id } = parsed.data;
 
+  if (role === "admin" && context.profile.role !== "admin") {
+    return { ok: false, message: "Solo un administrador puede crear otra cuenta administradora." };
+  }
+
+  if (store_id && !contextHasPermission(context, PERMISSIONS.storesAssign)) {
+    return { ok: false, message: "No tienes permiso para asignar usuarios a tiendas." };
+  }
+
+  const admin = createAdminClient();
   const { data, error } = await admin.auth.admin.createUser({
     email: email.toLowerCase(),
     password: initial_password,
