@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/dashboard/app-shell";
 import { ModuleContent } from "@/components/dashboard/module-content";
+import { PersonalManagement } from "@/components/dashboard/personal-management";
 import {
   MODULE_PERMISSIONS,
   PERMISSIONS,
@@ -36,6 +37,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     id: string;
     email: string | null;
     full_name: string | null;
+    document: string | null;
+    phone: string | null;
     role: "admin" | "supervisor";
     is_active: boolean;
     created_at: string;
@@ -84,7 +87,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     const { data } = await context.supabase
       .from("profiles")
       .select(
-        "id, email, full_name, role, is_active, created_at, store_supervisors(store_id, is_active, stores(name, code))",
+        "id, email, full_name, document, phone, role, is_active, created_at, store_supervisors(store_id, is_active, stores(name, code))",
       )
       .in("role", ["admin", "supervisor"])
       .order("created_at", { ascending: false });
@@ -106,7 +109,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   }
 
   const activeView = activeModule === "personal" ? undefined : params.view;
-
   const permissionSetupMissing = context.permissions.length === 0;
   const notice = params.forbidden
     ? "No tienes permisos para acceder a ese módulo."
@@ -124,14 +126,23 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       permissions={context.permissions}
       notice={notice}
     >
-      <ModuleContent
-        activeModule={activeModule}
-        activeView={activeView}
-        permissions={context.permissions}
-        users={users}
-        stores={stores}
-        promoters={promoters}
-      />
+      {activeModule === "personal" ? (
+        <PersonalManagement
+          users={users}
+          promoters={promoters}
+          stores={stores}
+          permissions={context.permissions}
+        />
+      ) : (
+        <ModuleContent
+          activeModule={activeModule}
+          activeView={activeView}
+          permissions={context.permissions}
+          users={users}
+          stores={stores}
+          promoters={promoters}
+        />
+      )}
     </AppShell>
   );
 }
