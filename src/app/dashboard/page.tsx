@@ -39,6 +39,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     role: "admin" | "supervisor";
     is_active: boolean;
     created_at: string;
+    store_supervisors?: Array<{
+      store_id: string;
+      is_active: boolean;
+      stores: { name: string; code: string } | null;
+    }>;
   }> = [];
 
   let stores: Array<{
@@ -78,7 +83,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   ) {
     const { data } = await context.supabase
       .from("profiles")
-      .select("id, email, full_name, role, is_active, created_at")
+      .select(
+        "id, email, full_name, role, is_active, created_at, store_supervisors(store_id, is_active, stores(name, code))",
+      )
       .in("role", ["admin", "supervisor"])
       .order("created_at", { ascending: false });
     users = (data ?? []) as typeof users;
@@ -98,6 +105,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     promoters = (data ?? []) as typeof promoters;
   }
 
+  const activeView = activeModule === "personal" ? undefined : params.view;
+
   const permissionSetupMissing = context.permissions.length === 0;
   const notice = params.forbidden
     ? "No tienes permisos para acceder a ese módulo."
@@ -111,13 +120,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       fullName={context.profile.full_name ?? ""}
       role={context.profile.role}
       activeModule={activeModule}
-      activeView={params.view}
+      activeView={activeView}
       permissions={context.permissions}
       notice={notice}
     >
       <ModuleContent
         activeModule={activeModule}
-        activeView={params.view}
+        activeView={activeView}
         permissions={context.permissions}
         users={users}
         stores={stores}
