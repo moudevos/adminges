@@ -1,6 +1,6 @@
 # AdminGes
 
-Sistema para gestión de tiendas, inventario, ventas, promotores, horarios, cuotas y analítica operacional.
+Sistema para gestión de tiendas, inventario, ventas, personal, horarios, cuotas y analítica operacional.
 
 ## Stack
 
@@ -46,6 +46,7 @@ Ejecutar siempre en orden:
 
 1. `sql/001_implementacion_auth_perfiles.sql`
 2. `sql/002_rbac_tiendas_promotores.sql`
+3. `sql/003_personal_promotor_auth.sql`
 
 Para comprobar los scripts aplicados:
 
@@ -62,22 +63,36 @@ Regla: un SQL aplicado no se modifica ni renumera; una corrección nueva genera 
 La seguridad usa varias capas:
 
 1. Supabase Auth valida la sesión.
-2. `profiles.role` define el rol base (`admin` o `supervisor`).
+2. `profiles.role` define el rol base (`admin`, `supervisor` o `promotor`).
 3. `role_permissions` define permisos por rol.
 4. `user_permissions` permite overrides individuales futuros.
 5. Las Server Actions vuelven a validar el permiso antes de escribir.
 6. Row Level Security limita el acceso directamente en PostgreSQL.
 7. Los supervisores solo acceden a tiendas asignadas mediante `store_supervisors`.
+8. Los promotores con login solo acceden a la tienda asociada a su ficha.
 
 Ocultar un módulo en el sidebar no concede ni revoca acceso por sí mismo; la protección real está en servidor y RLS.
 
+## Personal
+
+Usuarios y promotores comparten una sola vista de administración, pero permanecen separados en el modelo de datos:
+
+- `profiles` + Supabase Auth: identidades con acceso al sistema.
+- `promoters`: entidad comercial del promotor.
+- `promoters.user_id`: vínculo opcional entre un promotor y su cuenta Auth.
+
+Al crear un promotor se puede elegir entre:
+
+- Promotor sin acceso al sistema.
+- Promotor con cuenta Auth de rol `promotor`.
+
+Los usuarios internos (`admin` y `supervisor`) se administran desde la misma vista **Personal**, en una pestaña separada.
+
 ## Módulos operativos iniciales
 
-- Usuarios: listado y creación de usuarios Auth con rol.
+- Personal: promotores y usuarios internos.
 - Tiendas: listado y creación según permiso.
-- Promotores: listado y creación limitada a tiendas accesibles.
-
-Los módulos restantes ya tienen permisos definidos y se implementarán sobre esta misma base.
+- Los demás módulos ya tienen permisos definidos y se implementarán sobre esta misma base.
 
 ## Scripts del proyecto
 
