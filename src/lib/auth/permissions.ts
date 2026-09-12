@@ -22,18 +22,22 @@ export const PERMISSIONS = {
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
-export const MODULE_PERMISSIONS: Record<string, PermissionKey | null> = {
+export const MODULE_PERMISSIONS: Record<string, readonly PermissionKey[] | null> = {
   resumen: null,
-  usuarios: PERMISSIONS.usersRead,
-  tiendas: PERMISSIONS.storesRead,
-  inventario: PERMISSIONS.inventoryRead,
-  ventas: PERMISSIONS.salesRead,
-  promotores: PERMISSIONS.promotersRead,
-  horarios: PERMISSIONS.schedulesRead,
-  cuotas: PERMISSIONS.quotasRead,
-  analisis: PERMISSIONS.analyticsRead,
+  personal: [PERMISSIONS.promotersRead, PERMISSIONS.usersRead],
+  tiendas: [PERMISSIONS.storesRead],
+  inventario: [PERMISSIONS.inventoryRead],
+  ventas: [PERMISSIONS.salesRead],
+  horarios: [PERMISSIONS.schedulesRead],
+  cuotas: [PERMISSIONS.quotasRead],
+  analisis: [PERMISSIONS.analyticsRead],
 };
 
 export function hasPermission(permissions: readonly string[], permission: PermissionKey) {
   return permissions.includes(permission);
+}
+
+export function canAccessModule(permissions: readonly string[], module: string) {
+  const required = MODULE_PERMISSIONS[module];
+  return required === null || (required?.some((permission) => permissions.includes(permission)) ?? false);
 }
