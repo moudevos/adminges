@@ -31,7 +31,7 @@ const optionalPassword = z.preprocess(
 
 const personSchema = z.object({
   first_name: z.string().trim().min(2, "Ingresa los nombres.").max(80),
-  last_name: z.string().trim().min(2, "Ingresa los apellidos.").max(80),
+  last_name: z.string().trim().min(1, "Ingresa los apellidos.").max(80),
   email: z.string().trim().email("Correo inválido.").max(160),
   role: z.enum(["admin", "supervisor", "promotor"]),
   store_id: optionalUuid,
@@ -44,8 +44,8 @@ const createSchema = personSchema.extend({
 });
 
 const updateSchema = personSchema.extend({
+  persona_id: z.string().uuid("Persona inválida."),
   user_id: optionalUuid,
-  promoter_id: optionalUuid,
   new_password: optionalPassword,
   is_active: z.enum(["true", "false"]),
 });
@@ -72,12 +72,32 @@ async function canUseStore(
     .eq("id", storeId)
     .eq("is_active", true)
     .maybeSingle();
+
   return Boolean(data);
 }
 
-function profileErrorMessage(error: { code?: string; message?: string } | null) {
-  if (error?.code === "23505") return "Ya existe otra persona con ese documento.";
-  return error?.message ?? "No se pudo guardar el perfil de la persona.";
+function dbErrorMessage(error: { code?: string; message?: string } | null) {
+  if (error?.code === "23505") return "Ya existe otra persona con ese documento, correo o usuario.";
+  return error?.message ?? "No se pudo guardar la persona.";
+}
+
+async function syncSupervisorStore(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  role: Role,
+  storeId: string | undefined,
+  active: boolean,
+) {
+  await admin.from("store_supervisors").update({ is_active: false }).eq("user_id", userId);
+
+  if (role !== "supervisor" || !storeId) return null;
+
+  const { error } = await admin.from("store_supervisors").upsert(
+    { store_id: storeId, user_id: userId, is_active: active },
+    { onConflict: "store_id,user_id" },
+  );
+
+  return error;
 }
 
 export async function createPersonUnified(
@@ -133,6 +153,7 @@ export async function createPersonUnified(
   }
 
   const userId = data.user.id;
+
   const { error: profileError } = await admin
     .from("profiles")
     .update({
@@ -147,48 +168,35 @@ export async function createPersonUnified(
 
   if (profileError) {
     await admin.auth.admin.deleteUser(userId);
-    return { ok: false, message: profileErrorMessage(profileError) };
+    return { ok: false, message: dbErrorMessage(profileError) };
   }
 
-  if (role === "supervisor" && store_id) {
-    const { error: assignmentError } = await admin.from("store_supervisors").upsert(
-      { store_id, user_id: userId, is_active: true },
-      { onConflict: "store_id,user_id" },
-    );
-
-    if (assignmentError) {
-      await admin.auth.admin.deleteUser(userId);
-      return { ok: false, message: "No se pudo asignar la tienda al supervisor." };
-    }
+  const assignmentError = await syncSupervisorStore(admin, userId, role, store_id, true);
+  if (assignmentError) {
+    await admin.auth.admin.deleteUser(userId);
+    return { ok: false, message: "No se pudo asignar la tienda al supervisor." };
   }
 
-  if (role === "promotor" && store_id) {
-    const { error: promoterError } = await admin.from("promoters").insert({
-      user_id: userId,
-      store_id,
-      first_name,
-      last_name,
-      document: document ?? null,
-      phone: phone ?? null,
-      email: normalizedEmail,
-      is_active: true,
-      created_by: context.user.id,
-    });
+  const { error: personError } = await admin.from("personas").insert({
+    user_id: userId,
+    store_id: role === "admin" ? null : (store_id ?? null),
+    first_name,
+    last_name,
+    document: document ?? null,
+    phone: phone ?? null,
+    email: normalizedEmail,
+    role,
+    is_active: true,
+    created_by: context.user.id,
+  });
 
-    if (promoterError) {
-      await admin.auth.admin.deleteUser(userId);
-      return {
-        ok: false,
-        message:
-          promoterError.code === "23505"
-            ? "Ya existe otra persona con ese documento o usuario."
-            : "No se pudo crear la ficha comercial del promotor.",
-      };
-    }
+  if (personError) {
+    await admin.auth.admin.deleteUser(userId);
+    return { ok: false, message: dbErrorMessage(personError) };
   }
 
   revalidatePath("/dashboard");
-  return { ok: true, message: "Persona creada correctamente." };
+  return { ok: true, message: "Persona, usuario y rol creados correctamente." };
 }
 
 export async function updatePersonUnified(
@@ -202,8 +210,8 @@ export async function updatePersonUnified(
   if (!parsed.success) return { ok: false, message: validationMessage(parsed.error) };
 
   const {
+    persona_id,
     user_id,
-    promoter_id,
     first_name,
     last_name,
     email,
@@ -217,23 +225,21 @@ export async function updatePersonUnified(
 
   const admin = createAdminClient();
   const active = is_active === "true";
-  let currentRole: Role = "promotor";
 
-  if (user_id) {
-    const { data: currentProfile } = await admin
-      .from("profiles")
-      .select("role")
-      .eq("id", user_id)
-      .maybeSingle();
+  const { data: currentPerson } = await admin
+    .from("personas")
+    .select("id, user_id, role")
+    .eq("id", persona_id)
+    .maybeSingle();
 
-    if (!currentProfile) return { ok: false, message: "No se encontró el perfil de la persona." };
-    currentRole =
-      currentProfile.role === "admin"
-        ? "admin"
-        : currentProfile.role === "promotor"
-          ? "promotor"
-          : "supervisor";
-  }
+  if (!currentPerson) return { ok: false, message: "No se encontró la persona." };
+
+  const currentRole: Role =
+    currentPerson.role === "admin"
+      ? "admin"
+      : currentPerson.role === "supervisor"
+        ? "supervisor"
+        : "promotor";
 
   if (!contextHasPermission(context, permissionForUpdate(currentRole))) {
     return { ok: false, message: "No tienes permiso para editar esta persona." };
@@ -255,17 +261,19 @@ export async function updatePersonUnified(
     return { ok: false, message: "No tienes acceso a la tienda seleccionada." };
   }
 
-  if (user_id === context.user.id && !active) {
+  const currentUserId = currentPerson.user_id ?? user_id;
+
+  if (currentUserId === context.user.id && !active) {
     return { ok: false, message: "No puedes desactivar tu propia cuenta." };
   }
 
-  if (user_id === context.user.id && role !== context.profile.role) {
+  if (currentUserId === context.user.id && role !== context.profile.role) {
     return { ok: false, message: "No puedes cambiar tu propio rol desde esta pantalla." };
   }
 
   const fullName = `${first_name} ${last_name}`.trim();
   const normalizedEmail = email.toLowerCase();
-  let targetUserId = user_id;
+  let targetUserId = currentUserId;
 
   if (!targetUserId) {
     if (!new_password) {
@@ -282,6 +290,7 @@ export async function updatePersonUnified(
     if (error || !data.user) {
       return { ok: false, message: error?.message ?? "No se pudo crear la cuenta de acceso." };
     }
+
     targetUserId = data.user.id;
   } else {
     const { error: authError } = await admin.auth.admin.updateUserById(targetUserId, {
@@ -305,53 +314,29 @@ export async function updatePersonUnified(
     })
     .eq("id", targetUserId);
 
-  if (profileError) return { ok: false, message: profileErrorMessage(profileError) };
+  if (profileError) return { ok: false, message: dbErrorMessage(profileError) };
 
-  await admin.from("store_supervisors").update({ is_active: false }).eq("user_id", targetUserId);
-
-  if (role === "supervisor" && store_id) {
-    const { error: assignmentError } = await admin.from("store_supervisors").upsert(
-      { store_id, user_id: targetUserId, is_active: active },
-      { onConflict: "store_id,user_id" },
-    );
-
-    if (assignmentError) {
-      return { ok: false, message: "La persona se actualizó, pero no se pudo asignar la tienda." };
-    }
+  const assignmentError = await syncSupervisorStore(admin, targetUserId, role, store_id, active);
+  if (assignmentError) {
+    return { ok: false, message: "La persona se actualizó, pero no se pudo asignar la tienda." };
   }
 
-  let targetPromoterId = promoter_id;
-  if (!targetPromoterId) {
-    const { data: linkedPromoter } = await admin
-      .from("promoters")
-      .select("id")
-      .eq("user_id", targetUserId)
-      .maybeSingle();
-    targetPromoterId = linkedPromoter?.id;
-  }
-
-  if (role === "promotor" && store_id) {
-    const payload = {
+  const { error: personError } = await admin
+    .from("personas")
+    .update({
       user_id: targetUserId,
-      store_id,
+      store_id: role === "admin" ? null : (store_id ?? null),
       first_name,
       last_name,
       document: document ?? null,
       phone: phone ?? null,
       email: normalizedEmail,
+      role,
       is_active: active,
-    };
+    })
+    .eq("id", persona_id);
 
-    const { error: promoterError } = targetPromoterId
-      ? await admin.from("promoters").update(payload).eq("id", targetPromoterId)
-      : await admin.from("promoters").insert({ ...payload, created_by: context.user.id });
-
-    if (promoterError) {
-      return { ok: false, message: "No se pudo sincronizar la ficha comercial del promotor." };
-    }
-  } else if (targetPromoterId) {
-    await admin.from("promoters").update({ is_active: false }).eq("id", targetPromoterId);
-  }
+  if (personError) return { ok: false, message: dbErrorMessage(personError) };
 
   revalidatePath("/dashboard");
   return {
