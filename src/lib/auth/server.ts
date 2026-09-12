@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
 
-export type AppRole = "admin" | "supervisor";
+export type AppRole = "admin" | "supervisor" | "promotor";
 
 export type AuthorizationContext = {
   supabase: Awaited<ReturnType<typeof createClient>>;
@@ -38,6 +38,13 @@ export async function getAuthorizationContext(): Promise<AuthorizationContext | 
 
   const { data: permissionRows, error: permissionError } = await supabase.rpc("current_permissions");
 
+  const role: AppRole =
+    profile.role === "admin"
+      ? "admin"
+      : profile.role === "promotor"
+        ? "promotor"
+        : "supervisor";
+
   return {
     supabase,
     user: {
@@ -49,7 +56,7 @@ export async function getAuthorizationContext(): Promise<AuthorizationContext | 
       id: profile.id,
       full_name: profile.full_name,
       email: user.email ?? null,
-      role: profile.role === "admin" ? "admin" : "supervisor",
+      role,
       is_active: profile.is_active,
     },
     permissions: permissionError
