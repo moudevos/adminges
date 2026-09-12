@@ -17,11 +17,14 @@ import {
   faRightFromBracket,
   faShop,
   faUser,
+  faUsers,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { signOut } from "@/app/dashboard/actions";
+import { PERMISSIONS, type PermissionKey } from "@/lib/auth/permissions";
 
 type ChildItem = {
   label: string;
@@ -34,6 +37,7 @@ type NavigationItem = {
   label: string;
   icon: IconDefinition;
   href: string;
+  permission?: PermissionKey;
   children?: ChildItem[];
 };
 
@@ -48,17 +52,41 @@ type AppShellProps = {
   role: "admin" | "supervisor";
   activeModule: string;
   activeView?: string;
+  permissions: string[];
+  notice?: string;
+  children: ReactNode;
 };
 
 const navigation: NavigationGroup[] = [
   {
     label: "Principal",
     items: [
+      { key: "resumen", label: "Resumen", icon: faChartLine, href: "/dashboard" },
+    ],
+  },
+  {
+    label: "Administración",
+    items: [
       {
-        key: "resumen",
-        label: "Resumen",
-        icon: faChartLine,
-        href: "/dashboard",
+        key: "usuarios",
+        label: "Usuarios",
+        icon: faUsers,
+        href: "/dashboard?module=usuarios",
+        permission: PERMISSIONS.usersRead,
+        children: [
+          { label: "Directorio", view: "directorio", href: "/dashboard?module=usuarios&view=directorio" },
+        ],
+      },
+      {
+        key: "tiendas",
+        label: "Tiendas",
+        icon: faShop,
+        href: "/dashboard?module=tiendas",
+        permission: PERMISSIONS.storesRead,
+        children: [
+          { label: "Vista general", view: "general", href: "/dashboard?module=tiendas&view=general" },
+          { label: "Asignaciones", view: "asignaciones", href: "/dashboard?module=tiendas&view=asignaciones" },
+        ],
       },
     ],
   },
@@ -66,20 +94,11 @@ const navigation: NavigationGroup[] = [
     label: "Operación",
     items: [
       {
-        key: "tiendas",
-        label: "Tiendas",
-        icon: faShop,
-        href: "/dashboard?module=tiendas",
-        children: [
-          { label: "Vista general", view: "general", href: "/dashboard?module=tiendas&view=general" },
-          { label: "Asignaciones", view: "asignaciones", href: "/dashboard?module=tiendas&view=asignaciones" },
-        ],
-      },
-      {
         key: "inventario",
         label: "Inventario",
         icon: faBoxesStacked,
         href: "/dashboard?module=inventario",
+        permission: PERMISSIONS.inventoryRead,
         children: [
           { label: "Stock actual", view: "stock", href: "/dashboard?module=inventario&view=stock" },
           { label: "Movimientos", view: "movimientos", href: "/dashboard?module=inventario&view=movimientos" },
@@ -90,6 +109,7 @@ const navigation: NavigationGroup[] = [
         label: "Ventas",
         icon: faReceipt,
         href: "/dashboard?module=ventas",
+        permission: PERMISSIONS.salesRead,
         children: [
           { label: "Registro", view: "registro", href: "/dashboard?module=ventas&view=registro" },
           { label: "Historial", view: "historial", href: "/dashboard?module=ventas&view=historial" },
@@ -105,6 +125,7 @@ const navigation: NavigationGroup[] = [
         label: "Promotores",
         icon: faPeopleGroup,
         href: "/dashboard?module=promotores",
+        permission: PERMISSIONS.promotersRead,
         children: [
           { label: "Directorio", view: "directorio", href: "/dashboard?module=promotores&view=directorio" },
           { label: "Rendimiento", view: "rendimiento", href: "/dashboard?module=promotores&view=rendimiento" },
@@ -115,6 +136,7 @@ const navigation: NavigationGroup[] = [
         label: "Horarios",
         icon: faClock,
         href: "/dashboard?module=horarios",
+        permission: PERMISSIONS.schedulesRead,
         children: [
           { label: "Programación", view: "programacion", href: "/dashboard?module=horarios&view=programacion" },
           { label: "Seguimiento", view: "seguimiento", href: "/dashboard?module=horarios&view=seguimiento" },
@@ -125,6 +147,7 @@ const navigation: NavigationGroup[] = [
         label: "Cuotas",
         icon: faBullseye,
         href: "/dashboard?module=cuotas",
+        permission: PERMISSIONS.quotasRead,
         children: [
           { label: "Mensuales", view: "mensuales", href: "/dashboard?module=cuotas&view=mensuales" },
           { label: "Diarias", view: "diarias", href: "/dashboard?module=cuotas&view=diarias" },
@@ -140,6 +163,7 @@ const navigation: NavigationGroup[] = [
         label: "Análisis",
         icon: faChartLine,
         href: "/dashboard?module=analisis",
+        permission: PERMISSIONS.analyticsRead,
         children: [
           { label: "Ventas", view: "ventas", href: "/dashboard?module=analisis&view=ventas" },
           { label: "Inventario", view: "inventario", href: "/dashboard?module=analisis&view=inventario" },
@@ -150,39 +174,16 @@ const navigation: NavigationGroup[] = [
   },
 ];
 
-const moduleCopy: Record<string, { title: string; description: string }> = {
-  resumen: {
-    title: "Resumen",
-    description: "Vista ejecutiva de la operación comercial.",
-  },
-  tiendas: {
-    title: "Tiendas",
-    description: "Administración de tiendas, responsables y asignaciones.",
-  },
-  inventario: {
-    title: "Inventario",
-    description: "Stock, movimientos y comportamiento de productos.",
-  },
-  ventas: {
-    title: "Ventas",
-    description: "Registro, seguimiento y evolución de ventas.",
-  },
-  promotores: {
-    title: "Promotores",
-    description: "Gestión y rendimiento del equipo comercial.",
-  },
-  horarios: {
-    title: "Horarios",
-    description: "Programación y seguimiento operativo del personal.",
-  },
-  cuotas: {
-    title: "Cuotas",
-    description: "Objetivos mensuales, diarios y avance de cumplimiento.",
-  },
-  analisis: {
-    title: "Análisis",
-    description: "KPIs, tendencias y señales para la toma de decisiones.",
-  },
+const moduleTitles: Record<string, string> = {
+  resumen: "Resumen",
+  usuarios: "Usuarios",
+  tiendas: "Tiendas",
+  inventario: "Inventario",
+  ventas: "Ventas",
+  promotores: "Promotores",
+  horarios: "Horarios",
+  cuotas: "Cuotas",
+  analisis: "Análisis",
 };
 
 const viewLabels: Record<string, string> = {
@@ -213,7 +214,16 @@ function initials(name: string, email: string) {
     .join("");
 }
 
-export function AppShell({ email, fullName, role, activeModule, activeView }: AppShellProps) {
+export function AppShell({
+  email,
+  fullName,
+  role,
+  activeModule,
+  activeView,
+  permissions,
+  notice,
+  children,
+}: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
@@ -229,15 +239,21 @@ export function AppShell({ email, fullName, role, activeModule, activeView }: Ap
     setMobileOpen(false);
   }, [activeModule, activeView]);
 
-  const current = moduleCopy[activeModule] ?? moduleCopy.resumen;
+  const visibleNavigation = useMemo(
+    () =>
+      navigation
+        .map((group) => ({
+          ...group,
+          items: group.items.filter((item) => !item.permission || permissions.includes(item.permission)),
+        }))
+        .filter((group) => group.items.length > 0),
+    [permissions],
+  );
+
+  const currentTitle = moduleTitles[activeModule] ?? "Resumen";
   const currentView = activeView ? viewLabels[activeView] : undefined;
   const avatar = initials(fullName, email);
   const roleLabel = role === "admin" ? "Administrador" : "Supervisor";
-
-  const activeItem = useMemo(
-    () => navigation.flatMap((group) => group.items).find((item) => item.key === activeModule),
-    [activeModule],
-  );
 
   function toggleSidebar() {
     setCollapsed((value) => {
@@ -266,12 +282,10 @@ export function AppShell({ email, fullName, role, activeModule, activeView }: Ap
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-5">
-        {navigation.map((group) => (
+        {visibleNavigation.map((group) => (
           <div key={group.label} className="mb-6 last:mb-0">
             {!collapsed && (
-              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">
-                {group.label}
-              </p>
+              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">{group.label}</p>
             )}
 
             <div className="space-y-1">
@@ -379,10 +393,9 @@ export function AppShell({ email, fullName, role, activeModule, activeView }: Ap
             <div className="min-w-0">
               <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400">
                 <span>AdminGes</span>
-                <span>/</span>
-                <span>{currentView ?? "Principal"}</span>
+                {currentView && <><span>/</span><span>{currentView}</span></>}
               </div>
-              <h1 className="truncate text-base font-semibold text-slate-950 md:text-lg">{current.title}</h1>
+              <h1 className="truncate text-base font-semibold text-slate-950 md:text-lg">{currentTitle}</h1>
             </div>
           </div>
 
@@ -405,7 +418,7 @@ export function AppShell({ email, fullName, role, activeModule, activeView }: Ap
               >
                 <div className="grid size-8 place-items-center rounded-lg bg-slate-950 text-xs font-semibold text-white">{avatar}</div>
                 <div className="hidden min-w-0 sm:block">
-                  <div className="max-w-36 truncate text-xs font-semibold text-slate-900">{fullName || email}</div>
+                  <div className="max-w-40 truncate text-xs font-semibold text-slate-900">{fullName || email}</div>
                   <div className="text-[10px] text-slate-500">{roleLabel}</div>
                 </div>
                 <FontAwesomeIcon icon={faChevronDown} className="hidden text-[10px] text-slate-400 sm:block" />
@@ -439,103 +452,13 @@ export function AppShell({ email, fullName, role, activeModule, activeView }: Ap
 
         <main className="p-4 md:p-6 lg:p-8">
           <div className="mx-auto max-w-[1500px]">
-            <div className="mb-6 flex flex-col justify-between gap-3 md:flex-row md:items-end">
-              <div>
-                <p className="text-sm text-slate-500">{current.description}</p>
-                <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
-                  {currentView ?? current.title}
-                </h2>
-              </div>
-              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-500">
-                <span className="size-2 rounded-full bg-emerald-500" />
-                Sesión activa
-              </div>
-            </div>
-
-            {activeModule === "resumen" ? (
-              <DashboardOverview />
-            ) : (
-              <ModulePlaceholder title={current.title} view={currentView} icon={activeItem?.icon ?? faChartLine} />
+            {notice && (
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{notice}</div>
             )}
+            {children}
           </div>
         </main>
       </div>
     </div>
-  );
-}
-
-function DashboardOverview() {
-  const kpis = [
-    { label: "Ventas del día", value: "S/ 0.00", note: "Sin datos registrados" },
-    { label: "Cumplimiento diario", value: "0%", note: "Cuota pendiente" },
-    { label: "Tiendas activas", value: "0", note: "Pendiente de configuración" },
-    { label: "Alertas de inventario", value: "0", note: "Sin alertas detectadas" },
-  ];
-
-  return (
-    <>
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {kpis.map((kpi) => (
-          <article key={kpi.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/30">
-            <p className="text-xs font-medium text-slate-500">{kpi.label}</p>
-            <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">{kpi.value}</p>
-            <p className="mt-2 text-xs text-slate-400">{kpi.note}</p>
-          </article>
-        ))}
-      </section>
-
-      <section className="mt-4 grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-        <article className="min-h-80 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/30">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-semibold text-slate-950">Evolución comercial</h3>
-              <p className="mt-1 text-xs text-slate-500">Ventas y cumplimiento de cuota.</p>
-            </div>
-            <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-500">Mes actual</span>
-          </div>
-          <div className="mt-8 grid h-52 place-items-center rounded-xl border border-dashed border-slate-200 bg-slate-50/70 text-center">
-            <div>
-              <FontAwesomeIcon icon={faChartLine} className="text-xl text-slate-300" />
-              <p className="mt-3 text-sm font-medium text-slate-600">Esperando información de ventas</p>
-              <p className="mt-1 text-xs text-slate-400">El gráfico se activará al registrar operaciones.</p>
-            </div>
-          </div>
-        </article>
-
-        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/30">
-          <h3 className="text-sm font-semibold text-slate-950">Actividad reciente</h3>
-          <p className="mt-1 text-xs text-slate-500">Últimos eventos relevantes del sistema.</p>
-          <div className="mt-6 space-y-4">
-            {["Ventas", "Inventario", "Cuotas"].map((item) => (
-              <div key={item} className="flex items-center gap-3">
-                <div className="size-2 rounded-full bg-slate-300" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-slate-700">{item}</p>
-                  <p className="text-xs text-slate-400">Aún no hay actividad registrada.</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </article>
-      </section>
-    </>
-  );
-}
-
-function ModulePlaceholder({ title, view, icon }: { title: string; view?: string; icon: IconDefinition }) {
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm shadow-slate-200/30">
-      <div className="grid min-h-[360px] place-items-center text-center">
-        <div className="max-w-md">
-          <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-slate-950 text-white">
-            <FontAwesomeIcon icon={icon} />
-          </div>
-          <h3 className="mt-5 text-xl font-semibold text-slate-950">{view ?? title}</h3>
-          <p className="mt-2 text-sm leading-6 text-slate-500">
-            La estructura de navegación ya está lista. Este espacio recibirá la funcionalidad y los indicadores específicos del módulo {title.toLowerCase()}.
-          </p>
-        </div>
-      </div>
-    </section>
   );
 }

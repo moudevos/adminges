@@ -33,17 +33,19 @@ Configura `.env.local`:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://luazeuykhymxikhrgakf.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
 ```
 
-Nunca publiques `service_role` ni secretos privados con prefijo `NEXT_PUBLIC_`.
+`SUPABASE_SERVICE_ROLE_KEY` se usa únicamente en el servidor para operaciones administrativas de Supabase Auth, como crear usuarios. Nunca debe llevar prefijo `NEXT_PUBLIC_`, mostrarse en el navegador ni subirse al repositorio.
 
 ## SQL de Supabase
 
-No usamos Supabase Migrations. Los cambios de base de datos están versionados manualmente en `/sql`.
+No usamos Supabase Migrations. Los cambios de base de datos están versionados manualmente en `/sql` y se ejecutan desde **Supabase > SQL Editor**.
 
-Ejecutar en orden desde **Supabase > SQL Editor**:
+Ejecutar siempre en orden:
 
 1. `sql/001_implementacion_auth_perfiles.sql`
+2. `sql/002_rbac_tiendas_promotores.sql`
 
 Para comprobar los scripts aplicados:
 
@@ -55,11 +57,27 @@ order by version;
 
 Regla: un SQL aplicado no se modifica ni renumera; una corrección nueva genera el siguiente archivo `NNN_...sql`.
 
-## Rutas iniciales
+## Autorización
 
-- `/login`: pública.
-- `/dashboard`: requiere sesión Supabase válida.
-- `/`: entrada protegida; redirige al dashboard.
+La seguridad usa varias capas:
+
+1. Supabase Auth valida la sesión.
+2. `profiles.role` define el rol base (`admin` o `supervisor`).
+3. `role_permissions` define permisos por rol.
+4. `user_permissions` permite overrides individuales futuros.
+5. Las Server Actions vuelven a validar el permiso antes de escribir.
+6. Row Level Security limita el acceso directamente en PostgreSQL.
+7. Los supervisores solo acceden a tiendas asignadas mediante `store_supervisors`.
+
+Ocultar un módulo en el sidebar no concede ni revoca acceso por sí mismo; la protección real está en servidor y RLS.
+
+## Módulos operativos iniciales
+
+- Usuarios: listado y creación de usuarios Auth con rol.
+- Tiendas: listado y creación según permiso.
+- Promotores: listado y creación limitada a tiendas accesibles.
+
+Los módulos restantes ya tienen permisos definidos y se implementarán sobre esta misma base.
 
 ## Scripts del proyecto
 

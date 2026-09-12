@@ -1,0 +1,39 @@
+export const PERMISSIONS = {
+  usersRead: "users.read",
+  usersCreate: "users.create",
+  usersUpdate: "users.update",
+  storesRead: "stores.read",
+  storesCreate: "stores.create",
+  storesUpdate: "stores.update",
+  storesAssign: "stores.assign",
+  promotersRead: "promoters.read",
+  promotersCreate: "promoters.create",
+  promotersUpdate: "promoters.update",
+  inventoryRead: "inventory.read",
+  inventoryManage: "inventory.manage",
+  salesRead: "sales.read",
+  salesCreate: "sales.create",
+  schedulesRead: "schedules.read",
+  schedulesManage: "schedules.manage",
+  quotasRead: "quotas.read",
+  quotasManage: "quotas.manage",
+  analyticsRead: "analytics.read",
+} as const;
+
+export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+
+export const MODULE_PERMISSIONS: Record<string, PermissionKey | null> = {
+  resumen: null,
+  usuarios: PERMISSIONS.usersRead,
+  tiendas: PERMISSIONS.storesRead,
+  inventario: PERMISSIONS.inventoryRead,
+  ventas: PERMISSIONS.salesRead,
+  promotores: PERMISSIONS.promotersRead,
+  horarios: PERMISSIONS.schedulesRead,
+  cuotas: PERMISSIONS.quotasRead,
+  analisis: PERMISSIONS.analyticsRead,
+};
+
+export function hasPermission(permissions: readonly string[], permission: PermissionKey) {
+  return permissions.includes(permission);
+}
