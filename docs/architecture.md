@@ -17,10 +17,10 @@
 ## Capas
 
 1. Autenticación y autorización.
-2. Tiendas.
-3. Inventario y movimientos.
-4. Ventas y detalle de venta.
-5. Promotores.
+2. Personas y asignaciones.
+3. Tiendas.
+4. Inventario y movimientos.
+5. Ventas y detalle de venta.
 6. Horarios.
 7. Cuotas mensuales/diarias y sesión diaria.
 8. KPIs y motor analítico.
@@ -29,19 +29,18 @@
 
 La interfaz nunca determina permisos. El frontend solo presenta capacidades; PostgreSQL RLS y lógica server-side deben imponer el acceso real.
 
-## Próximo modelo de datos
+## Entidades principales
 
-- stores
-- store_members
-- promoters
-- products
-- inventory_movements
-- sales
-- sale_items
-- schedules
-- monthly_quotas
-- daily_quotas
-- daily_sessions
-- kpi_snapshots
+- `personas`: entidad humana central para Admin, Supervisor y Promotor.
+- `profiles`: soporte de autenticación/RBAC para usuarios con acceso.
+- `stores`: tiendas.
+- `store_supervisors`: alcance de tiendas para supervisores.
+- `products`: productos.
+- `inventory_movements`: movimientos de inventario.
+- `sales` / `sale_items`: ventas y detalle.
+- `schedules`: horarios.
+- `monthly_quotas` / `daily_quotas`: cuotas.
+- `daily_sessions`: seguimiento diario.
+- `kpi_snapshots`: históricos analíticos.
 
-No se crean todavía para evitar fijar prematuramente reglas del negocio antes de definir el flujo operativo de cada módulo.
+`personas.user_id` enlaza una Persona con Supabase Auth cuando posee acceso al sistema. El rol de autorización se refleja en `profiles.role`, pero los datos de negocio pertenecen a `personas`.
