@@ -1,7 +1,11 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/dashboard/app-shell";
 import { ModuleContent } from "@/components/dashboard/module-content";
-import { MODULE_PERMISSIONS } from "@/lib/auth/permissions";
+import {
+  MODULE_PERMISSIONS,
+  PERMISSIONS,
+  canAccessModule,
+} from "@/lib/auth/permissions";
 import { getAuthorizationContext } from "@/lib/auth/server";
 
 export const dynamic = "force-dynamic";
@@ -20,10 +24,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   const params = await searchParams;
   const requestedModule = params.module ?? "resumen";
-  const activeModule = Object.hasOwn(MODULE_PERMISSIONS, requestedModule) ? requestedModule : "resumen";
-  const requiredPermission = MODULE_PERMISSIONS[activeModule];
+  const activeModule = Object.hasOwn(MODULE_PERMISSIONS, requestedModule)
+    ? requestedModule
+    : "resumen";
 
-  if (requiredPermission && !context.permissions.includes(requiredPermission)) {
+  if (!canAccessModule(context.permissions, activeModule)) {
     redirect("/dashboard?forbidden=1");
   }
 
@@ -47,6 +52,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   let promoters: Array<{
     id: string;
+    user_id: string | null;
     store_id: string | null;
     first_name: string;
     last_name: string;
@@ -57,7 +63,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     stores: { name: string; code: string } | null;
   }> = [];
 
-  if (["usuarios", "tiendas", "promotores"].includes(activeModule)) {
+  if (["personal", "tiendas"].includes(activeModule)) {
     const { data } = await context.supabase
       .from("stores")
       .select("id, code, name, city, address, is_active")
@@ -66,18 +72,27 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     stores = data ?? [];
   }
 
-  if (activeModule === "usuarios") {
+  if (
+    activeModule === "personal" &&
+    context.permissions.includes(PERMISSIONS.usersRead)
+  ) {
     const { data } = await context.supabase
       .from("profiles")
       .select("id, email, full_name, role, is_active, created_at")
+      .in("role", ["admin", "supervisor"])
       .order("created_at", { ascending: false });
     users = (data ?? []) as typeof users;
   }
 
-  if (activeModule === "promotores") {
+  if (
+    activeModule === "personal" &&
+    context.permissions.includes(PERMISSIONS.promotersRead)
+  ) {
     const { data } = await context.supabase
       .from("promoters")
-      .select("id, store_id, first_name, last_name, document, phone, email, is_active, stores(name, code)")
+      .select(
+        "id, user_id, store_id, first_name, last_name, document, phone, email, is_active, stores(name, code)",
+      )
       .order("last_name")
       .order("first_name");
     promoters = (data ?? []) as typeof promoters;
@@ -87,7 +102,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const notice = params.forbidden
     ? "No tienes permisos para acceder a ese módulo."
     : permissionSetupMissing
-      ? "El esquema de permisos aún no está disponible. Ejecuta el SQL 002 antes de habilitar módulos operativos."
+      ? "El esquema de permisos aún no está disponible. Ejecuta los SQL pendientes antes de habilitar módulos operativos."
       : undefined;
 
   return (
