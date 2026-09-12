@@ -1,4 +1,12 @@
-import { faBoxesStacked, faChartLine, faClock, faPeopleGroup, faShop, faTarget, faReceipt } from "@fortawesome/free-solid-svg-icons";
+import {
+  faBoxesStacked,
+  faBullseye,
+  faChartLine,
+  faClock,
+  faPeopleGroup,
+  faReceipt,
+  faShop,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -12,7 +20,7 @@ const modules = [
   { name: "Ventas", icon: faReceipt },
   { name: "Promotores", icon: faPeopleGroup },
   { name: "Horarios", icon: faClock },
-  { name: "Cuotas", icon: faTarget },
+  { name: "Cuotas", icon: faBullseye },
   { name: "Análisis", icon: faChartLine },
 ];
 
