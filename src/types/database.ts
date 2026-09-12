@@ -1,8 +1,9 @@
-export type AppRole = "admin" | "supervisor";
+export type AppRole = "admin" | "supervisor" | "promotor";
 
 export interface Profile {
   id: string;
   full_name: string | null;
+  email?: string | null;
   role: AppRole;
   is_active: boolean;
   created_at: string;
