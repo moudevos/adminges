@@ -48,6 +48,9 @@ Ejecutar siempre en orden:
 2. `sql/002_rbac_tiendas_promotores.sql`
 3. `sql/003_personal_promotor_auth.sql`
 4. `sql/004_datos_personales_comunes.sql`
+5. `sql/005_personas_entidad_central.sql`
+
+Los nombres históricos de los SQL anteriores no se cambian porque los scripts aplicados son inmutables.
 
 Para comprobar los scripts aplicados:
 
@@ -64,42 +67,40 @@ Regla: un SQL aplicado no se modifica ni renumera; una corrección nueva genera 
 La seguridad usa varias capas:
 
 1. Supabase Auth valida la sesión.
-2. `profiles.role` define el rol base (`admin`, `supervisor` o `promotor`).
+2. `profiles.role` mantiene el rol de autorización (`admin`, `supervisor` o `promotor`).
 3. `role_permissions` define permisos por rol.
 4. `user_permissions` permite overrides individuales futuros.
 5. Las Server Actions vuelven a validar el permiso antes de escribir.
 6. Row Level Security limita el acceso directamente en PostgreSQL.
 7. Los supervisores solo acceden a tiendas asignadas mediante `store_supervisors`.
-8. Los promotores solo acceden a la tienda asociada a su ficha.
+8. Los promotores solo acceden a la tienda asociada a su Persona.
 
 Ocultar un módulo en el sidebar no concede ni revoca acceso por sí mismo; la protección real está en servidor y RLS.
 
-## Personal
+## Personas
 
-La interfaz trabaja con una sola entidad visible: **Persona**.
+La entidad de dominio principal para cualquier integrante es `public.personas`.
 
-Datos comunes para cualquier rol:
+Contiene:
 
 - nombres y apellidos
 - documento
 - teléfono
 - correo/usuario
-- contraseña de acceso
 - rol
+- tienda principal cuando aplica
 - estado
-- tienda cuando el rol la requiere
+- vínculo opcional a Supabase Auth mediante `user_id`
 
-En base de datos:
+`profiles` ya no representa a la persona de negocio. Su función es soportar la cuenta autenticada y el RBAC. Durante esta etapa conserva algunos campos duplicados por compatibilidad con los SQL anteriores, pero la fuente canónica para Personal es `personas`.
 
-- `profiles` + Supabase Auth mantienen identidad, credenciales, rol y datos personales comunes.
-- `promoters` conserva la información operativa/comercial específica cuando la persona tiene rol `promotor`.
-- `promoters.user_id` vincula la ficha comercial con la identidad Auth.
+El SQL `005` renombra la antigua tabla `promoters` a `personas` y agrega automáticamente a los Admin/Supervisor existentes para evitar pérdida de datos.
 
 Crear o editar una persona se realiza desde un modal único. La contraseña actual nunca se puede consultar; solo puede ser reemplazada.
 
 ## Módulos operativos iniciales
 
-- Personal: CRUD unificado de personas y credenciales.
+- Personal: CRUD unificado sobre `personas` y credenciales Auth.
 - Tiendas: listado y creación según permiso.
 - Los demás módulos ya tienen permisos definidos y se implementarán sobre esta misma base.
 
