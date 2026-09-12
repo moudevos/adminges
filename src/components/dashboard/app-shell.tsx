@@ -17,7 +17,6 @@ import {
   faRightFromBracket,
   faShop,
   faUser,
-  faUsers,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Link from "next/link";
@@ -26,19 +25,12 @@ import { useEffect, useMemo, useState } from "react";
 import { signOut } from "@/app/dashboard/actions";
 import { PERMISSIONS, type PermissionKey } from "@/lib/auth/permissions";
 
-type ChildItem = {
-  label: string;
-  href: string;
-  view: string;
-};
-
 type NavigationItem = {
   key: string;
   label: string;
   icon: IconDefinition;
   href: string;
-  permission?: PermissionKey;
-  children?: ChildItem[];
+  permissions?: readonly PermissionKey[];
 };
 
 type NavigationGroup = {
@@ -49,7 +41,7 @@ type NavigationGroup = {
 type AppShellProps = {
   email: string;
   fullName: string;
-  role: "admin" | "supervisor";
+  role: "admin" | "supervisor" | "promotor";
   activeModule: string;
   activeView?: string;
   permissions: string[];
@@ -60,33 +52,24 @@ type AppShellProps = {
 const navigation: NavigationGroup[] = [
   {
     label: "Principal",
-    items: [
-      { key: "resumen", label: "Resumen", icon: faChartLine, href: "/dashboard" },
-    ],
+    items: [{ key: "resumen", label: "Resumen", icon: faChartLine, href: "/dashboard" }],
   },
   {
     label: "Administración",
     items: [
       {
-        key: "usuarios",
-        label: "Usuarios",
-        icon: faUsers,
-        href: "/dashboard?module=usuarios",
-        permission: PERMISSIONS.usersRead,
-        children: [
-          { label: "Directorio", view: "directorio", href: "/dashboard?module=usuarios&view=directorio" },
-        ],
+        key: "personal",
+        label: "Personal",
+        icon: faPeopleGroup,
+        href: "/dashboard?module=personal&view=promotores",
+        permissions: [PERMISSIONS.promotersRead, PERMISSIONS.usersRead],
       },
       {
         key: "tiendas",
         label: "Tiendas",
         icon: faShop,
         href: "/dashboard?module=tiendas",
-        permission: PERMISSIONS.storesRead,
-        children: [
-          { label: "Vista general", view: "general", href: "/dashboard?module=tiendas&view=general" },
-          { label: "Asignaciones", view: "asignaciones", href: "/dashboard?module=tiendas&view=asignaciones" },
-        ],
+        permissions: [PERMISSIONS.storesRead],
       },
     ],
   },
@@ -98,22 +81,14 @@ const navigation: NavigationGroup[] = [
         label: "Inventario",
         icon: faBoxesStacked,
         href: "/dashboard?module=inventario",
-        permission: PERMISSIONS.inventoryRead,
-        children: [
-          { label: "Stock actual", view: "stock", href: "/dashboard?module=inventario&view=stock" },
-          { label: "Movimientos", view: "movimientos", href: "/dashboard?module=inventario&view=movimientos" },
-        ],
+        permissions: [PERMISSIONS.inventoryRead],
       },
       {
         key: "ventas",
         label: "Ventas",
         icon: faReceipt,
         href: "/dashboard?module=ventas",
-        permission: PERMISSIONS.salesRead,
-        children: [
-          { label: "Registro", view: "registro", href: "/dashboard?module=ventas&view=registro" },
-          { label: "Historial", view: "historial", href: "/dashboard?module=ventas&view=historial" },
-        ],
+        permissions: [PERMISSIONS.salesRead],
       },
     ],
   },
@@ -121,37 +96,18 @@ const navigation: NavigationGroup[] = [
     label: "Gestión comercial",
     items: [
       {
-        key: "promotores",
-        label: "Promotores",
-        icon: faPeopleGroup,
-        href: "/dashboard?module=promotores",
-        permission: PERMISSIONS.promotersRead,
-        children: [
-          { label: "Directorio", view: "directorio", href: "/dashboard?module=promotores&view=directorio" },
-          { label: "Rendimiento", view: "rendimiento", href: "/dashboard?module=promotores&view=rendimiento" },
-        ],
-      },
-      {
         key: "horarios",
         label: "Horarios",
         icon: faClock,
         href: "/dashboard?module=horarios",
-        permission: PERMISSIONS.schedulesRead,
-        children: [
-          { label: "Programación", view: "programacion", href: "/dashboard?module=horarios&view=programacion" },
-          { label: "Seguimiento", view: "seguimiento", href: "/dashboard?module=horarios&view=seguimiento" },
-        ],
+        permissions: [PERMISSIONS.schedulesRead],
       },
       {
         key: "cuotas",
         label: "Cuotas",
         icon: faBullseye,
         href: "/dashboard?module=cuotas",
-        permission: PERMISSIONS.quotasRead,
-        children: [
-          { label: "Mensuales", view: "mensuales", href: "/dashboard?module=cuotas&view=mensuales" },
-          { label: "Diarias", view: "diarias", href: "/dashboard?module=cuotas&view=diarias" },
-        ],
+        permissions: [PERMISSIONS.quotasRead],
       },
     ],
   },
@@ -163,12 +119,7 @@ const navigation: NavigationGroup[] = [
         label: "Análisis",
         icon: faChartLine,
         href: "/dashboard?module=analisis",
-        permission: PERMISSIONS.analyticsRead,
-        children: [
-          { label: "Ventas", view: "ventas", href: "/dashboard?module=analisis&view=ventas" },
-          { label: "Inventario", view: "inventario", href: "/dashboard?module=analisis&view=inventario" },
-          { label: "KPIs", view: "kpis", href: "/dashboard?module=analisis&view=kpis" },
-        ],
+        permissions: [PERMISSIONS.analyticsRead],
       },
     ],
   },
@@ -176,32 +127,18 @@ const navigation: NavigationGroup[] = [
 
 const moduleTitles: Record<string, string> = {
   resumen: "Resumen",
-  usuarios: "Usuarios",
+  personal: "Personal",
   tiendas: "Tiendas",
   inventario: "Inventario",
   ventas: "Ventas",
-  promotores: "Promotores",
   horarios: "Horarios",
   cuotas: "Cuotas",
   analisis: "Análisis",
 };
 
 const viewLabels: Record<string, string> = {
-  general: "Vista general",
-  asignaciones: "Asignaciones",
-  stock: "Stock actual",
-  movimientos: "Movimientos",
-  registro: "Registro",
-  historial: "Historial",
-  directorio: "Directorio",
-  rendimiento: "Rendimiento",
-  programacion: "Programación",
-  seguimiento: "Seguimiento",
-  mensuales: "Mensuales",
-  diarias: "Diarias",
-  ventas: "Ventas",
-  inventario: "Inventario",
-  kpis: "KPIs",
+  promotores: "Promotores",
+  usuarios: "Usuarios internos",
 };
 
 function initials(name: string, email: string) {
@@ -227,7 +164,6 @@ export function AppShell({
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({ [activeModule]: true });
 
   useEffect(() => {
     const saved = window.localStorage.getItem("adminges.sidebar.collapsed");
@@ -235,7 +171,6 @@ export function AppShell({
   }, []);
 
   useEffect(() => {
-    setExpanded((current) => ({ ...current, [activeModule]: true }));
     setMobileOpen(false);
   }, [activeModule, activeView]);
 
@@ -244,7 +179,11 @@ export function AppShell({
       navigation
         .map((group) => ({
           ...group,
-          items: group.items.filter((item) => !item.permission || permissions.includes(item.permission)),
+          items: group.items.filter(
+            (item) =>
+              !item.permissions ||
+              item.permissions.some((permission) => permissions.includes(permission)),
+          ),
         }))
         .filter((group) => group.items.length > 0),
     [permissions],
@@ -253,7 +192,8 @@ export function AppShell({
   const currentTitle = moduleTitles[activeModule] ?? "Resumen";
   const currentView = activeView ? viewLabels[activeView] : undefined;
   const avatar = initials(fullName, email);
-  const roleLabel = role === "admin" ? "Administrador" : "Supervisor";
+  const roleLabel =
+    role === "admin" ? "Administrador" : role === "supervisor" ? "Supervisor" : "Promotor";
 
   function toggleSidebar() {
     setCollapsed((value) => {
@@ -271,7 +211,9 @@ export function AppShell({
     >
       <div className="flex h-16 items-center border-b border-slate-800 px-4">
         <Link href="/dashboard" className="flex min-w-0 items-center gap-3 overflow-hidden">
-          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-sm font-black text-slate-950">A</div>
+          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-sm font-black text-slate-950">
+            A
+          </div>
           {!collapsed && (
             <div className="min-w-0">
               <div className="truncate text-sm font-bold tracking-[0.18em] text-white">ADMINGES</div>
@@ -285,63 +227,30 @@ export function AppShell({
         {visibleNavigation.map((group) => (
           <div key={group.label} className="mb-6 last:mb-0">
             {!collapsed && (
-              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">{group.label}</p>
+              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">
+                {group.label}
+              </p>
             )}
 
             <div className="space-y-1">
               {group.items.map((item) => {
                 const isActive = activeModule === item.key;
-                const isExpanded = expanded[item.key] ?? false;
-
                 return (
-                  <div key={item.key}>
-                    <div
-                      className={`group flex items-center rounded-xl transition-colors ${
-                        isActive ? "bg-white text-slate-950" : "text-slate-400 hover:bg-slate-900 hover:text-white"
-                      }`}
-                    >
-                      <Link
-                        href={item.href}
-                        title={collapsed ? item.label : undefined}
-                        className={`flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 ${collapsed ? "justify-center" : ""}`}
-                      >
-                        <FontAwesomeIcon icon={item.icon} className="w-4 shrink-0" />
-                        {!collapsed && <span className="truncate text-sm font-medium">{item.label}</span>}
-                      </Link>
-
-                      {!collapsed && item.children && (
-                        <button
-                          type="button"
-                          onClick={() => setExpanded((current) => ({ ...current, [item.key]: !isExpanded }))}
-                          className="mr-1 grid size-8 place-items-center rounded-lg text-xs opacity-70 hover:bg-black/5"
-                          aria-label={`${isExpanded ? "Contraer" : "Desplegar"} ${item.label}`}
-                        >
-                          <FontAwesomeIcon icon={isExpanded ? faChevronDown : faChevronRight} />
-                        </button>
-                      )}
-                    </div>
-
-                    {!collapsed && item.children && isExpanded && (
-                      <div className="relative ml-5 mt-1 space-y-1 border-l border-slate-800 pl-4">
-                        {item.children.map((child) => {
-                          const childActive = isActive && activeView === child.view;
-                          return (
-                            <Link
-                              key={child.view}
-                              href={child.href}
-                              className={`block rounded-lg px-3 py-2 text-xs transition-colors ${
-                                childActive
-                                  ? "bg-slate-900 font-medium text-white"
-                                  : "text-slate-500 hover:bg-slate-900/70 hover:text-slate-300"
-                              }`}
-                            >
-                              {child.label}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    title={collapsed ? item.label : undefined}
+                    className={`flex min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${
+                      collapsed ? "justify-center" : ""
+                    } ${
+                      isActive
+                        ? "bg-white text-slate-950"
+                        : "text-slate-400 hover:bg-slate-900 hover:text-white"
+                    }`}
+                  >
+                    <FontAwesomeIcon icon={item.icon} className="w-4 shrink-0" />
+                    {!collapsed && <span className="truncate text-sm font-medium">{item.label}</span>}
+                  </Link>
                 );
               })}
             </div>
@@ -393,9 +302,16 @@ export function AppShell({
             <div className="min-w-0">
               <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400">
                 <span>AdminGes</span>
-                {currentView && <><span>/</span><span>{currentView}</span></>}
+                {currentView && (
+                  <>
+                    <span>/</span>
+                    <span>{currentView}</span>
+                  </>
+                )}
               </div>
-              <h1 className="truncate text-base font-semibold text-slate-950 md:text-lg">{currentTitle}</h1>
+              <h1 className="truncate text-base font-semibold text-slate-950 md:text-lg">
+                {currentTitle}
+              </h1>
             </div>
           </div>
 
@@ -416,25 +332,40 @@ export function AppShell({
                 className="flex items-center gap-2 rounded-xl border border-transparent p-1.5 pr-2 text-left hover:border-slate-200 hover:bg-slate-50"
                 aria-expanded={userOpen}
               >
-                <div className="grid size-8 place-items-center rounded-lg bg-slate-950 text-xs font-semibold text-white">{avatar}</div>
+                <div className="grid size-8 place-items-center rounded-lg bg-slate-950 text-xs font-semibold text-white">
+                  {avatar}
+                </div>
                 <div className="hidden min-w-0 sm:block">
-                  <div className="max-w-40 truncate text-xs font-semibold text-slate-900">{fullName || email}</div>
+                  <div className="max-w-40 truncate text-xs font-semibold text-slate-900">
+                    {fullName || email}
+                  </div>
                   <div className="text-[10px] text-slate-500">{roleLabel}</div>
                 </div>
-                <FontAwesomeIcon icon={faChevronDown} className="hidden text-[10px] text-slate-400 sm:block" />
+                <FontAwesomeIcon
+                  icon={faChevronDown}
+                  className="hidden text-[10px] text-slate-400 sm:block"
+                />
               </button>
 
               {userOpen && (
                 <div className="absolute right-0 top-[calc(100%+8px)] w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-200/60">
                   <div className="border-b border-slate-100 px-3 py-2.5">
-                    <p className="truncate text-sm font-semibold text-slate-950">{fullName || "Usuario"}</p>
+                    <p className="truncate text-sm font-semibold text-slate-950">
+                      {fullName || "Usuario"}
+                    </p>
                     <p className="mt-0.5 truncate text-xs text-slate-500">{email}</p>
                   </div>
-                  <button type="button" className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50">
+                  <button
+                    type="button"
+                    className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50"
+                  >
                     <FontAwesomeIcon icon={faUser} className="w-4" />
                     Mi perfil
                   </button>
-                  <button type="button" className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50">
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50"
+                  >
                     <FontAwesomeIcon icon={faGear} className="w-4" />
                     Preferencias
                   </button>
@@ -453,7 +384,9 @@ export function AppShell({
         <main className="p-4 md:p-6 lg:p-8">
           <div className="mx-auto max-w-[1500px]">
             {notice && (
-              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{notice}</div>
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {notice}
+              </div>
             )}
             {children}
           </div>
