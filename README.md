@@ -36,7 +36,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY` se usa únicamente en el servidor para operaciones administrativas de Supabase Auth, como crear usuarios. Nunca debe llevar prefijo `NEXT_PUBLIC_`, mostrarse en el navegador ni subirse al repositorio.
+`SUPABASE_SERVICE_ROLE_KEY` se usa únicamente en el servidor para operaciones administrativas de Supabase Auth. Nunca debe llevar prefijo `NEXT_PUBLIC_`, mostrarse en el navegador ni subirse al repositorio.
 
 ## SQL de Supabase
 
@@ -47,6 +47,7 @@ Ejecutar siempre en orden:
 1. `sql/001_implementacion_auth_perfiles.sql`
 2. `sql/002_rbac_tiendas_promotores.sql`
 3. `sql/003_personal_promotor_auth.sql`
+4. `sql/004_datos_personales_comunes.sql`
 
 Para comprobar los scripts aplicados:
 
@@ -69,28 +70,36 @@ La seguridad usa varias capas:
 5. Las Server Actions vuelven a validar el permiso antes de escribir.
 6. Row Level Security limita el acceso directamente en PostgreSQL.
 7. Los supervisores solo acceden a tiendas asignadas mediante `store_supervisors`.
-8. Los promotores con login solo acceden a la tienda asociada a su ficha.
+8. Los promotores solo acceden a la tienda asociada a su ficha.
 
 Ocultar un módulo en el sidebar no concede ni revoca acceso por sí mismo; la protección real está en servidor y RLS.
 
 ## Personal
 
-Usuarios y promotores comparten una sola vista de administración, pero permanecen separados en el modelo de datos:
+La interfaz trabaja con una sola entidad visible: **Persona**.
 
-- `profiles` + Supabase Auth: identidades con acceso al sistema.
-- `promoters`: entidad comercial del promotor.
-- `promoters.user_id`: vínculo opcional entre un promotor y su cuenta Auth.
+Datos comunes para cualquier rol:
 
-Al crear un promotor se puede elegir entre:
+- nombres y apellidos
+- documento
+- teléfono
+- correo/usuario
+- contraseña de acceso
+- rol
+- estado
+- tienda cuando el rol la requiere
 
-- Promotor sin acceso al sistema.
-- Promotor con cuenta Auth de rol `promotor`.
+En base de datos:
 
-Los usuarios internos (`admin` y `supervisor`) se administran desde la misma vista **Personal**, en una pestaña separada.
+- `profiles` + Supabase Auth mantienen identidad, credenciales, rol y datos personales comunes.
+- `promoters` conserva la información operativa/comercial específica cuando la persona tiene rol `promotor`.
+- `promoters.user_id` vincula la ficha comercial con la identidad Auth.
+
+Crear o editar una persona se realiza desde un modal único. La contraseña actual nunca se puede consultar; solo puede ser reemplazada.
 
 ## Módulos operativos iniciales
 
-- Personal: promotores y usuarios internos.
+- Personal: CRUD unificado de personas y credenciales.
 - Tiendas: listado y creación según permiso.
 - Los demás módulos ya tienen permisos definidos y se implementarán sobre esta misma base.
 
