@@ -52,6 +52,9 @@ Ejecutar siempre en orden:
 6. `sql/006_estructura_organizacional_alcance.sql`
 7. `sql/007_seguridad_sesiones_rate_limit.sql`
 8. `sql/008_endurecimiento_sesion.sql`
+9. `sql/009_sesion_auth_rls_restrictivo.sql`
+10. `sql/010_visibilidad_territorial.sql`
+11. `sql/011_endurecimiento_catalogos.sql`
 
 Los nombres históricos de los SQL anteriores no se cambian porque los scripts aplicados son inmutables.
 
@@ -110,7 +113,7 @@ La función `public.can_access_store(store_id)` centraliza el alcance. Ventas, i
 
 La seguridad usa varias capas:
 
-1. Supabase Auth valida la sesión.
+1. Supabase Auth valida la identidad.
 2. `profiles.role` mantiene el rol de autorización.
 3. `role_permissions` define permisos por rol.
 4. `user_permissions` permite overrides individuales.
@@ -118,12 +121,14 @@ La seguridad usa varias capas:
 6. Row Level Security limita los datos directamente en PostgreSQL.
 7. `can_access_store()` limita el alcance territorial.
 8. `app_sessions` permite revocar una sesión dentro de AdminGes.
+9. `is_current_app_session_active()` exige que el `session_id` siga existiendo en `auth.sessions` y no esté revocado en AdminGes.
+10. Políticas RLS restrictivas bloquean tablas sensibles aunque un JWT antiguo todavía no haya alcanzado su `exp`.
 
 Ocultar un módulo en el sidebar no concede ni revoca acceso. La protección efectiva está en servidor y PostgreSQL.
 
 ## Sesiones renovables y revocables
 
-El Proxy de Next.js usa `supabase.auth.getClaims()` para verificar el JWT y permitir que `@supabase/ssr` renueve access/refresh tokens mediante cookies.
+El Proxy de Next.js usa `supabase.auth.getClaims()` para verificar el JWT. Con `@supabase/ssr`, cuando la sesión requiere renovación, los nuevos access/refresh tokens se escriben de vuelta en las cookies junto con los encabezados anti-cache requeridos.
 
 Cada sesión se registra en `public.app_sessions` usando el `session_id` del JWT. Se guarda:
 
@@ -134,11 +139,23 @@ Cada sesión se registra en `public.app_sessions` usando el `session_id` del JWT
 - último uso
 - fecha y motivo de revocación
 
-Una sesión marcada como revocada deja de obtener permisos y alcance inmediatamente en AdminGes, aunque un access token emitido anteriormente todavía no haya alcanzado su `exp`.
+Una sesión marcada como revocada deja de obtener permisos y alcance inmediatamente en AdminGes. Además, el SQL `009` verifica que el `session_id` siga existiendo en `auth.sessions`, por lo que un cierre realizado desde Supabase también invalida el acceso de aplicación.
 
 El menú **Seguridad** permite consultar y revocar sesiones cuando el rol tiene `sessions.read` / `sessions.revoke`.
 
-El cierre de sesión normal usa scope `local`, por lo que cierra el dispositivo/sesión actual sin forzar el cierre de otros dispositivos.
+El cierre de sesión normal usa scope `local`, por lo que cierra el dispositivo/sesión actual sin cerrar automáticamente otros dispositivos.
+
+### Configuración recomendada en Supabase Auth
+
+La aplicación ya renueva sesiones automáticamente. Para el proyecto recomendamos mantener el JWT en un intervalo razonable; Supabase recomienda normalmente **1 hora** y desaconseja valores inferiores a 5 minutos.
+
+En planes que soportan controles avanzados de sesión, puedes configurar en **Authentication > Sessions**:
+
+- duración máxima de sesión
+- timeout por inactividad
+- sesión única por usuario
+
+No habilitamos sesión única por defecto porque AdminGes permite administrar/revocar sesiones por dispositivo.
 
 ## Rate limit de login
 
@@ -153,7 +170,16 @@ AdminGes aplica un límite adicional al nativo de Supabase:
 
 Los intentos se registran en `login_attempts` y se conservan 90 días. Los mensajes de error no confirman si una cuenta existe.
 
-Supabase Auth mantiene además sus propios límites sobre `/auth/v1/token`; ambos controles son complementarios.
+Supabase Auth mantiene además sus propios límites. Como el login de AdminGes se ejecuta del lado servidor, si se desea que **el rate limit nativo de Supabase** también utilice la IP final del usuario, hay que habilitar **Authentication > Rate Limits > IP Address Forwarding** y realizar la petición con una clave `sb_secret` enviando `Sb-Forwarded-For`. El rate limit propio de AdminGes ya usa la IP reenviada por Vercel/Proxy y no depende de esa configuración.
+
+## Pantallas de carga
+
+El Dashboard incluye:
+
+- `dashboard/loading.tsx` para cargas del segmento de Next.js.
+- overlay global durante cambios de módulo/vista.
+- estado `Procesando...` en acciones de formularios.
+- estado `Validando acceso...` durante login.
 
 ## Módulos operativos iniciales
 
