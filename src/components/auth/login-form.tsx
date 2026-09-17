@@ -8,7 +8,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import Swal from "sweetalert2";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/client";
+import { loginWithPassword } from "@/app/login/actions";
 
 const loginSchema = z.object({
   email: z.string().email("Ingresa un correo válido"),
@@ -32,14 +32,13 @@ export function LoginForm() {
   });
 
   const onSubmit = handleSubmit(async ({ email, password }) => {
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const result = await loginWithPassword(email, password);
 
-    if (error) {
+    if (!result.ok) {
       await Swal.fire({
         icon: "error",
         title: "No se pudo iniciar sesión",
-        text: "Verifica tus credenciales e inténtalo nuevamente.",
+        text: result.message ?? "Verifica tus credenciales e inténtalo nuevamente.",
         confirmButtonText: "Aceptar",
       });
       return;
@@ -47,7 +46,6 @@ export function LoginForm() {
 
     const next = searchParams.get("next");
     const destination = next?.startsWith("/") ? next : "/dashboard";
-
     router.replace(destination);
     router.refresh();
   });
@@ -100,7 +98,7 @@ export function LoginForm() {
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <FontAwesomeIcon icon={faArrowRightToBracket} />
-        {isSubmitting ? "Ingresando..." : "Ingresar"}
+        {isSubmitting ? "Validando acceso..." : "Ingresar"}
       </button>
     </form>
   );
