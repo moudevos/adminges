@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { contextHasPermission, getAuthorizationContext } from "@/lib/auth/server";
+import {
+  contextHasPermission,
+  getAuthorizationContext,
+  type AppRole,
+} from "@/lib/auth/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type PersonActionState = {
@@ -11,7 +15,8 @@ export type PersonActionState = {
   message: string;
 };
 
-type Role = "admin" | "supervisor" | "promotor";
+type ScopeType = "global" | "zone" | "cluster" | "stores" | "store";
+type AdminClient = ReturnType<typeof createAdminClient>;
 
 const optionalText = (max: number) =>
   z.preprocess(
@@ -33,8 +38,11 @@ const personSchema = z.object({
   first_name: z.string().trim().min(2, "Ingresa los nombres.").max(80),
   last_name: z.string().trim().min(1, "Ingresa los apellidos.").max(80),
   email: z.string().trim().email("Correo inválido.").max(160),
-  role: z.enum(["admin", "supervisor", "promotor"]),
-  store_id: optionalUuid,
+  role: z.enum(["admin", "zonal", "supervisor", "promotor"]),
+  puesto_id: z.string().uuid("Selecciona un puesto válido."),
+  scope_type: z.enum(["global", "zone", "cluster", "stores", "store"]),
+  zone_id: optionalUuid,
+  cluster_id: optionalUuid,
   document: optionalText(30),
   phone: optionalText(30),
 });
@@ -44,7 +52,7 @@ const createSchema = personSchema.extend({
 });
 
 const updateSchema = personSchema.extend({
-  persona_id: z.string().uuid("Persona inválida."),
+  persona_id: z.string().uuid(),
   user_id: optionalUuid,
   new_password: optionalPassword,
   is_active: z.enum(["true", "false"]),
@@ -54,50 +62,162 @@ function validationMessage(error: z.ZodError) {
   return error.issues[0]?.message ?? "Revisa los datos ingresados.";
 }
 
-function permissionForCreate(role: Role) {
-  return role === "promotor" ? PERMISSIONS.promotersCreate : PERMISSIONS.usersCreate;
+function parseStoreIds(formData: FormData) {
+  return formData
+    .getAll("store_ids")
+    .map((value) => String(value).trim())
+    .filter(Boolean);
 }
 
-function permissionForUpdate(role: Role) {
-  return role === "promotor" ? PERMISSIONS.promotersUpdate : PERMISSIONS.usersUpdate;
+function canManageRole(actorRole: AppRole, targetRole: AppRole) {
+  if (actorRole === "admin") return true;
+  if (actorRole === "zonal") return targetRole === "supervisor" || targetRole === "promotor";
+  if (actorRole === "supervisor") return targetRole === "promotor";
+  return false;
 }
 
-async function canUseStore(
+function expectedScope(role: AppRole, scope: ScopeType) {
+  if (role === "admin") return scope === "global";
+  if (role === "zonal") return scope === "zone";
+  if (role === "supervisor") return scope === "cluster" || scope === "stores";
+  return scope === "store";
+}
+
+async function validatePosition(
   context: NonNullable<Awaited<ReturnType<typeof getAuthorizationContext>>>,
-  storeId: string,
+  puestoId: string,
+  targetRole: AppRole,
 ) {
   const { data } = await context.supabase
-    .from("stores")
-    .select("id")
-    .eq("id", storeId)
+    .from("puestos")
+    .select("id, code")
+    .eq("id", puestoId)
     .eq("is_active", true)
     .maybeSingle();
 
-  return Boolean(data);
+  if (!data) return false;
+  if (context.profile.role === "admin") return true;
+
+  const expectedCode = targetRole === "promotor" ? "promotor" : "supervisor";
+  return data.code === expectedCode;
 }
 
-function dbErrorMessage(error: { code?: string; message?: string } | null) {
-  if (error?.code === "23505") return "Ya existe otra persona con ese documento, correo o usuario.";
-  return error?.message ?? "No se pudo guardar la persona.";
-}
-
-async function syncSupervisorStore(
-  admin: ReturnType<typeof createAdminClient>,
-  userId: string,
-  role: Role,
-  storeId: string | undefined,
-  active: boolean,
+async function validateTerritorialScope(
+  context: NonNullable<Awaited<ReturnType<typeof getAuthorizationContext>>>,
+  role: AppRole,
+  scopeType: ScopeType,
+  zoneId: string | undefined,
+  clusterId: string | undefined,
+  storeIds: string[],
 ) {
-  await admin.from("store_supervisors").update({ is_active: false }).eq("user_id", userId);
+  if (!expectedScope(role, scopeType)) {
+    return "El tipo de alcance no corresponde al rol seleccionado.";
+  }
 
-  if (role !== "supervisor" || !storeId) return null;
+  if (role === "admin") return null;
 
-  const { error } = await admin.from("store_supervisors").upsert(
-    { store_id: storeId, user_id: userId, is_active: active },
-    { onConflict: "store_id,user_id" },
-  );
+  if (role === "zonal") {
+    if (!zoneId) return "Selecciona una zona para el Zonal.";
+    const { data } = await context.supabase
+      .from("zones")
+      .select("id")
+      .eq("id", zoneId)
+      .eq("is_active", true)
+      .maybeSingle();
+    return data ? null : "No tienes acceso a la zona seleccionada.";
+  }
 
-  return error;
+  if (scopeType === "cluster") {
+    if (!clusterId) return "Selecciona un cluster para el Supervisor.";
+    const { data } = await context.supabase
+      .from("clusters")
+      .select("id")
+      .eq("id", clusterId)
+      .eq("is_active", true)
+      .maybeSingle();
+    return data ? null : "No tienes acceso al cluster seleccionado.";
+  }
+
+  const requiredStores = role === "promotor" ? 1 : 1;
+  if (storeIds.length < requiredStores) return "Selecciona al menos una tienda.";
+  if (role === "promotor" && storeIds.length !== 1) {
+    return "Un Promotor debe tener una tienda directa en esta etapa.";
+  }
+
+  const { data } = await context.supabase
+    .from("stores")
+    .select("id")
+    .in("id", storeIds)
+    .eq("is_active", true);
+
+  return (data?.length ?? 0) === new Set(storeIds).size
+    ? null
+    : "Una o más tiendas están fuera de tu alcance.";
+}
+
+async function clearScope(admin: AdminClient, personaId: string) {
+  const results = await Promise.all([
+    admin.from("persona_zones").delete().eq("persona_id", personaId),
+    admin.from("persona_clusters").delete().eq("persona_id", personaId),
+    admin.from("persona_stores").delete().eq("persona_id", personaId),
+  ]);
+
+  return results.find((result) => result.error)?.error ?? null;
+}
+
+async function syncScope(
+  admin: AdminClient,
+  personaId: string,
+  role: AppRole,
+  scopeType: ScopeType,
+  zoneId: string | undefined,
+  clusterId: string | undefined,
+  storeIds: string[],
+  actorUserId: string,
+) {
+  const clearError = await clearScope(admin, personaId);
+  if (clearError) return clearError;
+
+  if (role === "admin") return null;
+
+  if (role === "zonal" && zoneId) {
+    const { error } = await admin.from("persona_zones").insert({
+      persona_id: personaId,
+      zone_id: zoneId,
+      is_active: true,
+      created_by: actorUserId,
+    });
+    return error;
+  }
+
+  if (scopeType === "cluster" && clusterId) {
+    const { error } = await admin.from("persona_clusters").insert({
+      persona_id: personaId,
+      cluster_id: clusterId,
+      is_active: true,
+      created_by: actorUserId,
+    });
+    return error;
+  }
+
+  if (storeIds.length > 0) {
+    const { error } = await admin.from("persona_stores").insert(
+      storeIds.map((storeId) => ({
+        persona_id: personaId,
+        store_id: storeId,
+        is_active: true,
+        created_by: actorUserId,
+      })),
+    );
+    return error;
+  }
+
+  return null;
+}
+
+function dbMessage(error: { code?: string; message?: string } | null) {
+  if (error?.code === "23505") return "Ya existe una persona con ese documento, correo o vínculo.";
+  return error?.message ?? "No se pudo guardar la persona.";
 }
 
 export async function createPersonUnified(
@@ -106,53 +226,62 @@ export async function createPersonUnified(
 ): Promise<PersonActionState> {
   const context = await getAuthorizationContext();
   if (!context) return { ok: false, message: "Sesión inválida o usuario desactivado." };
+  if (!contextHasPermission(context, PERMISSIONS.peopleCreate)) {
+    return { ok: false, message: "No tienes permiso para crear personas." };
+  }
 
   const parsed = createSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, message: validationMessage(parsed.error) };
 
+  const storeIds = parseStoreIds(formData);
   const {
     first_name,
     last_name,
     email,
     role,
-    store_id,
+    puesto_id,
+    scope_type,
+    zone_id,
+    cluster_id,
     document,
     phone,
     initial_password,
   } = parsed.data;
 
-  if (!contextHasPermission(context, permissionForCreate(role))) {
-    return { ok: false, message: "No tienes permiso para crear una persona con ese rol." };
+  if (!canManageRole(context.profile.role, role)) {
+    return { ok: false, message: "No puedes crear una persona con ese nivel de acceso." };
   }
 
-  if (role === "admin" && context.profile.role !== "admin") {
-    return { ok: false, message: "Solo un administrador puede crear otro administrador." };
+  if (!(await validatePosition(context, puesto_id, role))) {
+    return { ok: false, message: "El puesto seleccionado no está permitido para esta operación." };
   }
 
-  if ((role === "supervisor" || role === "promotor") && !store_id) {
-    return { ok: false, message: "Selecciona una tienda para esta persona." };
-  }
-
-  if (store_id && !(await canUseStore(context, store_id))) {
-    return { ok: false, message: "No tienes acceso a la tienda seleccionada." };
-  }
+  const scopeError = await validateTerritorialScope(
+    context,
+    role,
+    scope_type,
+    zone_id,
+    cluster_id,
+    storeIds,
+  );
+  if (scopeError) return { ok: false, message: scopeError };
 
   const fullName = `${first_name} ${last_name}`.trim();
   const normalizedEmail = email.toLowerCase();
   const admin = createAdminClient();
 
-  const { data, error } = await admin.auth.admin.createUser({
+  const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email: normalizedEmail,
     password: initial_password,
     email_confirm: true,
     user_metadata: { full_name: fullName },
   });
 
-  if (error || !data.user) {
-    return { ok: false, message: error?.message ?? "No se pudo crear la cuenta de acceso." };
+  if (authError || !authData.user) {
+    return { ok: false, message: authError?.message ?? "No se pudo crear la cuenta de acceso." };
   }
 
-  const userId = data.user.id;
+  const userId = authData.user.id;
 
   const { error: profileError } = await admin
     .from("profiles")
@@ -168,35 +297,52 @@ export async function createPersonUnified(
 
   if (profileError) {
     await admin.auth.admin.deleteUser(userId);
-    return { ok: false, message: dbErrorMessage(profileError) };
+    return { ok: false, message: dbMessage(profileError) };
   }
 
-  const assignmentError = await syncSupervisorStore(admin, userId, role, store_id, true);
-  if (assignmentError) {
+  const legacyStoreId = scope_type === "store" || scope_type === "stores" ? storeIds[0] ?? null : null;
+  const { data: persona, error: personaError } = await admin
+    .from("personas")
+    .insert({
+      user_id: userId,
+      puesto_id,
+      store_id: legacyStoreId,
+      first_name,
+      last_name,
+      document: document ?? null,
+      phone: phone ?? null,
+      email: normalizedEmail,
+      role,
+      is_active: true,
+      created_by: context.user.id,
+    })
+    .select("id")
+    .single();
+
+  if (personaError || !persona) {
     await admin.auth.admin.deleteUser(userId);
-    return { ok: false, message: "No se pudo asignar la tienda al supervisor." };
+    return { ok: false, message: dbMessage(personaError) };
   }
 
-  const { error: personError } = await admin.from("personas").insert({
-    user_id: userId,
-    store_id: role === "admin" ? null : (store_id ?? null),
-    first_name,
-    last_name,
-    document: document ?? null,
-    phone: phone ?? null,
-    email: normalizedEmail,
+  const assignmentError = await syncScope(
+    admin,
+    persona.id,
     role,
-    is_active: true,
-    created_by: context.user.id,
-  });
+    scope_type,
+    zone_id,
+    cluster_id,
+    storeIds,
+    context.user.id,
+  );
 
-  if (personError) {
+  if (assignmentError) {
+    await admin.from("personas").delete().eq("id", persona.id);
     await admin.auth.admin.deleteUser(userId);
-    return { ok: false, message: dbErrorMessage(personError) };
+    return { ok: false, message: "No se pudo guardar el alcance territorial." };
   }
 
   revalidatePath("/dashboard");
-  return { ok: true, message: "Persona, usuario y rol creados correctamente." };
+  return { ok: true, message: "Persona, cuenta, puesto, rol y alcance creados correctamente." };
 }
 
 export async function updatePersonUnified(
@@ -205,10 +351,14 @@ export async function updatePersonUnified(
 ): Promise<PersonActionState> {
   const context = await getAuthorizationContext();
   if (!context) return { ok: false, message: "Sesión inválida o usuario desactivado." };
+  if (!contextHasPermission(context, PERMISSIONS.peopleUpdate)) {
+    return { ok: false, message: "No tienes permiso para actualizar personas." };
+  }
 
   const parsed = updateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, message: validationMessage(parsed.error) };
 
+  const storeIds = parseStoreIds(formData);
   const {
     persona_id,
     user_id,
@@ -216,7 +366,10 @@ export async function updatePersonUnified(
     last_name,
     email,
     role,
-    store_id,
+    puesto_id,
+    scope_type,
+    zone_id,
+    cluster_id,
     document,
     phone,
     new_password,
@@ -224,60 +377,48 @@ export async function updatePersonUnified(
   } = parsed.data;
 
   const admin = createAdminClient();
-  const active = is_active === "true";
-
-  const { data: currentPerson } = await admin
+  const { data: currentPersona } = await admin
     .from("personas")
     .select("id, user_id, role")
     .eq("id", persona_id)
     .maybeSingle();
 
-  if (!currentPerson) return { ok: false, message: "No se encontró la persona." };
+  if (!currentPersona) return { ok: false, message: "No se encontró la persona." };
 
-  const currentRole: Role =
-    currentPerson.role === "admin"
-      ? "admin"
-      : currentPerson.role === "supervisor"
-        ? "supervisor"
-        : "promotor";
-
-  if (!contextHasPermission(context, permissionForUpdate(currentRole))) {
-    return { ok: false, message: "No tienes permiso para editar esta persona." };
+  const currentRole = currentPersona.role as AppRole;
+  if (!canManageRole(context.profile.role, currentRole) || !canManageRole(context.profile.role, role)) {
+    return { ok: false, message: "No puedes modificar esta persona o asignarle ese rol." };
   }
 
-  if (role !== currentRole && !contextHasPermission(context, permissionForUpdate(role))) {
-    return { ok: false, message: "No tienes permiso para asignar el nuevo rol." };
+  if (!(await validatePosition(context, puesto_id, role))) {
+    return { ok: false, message: "El puesto seleccionado no está permitido para esta operación." };
   }
 
-  if (role === "admin" && context.profile.role !== "admin") {
-    return { ok: false, message: "Solo un administrador puede asignar el rol Administrador." };
-  }
+  const scopeError = await validateTerritorialScope(
+    context,
+    role,
+    scope_type,
+    zone_id,
+    cluster_id,
+    storeIds,
+  );
+  if (scopeError) return { ok: false, message: scopeError };
 
-  if ((role === "supervisor" || role === "promotor") && !store_id) {
-    return { ok: false, message: "Selecciona una tienda para esta persona." };
-  }
+  const active = is_active === "true";
+  const fullName = `${first_name} ${last_name}`.trim();
+  const normalizedEmail = email.toLowerCase();
+  let targetUserId = user_id ?? currentPersona.user_id;
 
-  if (store_id && !(await canUseStore(context, store_id))) {
-    return { ok: false, message: "No tienes acceso a la tienda seleccionada." };
-  }
-
-  const currentUserId = currentPerson.user_id ?? user_id;
-
-  if (currentUserId === context.user.id && !active) {
+  if (targetUserId === context.user.id && !active) {
     return { ok: false, message: "No puedes desactivar tu propia cuenta." };
   }
-
-  if (currentUserId === context.user.id && role !== context.profile.role) {
+  if (targetUserId === context.user.id && role !== context.profile.role) {
     return { ok: false, message: "No puedes cambiar tu propio rol desde esta pantalla." };
   }
 
-  const fullName = `${first_name} ${last_name}`.trim();
-  const normalizedEmail = email.toLowerCase();
-  let targetUserId = currentUserId;
-
   if (!targetUserId) {
     if (!new_password) {
-      return { ok: false, message: "Define una contraseña para crear el acceso de esta persona." };
+      return { ok: false, message: "Define una contraseña para crear la cuenta de acceso." };
     }
 
     const { data, error } = await admin.auth.admin.createUser({
@@ -290,16 +431,14 @@ export async function updatePersonUnified(
     if (error || !data.user) {
       return { ok: false, message: error?.message ?? "No se pudo crear la cuenta de acceso." };
     }
-
     targetUserId = data.user.id;
   } else {
-    const { error: authError } = await admin.auth.admin.updateUserById(targetUserId, {
+    const { error } = await admin.auth.admin.updateUserById(targetUserId, {
       email: normalizedEmail,
       ...(new_password ? { password: new_password } : {}),
       user_metadata: { full_name: fullName },
     });
-
-    if (authError) return { ok: false, message: authError.message };
+    if (error) return { ok: false, message: error.message };
   }
 
   const { error: profileError } = await admin
@@ -314,18 +453,15 @@ export async function updatePersonUnified(
     })
     .eq("id", targetUserId);
 
-  if (profileError) return { ok: false, message: dbErrorMessage(profileError) };
+  if (profileError) return { ok: false, message: dbMessage(profileError) };
 
-  const assignmentError = await syncSupervisorStore(admin, targetUserId, role, store_id, active);
-  if (assignmentError) {
-    return { ok: false, message: "La persona se actualizó, pero no se pudo asignar la tienda." };
-  }
-
+  const legacyStoreId = scope_type === "store" || scope_type === "stores" ? storeIds[0] ?? null : null;
   const { error: personError } = await admin
     .from("personas")
     .update({
       user_id: targetUserId,
-      store_id: role === "admin" ? null : (store_id ?? null),
+      puesto_id,
+      store_id: legacyStoreId,
       first_name,
       last_name,
       document: document ?? null,
@@ -336,7 +472,22 @@ export async function updatePersonUnified(
     })
     .eq("id", persona_id);
 
-  if (personError) return { ok: false, message: dbErrorMessage(personError) };
+  if (personError) return { ok: false, message: dbMessage(personError) };
+
+  const assignmentError = await syncScope(
+    admin,
+    persona_id,
+    role,
+    scope_type,
+    zone_id,
+    cluster_id,
+    storeIds,
+    context.user.id,
+  );
+
+  if (assignmentError) {
+    return { ok: false, message: "Los datos se actualizaron, pero el alcance territorial no pudo guardarse." };
+  }
 
   revalidatePath("/dashboard");
   return {
