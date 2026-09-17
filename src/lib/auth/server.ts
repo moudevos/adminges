@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
 
-export type AppRole = "admin" | "supervisor" | "promotor";
+export type AppRole = "admin" | "zonal" | "supervisor" | "promotor";
 
 export type AuthorizationContext = {
   supabase: Awaited<ReturnType<typeof createClient>>;
@@ -41,9 +41,11 @@ export async function getAuthorizationContext(): Promise<AuthorizationContext | 
   const role: AppRole =
     profile.role === "admin"
       ? "admin"
-      : profile.role === "promotor"
-        ? "promotor"
-        : "supervisor";
+      : profile.role === "zonal"
+        ? "zonal"
+        : profile.role === "promotor"
+          ? "promotor"
+          : "supervisor";
 
   return {
     supabase,
