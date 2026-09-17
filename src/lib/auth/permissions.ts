@@ -34,6 +34,7 @@ export const MODULE_PERMISSIONS: Record<string, readonly PermissionKey[] | null>
   personal: [PERMISSIONS.peopleRead],
   tiendas: [PERMISSIONS.storesRead],
   territorio: [PERMISSIONS.territoryRead],
+  seguridad: [PERMISSIONS.sessionsRead],
   inventario: [PERMISSIONS.inventoryRead],
   ventas: [PERMISSIONS.salesRead],
   horarios: [PERMISSIONS.schedulesRead],
