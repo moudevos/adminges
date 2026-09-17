@@ -1,4 +1,7 @@
 export const PERMISSIONS = {
+  peopleRead: "people.read",
+  peopleCreate: "people.create",
+  peopleUpdate: "people.update",
   usersRead: "users.read",
   usersCreate: "users.create",
   usersUpdate: "users.update",
@@ -9,6 +12,10 @@ export const PERMISSIONS = {
   promotersRead: "promoters.read",
   promotersCreate: "promoters.create",
   promotersUpdate: "promoters.update",
+  territoryRead: "territory.read",
+  territoryManage: "territory.manage",
+  sessionsRead: "sessions.read",
+  sessionsRevoke: "sessions.revoke",
   inventoryRead: "inventory.read",
   inventoryManage: "inventory.manage",
   salesRead: "sales.read",
@@ -24,8 +31,9 @@ export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
 export const MODULE_PERMISSIONS: Record<string, readonly PermissionKey[] | null> = {
   resumen: null,
-  personal: [PERMISSIONS.promotersRead, PERMISSIONS.usersRead],
+  personal: [PERMISSIONS.peopleRead],
   tiendas: [PERMISSIONS.storesRead],
+  territorio: [PERMISSIONS.territoryRead],
   inventario: [PERMISSIONS.inventoryRead],
   ventas: [PERMISSIONS.salesRead],
   horarios: [PERMISSIONS.schedulesRead],
