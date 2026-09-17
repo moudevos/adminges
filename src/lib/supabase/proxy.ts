@@ -3,6 +3,28 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PATHS = ["/login", "/auth"];
 
+function clientIp(request: NextRequest) {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
+  return request.headers.get("x-real-ip")?.trim() || "unknown";
+}
+
+function responseWithSessionCookies(
+  response: NextResponse,
+  sessionResponse: NextResponse,
+) {
+  for (const cookie of sessionResponse.cookies.getAll()) {
+    response.cookies.set(cookie);
+  }
+
+  for (const header of ["cache-control", "expires", "pragma"]) {
+    const value = sessionResponse.headers.get(header);
+    if (value) response.headers.set(header, value);
+  }
+
+  return response;
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -15,9 +37,7 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet, headers) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value),
-          );
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
 
           supabaseResponse = NextResponse.next({ request });
 
@@ -33,27 +53,47 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims verifica el JWT y refresca access/refresh tokens cuando corresponde.
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+  const authenticated = !claimsError && Boolean(claimsData?.claims?.sub);
 
   const pathname = request.nextUrl.pathname;
   const isPublicPath = PUBLIC_PATHS.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
 
-  if (!user && !isPublicPath) {
+  if (!authenticated) {
+    if (isPublicPath) return supabaseResponse;
+
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.search = "";
     url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    return responseWithSessionCookies(NextResponse.redirect(url), supabaseResponse);
   }
 
-  if (user && pathname === "/login") {
+  const { data: sessionActive, error: sessionError } = await supabase.rpc(
+    "touch_app_session",
+    {
+      client_ip: clientIp(request),
+      client_user_agent: request.headers.get("user-agent") ?? "",
+    },
+  );
+
+  if (sessionError || sessionActive !== true) {
+    await supabase.auth.signOut({ scope: "local" });
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "";
+    url.searchParams.set("reason", "session_revoked");
+    return responseWithSessionCookies(NextResponse.redirect(url), supabaseResponse);
+  }
+
+  if (pathname === "/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     url.search = "";
-    return NextResponse.redirect(url);
+    return responseWithSessionCookies(NextResponse.redirect(url), supabaseResponse);
   }
 
   return supabaseResponse;
