@@ -1,4 +1,4 @@
-export type AppRole = "admin" | "supervisor" | "promotor";
+export type AppRole = "admin" | "zonal" | "supervisor" | "promotor";
 
 export interface Profile {
   id: string;
@@ -15,6 +15,7 @@ export interface Profile {
 export interface Persona {
   id: string;
   user_id: string | null;
+  puesto_id: string;
   store_id: string | null;
   first_name: string;
   last_name: string;
