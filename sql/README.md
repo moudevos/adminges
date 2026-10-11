@@ -1,32 +1,26 @@
-# SQL versionado
+# SQL versionado — núcleo simple
 
-AdminGes usa scripts SQL manuales y versionados. No usamos `supabase/migrations`.
+AdminGes usa SQL manual ejecutado desde **Supabase > SQL Editor**.
 
-## Convención
-
-`NNN_descripcion.sql`
-
-Cada archivo se ejecuta en orden desde **Supabase > SQL Editor** y registra su versión en `public.app_sql_versions` cuando termina correctamente.
-
-Estado actual:
+El modelo anterior fue retirado intencionalmente. El nuevo historial comienza desde cero con:
 
 ```text
-001_implementacion_auth_perfiles.sql
-002_rbac_tiendas_promotores.sql
-003_personal_promotor_auth.sql
-004_datos_personales_comunes.sql
-005_personas_entidad_central.sql
-006_estructura_organizacional_alcance.sql
-007_seguridad_sesiones_rate_limit.sql
-008_endurecimiento_sesion.sql
-009_sesion_auth_rls_restrictivo.sql
-010_visibilidad_territorial.sql
-011_endurecimiento_catalogos.sql
+001_reset_nucleo.sql
 ```
 
-Los nombres de scripts históricos se conservan aunque el modelo haya evolucionado; un SQL aplicado es inmutable.
+Este script elimina el modelo anterior y los usuarios Auth de AdminGes, y crea el núcleo de:
 
-## Comprobar qué scripts se aplicaron
+- puestos
+- personas
+- productos
+- movimientos de inventario
+- ventas y detalle
+- cuotas diarias
+- cuotas mensuales
+
+Después del reset, crea manualmente un único usuario en **Authentication > Users**.
+
+Para consultar la versión aplicada:
 
 ```sql
 select version, name, applied_at
@@ -34,4 +28,4 @@ from public.app_sql_versions
 order by version;
 ```
 
-No renumerar ni modificar un SQL ya aplicado. Cualquier cambio posterior debe ir en el siguiente archivo versionado.
+Los siguientes cambios deben usar `002_...`, `003_...`, etc.

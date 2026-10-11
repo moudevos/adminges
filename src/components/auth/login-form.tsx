@@ -38,14 +38,18 @@ export function LoginForm() {
       await Swal.fire({
         icon: "error",
         title: "No se pudo iniciar sesión",
-        text: result.message ?? "Verifica tus credenciales e inténtalo nuevamente.",
+        text: result.message ?? "Verifica tus credenciales.",
         confirmButtonText: "Aceptar",
       });
       return;
     }
 
     const next = searchParams.get("next");
-    const destination = next?.startsWith("/") ? next : "/dashboard";
+    const destination =
+      next?.startsWith("/") && !next.startsWith("//")
+        ? next
+        : "/dashboard?module=inventario&view=stock";
+
     router.replace(destination);
     router.refresh();
   });
@@ -61,7 +65,7 @@ export function LoginForm() {
           type="email"
           autoComplete="email"
           placeholder="usuario@empresa.com"
-          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
+          className="control-input"
           {...register("email")}
         />
         {errors.email && <p className="mt-2 text-sm text-red-600">{errors.email.message}</p>}
@@ -77,7 +81,7 @@ export function LoginForm() {
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             placeholder="••••••••"
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 outline-none transition focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
+            className="control-input pr-12"
             {...register("password")}
           />
           <button
@@ -98,7 +102,7 @@ export function LoginForm() {
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <FontAwesomeIcon icon={faArrowRightToBracket} />
-        {isSubmitting ? "Validando acceso..." : "Ingresar"}
+        {isSubmitting ? "Ingresando..." : "Ingresar"}
       </button>
     </form>
   );

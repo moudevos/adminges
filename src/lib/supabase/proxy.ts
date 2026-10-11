@@ -1,24 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/auth"];
-
-function clientIp(request: NextRequest) {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
-  return request.headers.get("x-real-ip")?.trim() || "unknown";
-}
-
-function responseWithSessionCookies(
-  response: NextResponse,
-  sessionResponse: NextResponse,
-) {
-  for (const cookie of sessionResponse.cookies.getAll()) {
+function copySessionState(response: NextResponse, source: NextResponse) {
+  for (const cookie of source.cookies.getAll()) {
     response.cookies.set(cookie);
   }
 
   for (const header of ["cache-control", "expires", "pragma"]) {
-    const value = sessionResponse.headers.get(header);
+    const value = source.headers.get(header);
     if (value) response.headers.set(header, value);
   }
 
@@ -53,47 +42,24 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // getClaims verifica el JWT y refresca access/refresh tokens cuando corresponde.
-  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
-  const authenticated = !claimsError && Boolean(claimsData?.claims?.sub);
-
+  const { data, error } = await supabase.auth.getClaims();
+  const authenticated = !error && Boolean(data?.claims?.sub);
   const pathname = request.nextUrl.pathname;
-  const isPublicPath = PUBLIC_PATHS.some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`),
-  );
+  const isLogin = pathname === "/login";
 
-  if (!authenticated) {
-    if (isPublicPath) return supabaseResponse;
-
+  if (!authenticated && !isLogin) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
     url.searchParams.set("next", pathname);
-    return responseWithSessionCookies(NextResponse.redirect(url), supabaseResponse);
+    return copySessionState(NextResponse.redirect(url), supabaseResponse);
   }
 
-  const { data: sessionActive, error: sessionError } = await supabase.rpc(
-    "touch_app_session",
-    {
-      client_ip: clientIp(request),
-      client_user_agent: request.headers.get("user-agent") ?? "",
-    },
-  );
-
-  if (sessionError || sessionActive !== true) {
-    await supabase.auth.signOut({ scope: "local" });
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.search = "";
-    url.searchParams.set("reason", "session_revoked");
-    return responseWithSessionCookies(NextResponse.redirect(url), supabaseResponse);
-  }
-
-  if (pathname === "/login") {
+  if (authenticated && isLogin) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
-    url.search = "";
-    return responseWithSessionCookies(NextResponse.redirect(url), supabaseResponse);
+    url.search = "module=inventario&view=stock";
+    return copySessionState(NextResponse.redirect(url), supabaseResponse);
   }
 
   return supabaseResponse;

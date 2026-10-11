@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "AdminGes",
-  description: "Gestión comercial, inventario, cuotas y analítica",
+  description: "Inventario, ventas, cuotas, personal y herramientas",
 };
 
 export default function RootLayout({
