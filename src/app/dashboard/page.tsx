@@ -19,6 +19,11 @@ type DashboardPageProps = {
 
 type Role = "admin" | "zonal" | "supervisor" | "promotor";
 
+type NamedRelation = {
+  code: string;
+  name: string;
+};
+
 type PersonaRow = {
   id: string;
   user_id: string | null;
@@ -30,21 +35,21 @@ type PersonaRow = {
   email: string | null;
   role: Role;
   is_active: boolean;
-  puestos: { code: string; name: string } | null;
+  puestos: NamedRelation | null;
   persona_zones?: Array<{
     zone_id: string;
     is_active: boolean;
-    zones: { code: string; name: string } | null;
+    zones: NamedRelation | null;
   }>;
   persona_clusters?: Array<{
     cluster_id: string;
     is_active: boolean;
-    clusters: { code: string; name: string } | null;
+    clusters: NamedRelation | null;
   }>;
   persona_stores?: Array<{
     store_id: string;
     is_active: boolean;
-    stores: { code: string; name: string } | null;
+    stores: NamedRelation | null;
   }>;
 };
 
@@ -61,8 +66,8 @@ type StoreRow = {
   zone_id: string | null;
   cluster_id: string | null;
   is_active: boolean;
-  zones: { code: string; name: string } | null;
-  clusters: { code: string; name: string } | null;
+  zones: NamedRelation | null;
+  clusters: NamedRelation | null;
 };
 
 type SessionRow = {
@@ -75,8 +80,17 @@ type SessionRow = {
   last_seen_at: string;
   revoked_at: string | null;
   revocation_reason: string | null;
-  personas: { first_name: string; last_name: string; email: string | null } | null;
+  personas: {
+    first_name: string;
+    last_name: string;
+    email: string | null;
+  } | null;
 };
+
+function oneRelation<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const context = await getAuthorizationContext();
@@ -108,7 +122,19 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       )
       .eq("is_active", true)
       .order("name");
-    stores = (data ?? []) as StoreRow[];
+
+    stores = (data ?? []).map((store) => ({
+      id: store.id,
+      code: store.code,
+      name: store.name,
+      city: store.city,
+      address: store.address,
+      zone_id: store.zone_id,
+      cluster_id: store.cluster_id,
+      is_active: store.is_active,
+      zones: oneRelation<NamedRelation>(store.zones),
+      clusters: oneRelation<NamedRelation>(store.clusters),
+    }));
   }
 
   if (["personal", "territorio"].includes(activeModule)) {
@@ -125,8 +151,20 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         .order("name"),
     ]);
 
-    zones = (zoneData ?? []) as ZoneRow[];
-    clusters = (clusterData ?? []) as ClusterRow[];
+    zones = (zoneData ?? []).map((zone) => ({
+      id: zone.id,
+      code: zone.code,
+      name: zone.name,
+      is_active: zone.is_active,
+    }));
+
+    clusters = (clusterData ?? []).map((cluster) => ({
+      id: cluster.id,
+      zone_id: cluster.zone_id,
+      code: cluster.code,
+      name: cluster.name,
+      is_active: cluster.is_active,
+    }));
   }
 
   if (activeModule === "personal") {
@@ -145,8 +183,40 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         .order("first_name"),
     ]);
 
-    puestos = (puestoData ?? []) as PuestoRow[];
-    personas = (personaData ?? []) as PersonaRow[];
+    puestos = (puestoData ?? []).map((puesto) => ({
+      id: puesto.id,
+      code: puesto.code,
+      name: puesto.name,
+    }));
+
+    personas = (personaData ?? []).map((persona) => ({
+      id: persona.id,
+      user_id: persona.user_id,
+      puesto_id: persona.puesto_id,
+      first_name: persona.first_name,
+      last_name: persona.last_name,
+      document: persona.document,
+      phone: persona.phone,
+      email: persona.email,
+      role: persona.role as Role,
+      is_active: persona.is_active,
+      puestos: oneRelation<NamedRelation>(persona.puestos),
+      persona_zones: (persona.persona_zones ?? []).map((assignment) => ({
+        zone_id: assignment.zone_id,
+        is_active: assignment.is_active,
+        zones: oneRelation<NamedRelation>(assignment.zones),
+      })),
+      persona_clusters: (persona.persona_clusters ?? []).map((assignment) => ({
+        cluster_id: assignment.cluster_id,
+        is_active: assignment.is_active,
+        clusters: oneRelation<NamedRelation>(assignment.clusters),
+      })),
+      persona_stores: (persona.persona_stores ?? []).map((assignment) => ({
+        store_id: assignment.store_id,
+        is_active: assignment.is_active,
+        stores: oneRelation<NamedRelation>(assignment.stores),
+      })),
+    }));
   }
 
   if (activeModule === "seguridad") {
@@ -161,7 +231,23 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       context.supabase.auth.getClaims(),
     ]);
 
-    sessions = (sessionData ?? []) as SessionRow[];
+    sessions = (sessionData ?? []).map((session) => ({
+      id: session.id,
+      user_id: session.user_id,
+      persona_id: session.persona_id,
+      client_ip: session.client_ip,
+      user_agent: session.user_agent,
+      created_at: session.created_at,
+      last_seen_at: session.last_seen_at,
+      revoked_at: session.revoked_at,
+      revocation_reason: session.revocation_reason,
+      personas: oneRelation<{
+        first_name: string;
+        last_name: string;
+        email: string | null;
+      }>(session.personas),
+    }));
+
     const claimSessionId = claimsData?.claims?.session_id;
     currentSessionId = typeof claimSessionId === "string" ? claimSessionId : undefined;
   }
