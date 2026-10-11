@@ -17,7 +17,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { signOut } from "@/app/dashboard/actions";
 import { LoadingIndicator } from "@/components/dashboard/loading-indicator";
 
@@ -108,29 +108,20 @@ export function AppShell({
 }: AppShellProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const locationKey = `${pathname}?${searchParams.toString()}`;
+  const query = searchParams.toString();
+  const currentHref = query ? `${pathname}?${query}` : pathname;
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
-  const [navigating, setNavigating] = useState(false);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
 
-  useEffect(() => {
-    const saved = window.localStorage.getItem("adminges.sidebar.collapsed");
-    if (saved === "true") setCollapsed(true);
-  }, []);
+  const navigating = Boolean(pendingHref && pendingHref !== currentHref);
 
-  useEffect(() => {
+  function beginNavigation(href: string) {
+    setPendingHref(href);
     setMobileOpen(false);
-    setNavigating(false);
-  }, [locationKey]);
-
-  function toggleSidebar() {
-    setCollapsed((value) => {
-      const next = !value;
-      window.localStorage.setItem("adminges.sidebar.collapsed", String(next));
-      return next;
-    });
+    setUserOpen(false);
   }
 
   const sidebar = (
@@ -142,7 +133,7 @@ export function AppShell({
       <div className="flex h-16 items-center border-b border-slate-800 px-4">
         <Link
           href="/dashboard?module=inventario&view=stock"
-          onClick={() => activeModule !== "inventario" && setNavigating(true)}
+          onClick={() => beginNavigation("/dashboard?module=inventario&view=stock")}
           className="flex min-w-0 items-center gap-3 overflow-hidden"
         >
           <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-sm font-black text-slate-950">
@@ -173,7 +164,7 @@ export function AppShell({
                     key={item.key}
                     href={item.href}
                     title={collapsed ? item.label : undefined}
-                    onClick={() => !active && setNavigating(true)}
+                    onClick={() => beginNavigation(item.href)}
                     className={`flex min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${
                       collapsed ? "justify-center" : ""
                     } ${
@@ -195,7 +186,7 @@ export function AppShell({
       <div className="border-t border-slate-800 p-3">
         <button
           type="button"
-          onClick={toggleSidebar}
+          onClick={() => setCollapsed((value) => !value)}
           className="hidden w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs text-slate-500 hover:bg-slate-900 hover:text-white md:flex"
         >
           <FontAwesomeIcon icon={collapsed ? faChevronRight : faChevronLeft} />

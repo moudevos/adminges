@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode, useActionState, useEffect, useMemo, useState } from "react";
+import { type FormEvent, type ReactNode, useMemo, useState, useTransition } from "react";
 import {
   createProduct,
   registerInventoryLoad,
@@ -91,20 +91,44 @@ function Tabs({ active }: { active: string }) {
 function LoadView({ products, movements }: { products: ProductRow[]; movements: MovementRow[] }) {
   const [productOpen, setProductOpen] = useState(false);
   const [loadOpen, setLoadOpen] = useState(false);
-  const [productState, productAction, productPending] = useActionState(createProduct, initialState);
-  const [loadState, loadAction, loadPending] = useActionState(registerInventoryLoad, initialState);
+  const [productState, setProductState] = useState<InventoryActionState>(initialState);
+  const [loadState, setLoadState] = useState<InventoryActionState>(initialState);
+  const [productPending, startProductTransition] = useTransition();
+  const [loadPending, startLoadTransition] = useTransition();
   const productMap = useMemo(
     () => new Map(products.map((product) => [product.id, product])),
     [products],
   );
 
-  useEffect(() => {
-    if (productState.ok) setProductOpen(false);
-  }, [productState]);
+  function submitProduct(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
 
-  useEffect(() => {
-    if (loadState.ok) setLoadOpen(false);
-  }, [loadState]);
+    startProductTransition(async () => {
+      const result = await createProduct(initialState, formData);
+      setProductState(result);
+      if (result.ok) {
+        form.reset();
+        setProductOpen(false);
+      }
+    });
+  }
+
+  function submitLoad(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    startLoadTransition(async () => {
+      const result = await registerInventoryLoad(initialState, formData);
+      setLoadState(result);
+      if (result.ok) {
+        form.reset();
+        setLoadOpen(false);
+      }
+    });
+  }
 
   return (
     <>
@@ -173,7 +197,7 @@ function LoadView({ products, movements }: { products: ProductRow[]; movements: 
         description="Crea el producto antes de registrar existencias."
         onClose={() => !productPending && setProductOpen(false)}
       >
-        <form action={productAction} className="grid gap-4 sm:grid-cols-2">
+        <form onSubmit={submitProduct} className="grid gap-4 sm:grid-cols-2">
           <Field label="SKU" name="sku" required />
           <Field label="Nombre" name="nombre" required />
           <Field label="Marca" name="marca" />
@@ -200,7 +224,7 @@ function LoadView({ products, movements }: { products: ProductRow[]; movements: 
         description="Agrega unidades al stock del producto seleccionado."
         onClose={() => !loadPending && setLoadOpen(false)}
       >
-        <form action={loadAction} className="space-y-4">
+        <form onSubmit={submitLoad} className="space-y-4">
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium text-slate-600">Producto</span>
             <select name="producto_id" required defaultValue="" className="control-input">

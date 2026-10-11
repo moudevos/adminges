@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useActionState, useEffect, useMemo, useState } from "react";
+import { type FormEvent, type ReactNode, useMemo, useState, useTransition } from "react";
 import { createPerson, type PersonActionState } from "@/app/dashboard/person-actions";
 
 type PuestoRow = {
@@ -28,15 +28,27 @@ const initialState: PersonActionState = { ok: false, message: "" };
 
 export function PersonalManagement({ personas, puestos }: Props) {
   const [open, setOpen] = useState(false);
-  const [state, action, pending] = useActionState(createPerson, initialState);
+  const [state, setState] = useState<PersonActionState>(initialState);
+  const [pending, startTransition] = useTransition();
   const puestosMap = useMemo(
     () => new Map(puestos.map((puesto) => [puesto.id, puesto.nombre])),
     [puestos],
   );
 
-  useEffect(() => {
-    if (state.ok) setOpen(false);
-  }, [state]);
+  function submitPerson(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    startTransition(async () => {
+      const result = await createPerson(initialState, formData);
+      setState(result);
+      if (result.ok) {
+        form.reset();
+        setOpen(false);
+      }
+    });
+  }
 
   return (
     <>
@@ -100,7 +112,7 @@ export function PersonalManagement({ personas, puestos }: Props) {
       </section>
 
       <Modal open={open} onClose={() => !pending && setOpen(false)}>
-        <form action={action} className="space-y-4">
+        <form onSubmit={submitPerson} className="space-y-4">
           <div>
             <h2 className="text-lg font-semibold text-slate-950">Agregar persona</h2>
             <p className="mt-1 text-sm text-slate-500">
