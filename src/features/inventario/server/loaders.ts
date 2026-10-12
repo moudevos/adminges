@@ -15,31 +15,6 @@ export type InventoryMovementRow = {
   fecha: string;
 };
 
-export type InventoryMovementRow = {
-  id: number;
-  producto_id: string;
-  tipo: string;
-  direccion: string;
-  cantidad: number;
-  fecha: string;
-};
-
-export type PuestoRow = {
-  id: string;
-  nombre: string;
-};
-
-export type PersonaRow = {
-  id: string;
-  puesto_id: string;
-  nombres: string;
-  apellidos: string;
-  documento: string | null;
-  telefono: string | null;
-  email: string | null;
-  is_active: boolean;
-};
-
 function mapStockRows(
   stockData: Array<Record<string, unknown>>,
 ): InventoryStockRow[] {
