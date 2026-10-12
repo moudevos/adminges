@@ -3,10 +3,10 @@
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { LoadingIndicator } from "@/components/dashboard/loading-indicator";
+import { LoadingIndicator } from "@/components/ui/loading-indicator";
 import {
   resolveNavigationState,
-} from "@/components/shell/navigation";
+} from "@/config/navigation";
 import { ShellNavigationProvider } from "@/components/shell/shell-link";
 import { ShellSidebar } from "@/components/shell/sidebar";
 import { ShellTopbar } from "@/components/shell/topbar";

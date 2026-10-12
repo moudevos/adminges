@@ -3,7 +3,7 @@
 import {
   DEFAULT_APP_HREF,
   SHELL_NAVIGATION,
-} from "@/components/shell/navigation";
+} from "@/config/navigation";
 import { ShellLink } from "@/components/shell/shell-link";
 import { SidebarGroup } from "@/components/shell/sidebar-group";
 

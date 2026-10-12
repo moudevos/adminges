@@ -1,6 +1,6 @@
 "use client";
 
-import type { NavigationChild } from "@/components/shell/navigation";
+import type { NavigationChild } from "@/config/navigation";
 import { ShellLink } from "@/components/shell/shell-link";
 
 export function SidebarSubitem({ item, active }: { item: NavigationChild; active: boolean }) {

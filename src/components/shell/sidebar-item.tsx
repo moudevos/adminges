@@ -2,7 +2,7 @@
 
 import { faChevronRight } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import type { NavigationItem } from "@/components/shell/navigation";
+import type { NavigationItem } from "@/config/navigation";
 
 export function SidebarItem({ item, active, expanded, collapsed, onClick }: { item: NavigationItem; active: boolean; expanded: boolean; collapsed: boolean; onClick: () => void }) {
   return <button type="button" title={collapsed ? item.label : undefined} aria-expanded={collapsed ? undefined : expanded} aria-controls={collapsed ? undefined : `sidebar-group-${item.key}`} onClick={onClick} className={`flex h-10 w-full items-center rounded-[9px] font-medium transition-colors ${collapsed ? "justify-center px-0" : "gap-3 px-3"} ${active ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"}`}>

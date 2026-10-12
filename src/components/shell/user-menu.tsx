@@ -5,7 +5,7 @@ import {
   faRightFromBracket,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { signOut } from "@/app/dashboard/actions";
+import { signOut } from "@/features/auth/server/actions";
 
 function initials(email: string) {
   return (email.split("@")[0] || "U")

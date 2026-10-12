@@ -8,7 +8,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import Swal from "sweetalert2";
 import { z } from "zod";
-import { loginWithPassword } from "@/app/login/actions";
+import { loginWithPassword } from "@/features/auth/server/actions";
 
 const loginSchema = z.object({
   email: z.string().email("Ingresa un correo válido"),

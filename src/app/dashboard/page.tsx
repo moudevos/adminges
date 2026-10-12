@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getNavigationHref } from "@/components/shell/navigation";
+import { getNavigationHref } from "@/config/navigation";
 
 export default async function LegacyDashboardPage({
   searchParams,

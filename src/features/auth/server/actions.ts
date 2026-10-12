@@ -1,5 +1,6 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
@@ -18,6 +19,7 @@ export async function loginWithPassword(
   password: string,
 ): Promise<LoginActionResult> {
   const parsed = loginSchema.safeParse({ email, password });
+
   if (!parsed.success) {
     return { ok: false, message: "Credenciales inválidas." };
   }
@@ -33,4 +35,10 @@ export async function loginWithPassword(
   }
 
   return { ok: true };
+}
+
+export async function signOut() {
+  const supabase = await createClient();
+  await supabase.auth.signOut({ scope: "local" });
+  redirect("/login");
 }

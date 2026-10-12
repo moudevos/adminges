@@ -1,6 +1,6 @@
 "use client";
 
-import type { NavigationItem } from "@/components/shell/navigation";
+import type { NavigationItem } from "@/config/navigation";
 import { SidebarItem } from "@/components/shell/sidebar-item";
 import { SidebarSubitem } from "@/components/shell/sidebar-subitem";
 

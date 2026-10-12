@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { DEFAULT_APP_HREF } from "@/components/shell/navigation";
+import { DEFAULT_APP_HREF } from "@/config/navigation";
 
 function copySessionState(response: NextResponse, source: NextResponse) {
   for (const cookie of source.cookies.getAll()) {
