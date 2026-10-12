@@ -216,7 +216,8 @@ export function InventoryMovementsView({
                         {movement.descripcion}
                       </td>
                       <td className="border-b border-slate-100 px-4 py-3 font-mono text-xs text-slate-500">
-                        {movement.serial || "No aplica"}
+                        {movement.serial ||
+                          (found.mode === "sku" ? "—" : "No aplica")}
                       </td>
                       <td className="border-b border-slate-100 px-4 py-3 text-slate-600">
                         {movementLocation(movement)}
@@ -289,8 +290,14 @@ export function InventoryMovementsView({
 
           <div className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-400">
             {found.movements.length}{" "}
-            {found.movements.length === 1 ? "movimiento" : "movimientos"} ·
-            Los traslados no modifican el total neto.
+            {found.mode === "sku"
+              ? found.movements.length === 1
+                ? "movimiento consolidado"
+                : "movimientos consolidados"
+              : found.movements.length === 1
+                ? "movimiento"
+                : "movimientos"}{" "}
+            · Los traslados no modifican el total neto.
           </div>
         </>
       ) : null}

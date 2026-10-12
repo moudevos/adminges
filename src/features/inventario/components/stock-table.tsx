@@ -4,6 +4,7 @@ import {
   faChevronDown,
   faChevronLeft,
   faChevronRight,
+  faEye,
   faMagnifyingGlass,
   faSort,
   faSortDown,
@@ -20,6 +21,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
+import { Modal } from "@/components/ui/modal";
 import type { InventoryStockRow } from "@/features/inventario/domain/types";
 
 const columnHelper = createColumnHelper<InventoryStockRow>();
@@ -68,6 +70,7 @@ export function InventoryStockTable({
   const [subcategory, setSubcategory] = useState("");
   const [logicalWarehouse, setLogicalWarehouse] = useState("");
   const [showZero, setShowZero] = useState(false);
+  const [selectedRow, setSelectedRow] = useState<InventoryStockRow | null>(null);
   const [sorting, setSorting] = useState<SortingState>([
     { id: "nombre", desc: false },
   ]);
@@ -207,6 +210,23 @@ export function InventoryStockTable({
           );
         },
       }),
+      columnHelper.display({
+        id: "acciones",
+        header: "",
+        enableSorting: false,
+        cell: (info) => (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setSelectedRow(info.row.original)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+            >
+              <FontAwesomeIcon icon={faEye} className="text-[10px]" />
+              Ver
+            </button>
+          </div>
+        ),
+      }),
     ],
     [],
   );
@@ -308,7 +328,8 @@ export function InventoryStockTable({
                       key={header.id}
                       className={
                         "border-b border-slate-200 px-4 py-2.5 " +
-                        (header.column.id === "cantidadFisica"
+                        (header.column.id === "cantidadFisica" ||
+                        header.column.id === "acciones"
                           ? "text-right"
                           : "")
                       }
@@ -319,7 +340,8 @@ export function InventoryStockTable({
                           onClick={header.column.getToggleSortingHandler()}
                           className={
                             "inline-flex items-center gap-1.5 transition hover:text-slate-900 " +
-                            (header.column.id === "cantidadFisica"
+                            (header.column.id === "cantidadFisica" ||
+                            header.column.id === "acciones"
                               ? "ml-auto"
                               : "")
                           }
@@ -354,7 +376,8 @@ export function InventoryStockTable({
                     key={cell.id}
                     className={
                       "border-b border-slate-100 px-4 py-3 text-slate-600 " +
-                      (cell.column.id === "cantidadFisica"
+                      (cell.column.id === "cantidadFisica" ||
+                      cell.column.id === "acciones"
                         ? "text-right"
                         : "")
                     }
@@ -410,6 +433,53 @@ export function InventoryStockTable({
           </button>
         </div>
       </div>
+
+      <Modal
+        open={Boolean(selectedRow)}
+        title={selectedRow?.sku ?? "Series"}
+        description={
+          selectedRow
+            ? (selectedRow.ubicacion || "Sin ubicación") +
+              " · " +
+              selectedRow.nombre
+            : undefined
+        }
+        onClose={() => setSelectedRow(null)}
+        maxWidthClassName="max-w-lg"
+      >
+        {selectedRow ? (
+          selectedRow.serials.length > 0 ? (
+            <div>
+              <div className="mb-3 flex items-center justify-between text-xs text-slate-500">
+                <span>Series esperadas</span>
+                <span className="font-semibold tabular-nums text-slate-700">
+                  {selectedRow.serials.length}
+                </span>
+              </div>
+
+              <div className="max-h-[55vh] overflow-y-auto rounded-lg border border-slate-200">
+                {selectedRow.serials.map((serial, index) => (
+                  <div
+                    key={serial}
+                    className="flex items-center gap-3 border-b border-slate-100 px-3 py-2.5 last:border-b-0"
+                  >
+                    <span className="w-7 shrink-0 text-right text-[10px] tabular-nums text-slate-300">
+                      {index + 1}
+                    </span>
+                    <span className="font-mono text-xs font-medium text-slate-700">
+                      {serial}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+              Este producto no maneja serie o IMEI en esta ubicación.
+            </div>
+          )
+        ) : null}
+      </Modal>
     </section>
   );
 }

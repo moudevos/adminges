@@ -56,6 +56,47 @@ function mapMovement(
   };
 }
 
+function consolidationKey(movement: InventoryKardexMovement) {
+  return [
+    movement.fecha,
+    movement.direccion,
+    movement.tipo,
+    movement.clasificacion,
+    movement.almacenOrigen ?? "",
+    movement.ubicacionOrigen ?? "",
+    movement.almacenDestino ?? "",
+    movement.ubicacionDestino ?? "",
+  ].join("::");
+}
+
+function consolidateSkuMovements(
+  movements: InventoryKardexMovement[],
+): InventoryKardexMovement[] {
+  const grouped = new Map<string, InventoryKardexMovement>();
+
+  for (const movement of movements) {
+    const key = consolidationKey(movement);
+    const current = grouped.get(key);
+
+    if (current) {
+      current.cantidad += movement.cantidad;
+      current.id = Math.min(current.id, movement.id);
+      continue;
+    }
+
+    grouped.set(key, {
+      ...movement,
+      serial: null,
+    });
+  }
+
+  return [...grouped.values()].sort((a, b) => {
+    const dateComparison = a.fecha.localeCompare(b.fecha);
+    if (dateComparison !== 0) return dateComparison;
+    return a.id - b.id;
+  });
+}
+
 async function fetchMovements({
   productoId,
   serial,
@@ -186,7 +227,8 @@ export async function searchInventoryMovements(
     }
 
     const rows = await fetchMovements({ productoId: product.id });
-    const movements = rows.map((row) => mapMovement(row, product));
+    const individualMovements = rows.map((row) => mapMovement(row, product));
+    const movements = consolidateSkuMovements(individualMovements);
     const result: InventoryMovementSearchResult = {
       mode: "sku",
       query,

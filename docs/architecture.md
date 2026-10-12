@@ -80,4 +80,4 @@ Supabase Auth mantiene un único usuario de acceso. Las acciones de login/logout
 
 ### Movimientos
 
-`/inventario/movimientos` consulta el Kardex por SKU o por IMEI/serie. La búsqueda se ejecuta en servidor. Por SKU devuelve todos los movimientos del producto; por IMEI devuelve exclusivamente la trazabilidad de esa unidad. Entradas suman, salidas restan y traslados tienen impacto neto cero.
+`/inventario/movimientos` consulta el Kardex por SKU o por IMEI/serie. La búsqueda se ejecuta en servidor. Por SKU consolida movimientos por fecha + tipo + origen/destino y suma sus cantidades; por IMEI devuelve cada evento individual de la vida de esa unidad. Entradas suman, salidas restan y traslados tienen impacto neto cero. En Stock, cada fila puede abrir las series esperadas del snapshot vigente para ese SKU + ubicación.
