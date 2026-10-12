@@ -11,7 +11,8 @@ export type PersonActionState = {
 
 const optionalText = (max: number) =>
   z.preprocess(
-    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
     z.string().trim().max(max).optional(),
   );
 
@@ -22,7 +23,8 @@ const schema = z.object({
   documento: optionalText(30),
   telefono: optionalText(30),
   email: z.preprocess(
-    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
     z.string().trim().email().max(160).optional(),
   ),
 });
@@ -41,11 +43,15 @@ export async function createPerson(
   });
 
   if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? "Datos inválidos." };
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? "Datos inválidos.",
+    };
   }
 
   const supabase = await createClient();
   const { data: claims, error: authError } = await supabase.auth.getClaims();
+
   if (authError || !claims?.claims?.sub) {
     return { ok: false, message: "La sesión expiró." };
   }
@@ -62,10 +68,13 @@ export async function createPerson(
   if (error) {
     return {
       ok: false,
-      message: error.code === "23505" ? "El documento ya existe." : "No se pudo crear la persona.",
+      message:
+        error.code === "23505"
+          ? "El documento ya existe."
+          : "No se pudo crear la persona.",
     };
   }
 
-  revalidatePath("/dashboard");
+  revalidatePath("/personal");
   return { ok: true, message: "Persona agregada correctamente." };
 }

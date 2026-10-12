@@ -48,7 +48,7 @@ export function LoginForm() {
     const destination =
       next?.startsWith("/") && !next.startsWith("//")
         ? next
-        : "/dashboard?module=inventario&view=stock";
+        : "/inventario/stock";
 
     router.replace(destination);
     router.refresh();

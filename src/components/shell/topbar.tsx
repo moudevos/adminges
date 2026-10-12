@@ -2,13 +2,12 @@
 
 import { faBars } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { MODULE_TITLES } from "@/components/shell/navigation";
 import { UserMenu } from "@/components/shell/user-menu";
 
 type ShellTopbarProps = {
   email: string;
-  activeModule: string;
-  activeView?: string;
+  moduleTitle: string;
+  viewTitle?: string;
   collapsed: boolean;
   onOpenMobile: () => void;
   onToggleCollapse: () => void;
@@ -16,13 +15,13 @@ type ShellTopbarProps = {
 
 export function ShellTopbar({
   email,
-  activeModule,
-  activeView,
+  moduleTitle,
+  viewTitle,
   collapsed,
   onOpenMobile,
   onToggleCollapse,
 }: ShellTopbarProps) {
-  const moduleTitle = MODULE_TITLES[activeModule] ?? "AdminGes";
+  const showView = Boolean(viewTitle && viewTitle !== moduleTitle);
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 md:px-6">
@@ -48,9 +47,9 @@ export function ShellTopbar({
         <h1 className="truncate text-[17px] font-semibold tracking-tight text-slate-900">
           {moduleTitle}
         </h1>
-        {activeView ? (
-          <p className="truncate text-[11px] font-medium capitalize text-slate-400">
-            {activeView.replaceAll("-", " ")}
+        {showView ? (
+          <p className="truncate text-[11px] font-medium text-slate-400">
+            {viewTitle}
           </p>
         ) : null}
       </div>

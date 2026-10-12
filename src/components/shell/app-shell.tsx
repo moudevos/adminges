@@ -1,43 +1,54 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { LoadingIndicator } from "@/components/dashboard/loading-indicator";
+import {
+  resolveNavigationState,
+} from "@/components/shell/navigation";
 import { ShellNavigationProvider } from "@/components/shell/shell-link";
 import { ShellSidebar } from "@/components/shell/sidebar";
 import { ShellTopbar } from "@/components/shell/topbar";
 
 type AppShellProps = {
   email: string;
-  activeModule: string;
-  activeView?: string;
   children: ReactNode;
 };
 
-export function AppShell({
-  email,
-  activeModule,
-  activeView,
-  children,
-}: AppShellProps) {
+type GroupOverride = {
+  pathname: string;
+  group: string | null;
+};
+
+export function AppShell({ email, children }: AppShellProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const query = searchParams.toString();
-  const currentHref = query ? `${pathname}?${query}` : pathname;
+  const navigation = resolveNavigationState(pathname);
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [openGroup, setOpenGroup] = useState<string | null>(activeModule);
+  const [groupOverride, setGroupOverride] = useState<GroupOverride | null>(
+    null,
+  );
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
-  const navigating = Boolean(pendingHref && pendingHref !== currentHref);
+  const openGroup =
+    groupOverride?.pathname === pathname
+      ? groupOverride.group
+      : navigation.activeModule;
+
+  const navigating = Boolean(pendingHref && pendingHref !== pathname);
 
   function beginNavigation(href: string) {
-    setPendingHref(href);
+    const targetPath = new URL(href, "https://adminges.local").pathname;
+    const nextNavigation = resolveNavigationState(targetPath);
+
+    setPendingHref(targetPath);
     setMobileOpen(false);
-    const nextModule = new URL(href, "https://adminges.local").searchParams.get("module");
-    if (nextModule) setOpenGroup(nextModule);
+    setGroupOverride({
+      pathname: targetPath,
+      group: nextNavigation.activeModule,
+    });
   }
 
   function toggleCollapse() {
@@ -47,11 +58,14 @@ export function AppShell({
   function toggleGroup(key: string) {
     if (collapsed) {
       setCollapsed(false);
-      setOpenGroup(key);
+      setGroupOverride({ pathname, group: key });
       return;
     }
 
-    setOpenGroup((value) => (value === key ? null : key));
+    setGroupOverride({
+      pathname,
+      group: openGroup === key ? null : key,
+    });
   }
 
   return (
@@ -63,8 +77,8 @@ export function AppShell({
 
         <div className="hidden shrink-0 md:block">
           <ShellSidebar
-            activeModule={activeModule}
-            activeView={activeView}
+            activeModule={navigation.activeModule}
+            activeView={navigation.activeView}
             collapsed={collapsed}
             openGroup={openGroup}
             onGroupToggle={toggleGroup}
@@ -81,8 +95,8 @@ export function AppShell({
             />
             <div className="relative h-full shadow-2xl">
               <ShellSidebar
-                activeModule={activeModule}
-                activeView={activeView}
+                activeModule={navigation.activeModule}
+                activeView={navigation.activeView}
                 collapsed={false}
                 openGroup={openGroup}
                 onGroupToggle={toggleGroup}
@@ -94,8 +108,8 @@ export function AppShell({
         <div className="flex min-w-0 flex-1 flex-col">
           <ShellTopbar
             email={email}
-            activeModule={activeModule}
-            activeView={activeView}
+            moduleTitle={navigation.moduleLabel}
+            viewTitle={navigation.viewLabel}
             collapsed={collapsed}
             onOpenMobile={() => setMobileOpen(true)}
             onToggleCollapse={toggleCollapse}

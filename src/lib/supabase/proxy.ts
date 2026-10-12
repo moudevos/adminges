@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { DEFAULT_APP_HREF } from "@/components/shell/navigation";
 
 function copySessionState(response: NextResponse, source: NextResponse) {
   for (const cookie of source.cookies.getAll()) {
@@ -26,7 +27,9 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet, headers) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value),
+          );
 
           supabaseResponse = NextResponse.next({ request });
 
@@ -49,17 +52,27 @@ export async function updateSession(request: NextRequest) {
 
   if (!authenticated && !isLogin) {
     const url = request.nextUrl.clone();
+    const nextPath = pathname + request.nextUrl.search;
+
     url.pathname = "/login";
     url.search = "";
-    url.searchParams.set("next", pathname);
-    return copySessionState(NextResponse.redirect(url), supabaseResponse);
+    url.searchParams.set("next", nextPath);
+
+    return copySessionState(
+      NextResponse.redirect(url),
+      supabaseResponse,
+    );
   }
 
   if (authenticated && isLogin) {
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    url.search = "module=inventario&view=stock";
-    return copySessionState(NextResponse.redirect(url), supabaseResponse);
+    url.pathname = DEFAULT_APP_HREF;
+    url.search = "";
+
+    return copySessionState(
+      NextResponse.redirect(url),
+      supabaseResponse,
+    );
   }
 
   return supabaseResponse;

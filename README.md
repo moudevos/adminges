@@ -70,13 +70,13 @@ npm run dev
 
 ## Inventario
 
-El inventario usa un libro de movimientos:
+El Excel diario es el canon del inventario. Cada carga genera un snapshot candidato, se valida contra el snapshot vigente y solo después de confirmación pasa a ser el estado actual.
 
-- `productos`: catálogo.
-- `inventario_movimientos`: entradas/salidas.
-- `inventario_stock`: vista que calcula el stock actual.
-
-El stock no se edita directamente. Cada cambio se registra como movimiento, lo que permite mantener trazabilidad y preparar el enlace con Ventas.
+- `inventory_snapshots`: historial de snapshots.
+- `inventory_snapshot_items`: detalle normalizado por SKU, serie y ubicación.
+- `inventory_serial_registry`: registro histórico de IMEI/series.
+- `inventario_kardex`: entradas, salidas y traslados.
+- `inventario_stock`: vista del último snapshot aplicado.
 
 ## SQL versionado
 
@@ -87,3 +87,19 @@ No usamos Supabase Migrations. A partir de este reset, el nuevo historial comien
 ```
 
 Los siguientes cambios usarán `002_...`, `003_...`, etc.
+
+
+## Rutas
+
+La aplicación usa rutas semánticas por módulo. Ejemplos:
+
+```text
+/inventario/stock
+/inventario/cargar
+/ventas/historial
+/cuotas/seguimiento-diario
+/personal
+/herramientas/specs
+```
+
+`/dashboard` se conserva únicamente como redirect de compatibilidad para enlaces antiguos.

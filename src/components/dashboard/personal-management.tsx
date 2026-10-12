@@ -4,7 +4,7 @@ import { type FormEvent, useMemo, useState, useTransition } from "react";
 import {
   createPerson,
   type PersonActionState,
-} from "@/app/dashboard/person-actions";
+} from "@/lib/personal/actions";
 import { ActionMessage } from "@/components/ui/action-message";
 import { Button } from "@/components/ui/button";
 import { InputField } from "@/components/ui/form-field";
