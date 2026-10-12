@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { ModuleTabs } from "@/components/dashboard/module-tabs";
 
 type Props = {
   activeModule: string;
@@ -24,10 +24,10 @@ const configurations: Record<
   },
   cuotas: {
     tabs: [
-      { key: "diaria", label: "Cuotas Diaria" },
-      { key: "mensual", label: "Cuota Mensual" },
-      { key: "seguimiento-mensual", label: "Seguimiento Mensual" },
-      { key: "seguimiento-diario", label: "Seguimiento Diario" },
+      { key: "diaria", label: "Cuota diaria" },
+      { key: "mensual", label: "Cuota mensual" },
+      { key: "seguimiento-mensual", label: "Seguimiento mensual" },
+      { key: "seguimiento-diario", label: "Seguimiento diario" },
     ],
     description: "Las cuotas se medirán contra las ventas de cada promotor.",
   },
@@ -51,28 +51,18 @@ export function ModuleContent({ activeModule, activeView }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1">
-        {config.tabs.map((tab) => (
-          <Link
-            key={tab.key}
-            href={`/dashboard?module=${activeModule}&view=${tab.key}`}
-            className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium ${
-              active === tab.key
-                ? "bg-slate-950 text-white"
-                : "text-slate-500 hover:bg-slate-50 hover:text-slate-950"
-            }`}
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </div>
+      <ModuleTabs module={activeModule} tabs={config.tabs} active={active} />
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
+      <section className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+        <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-400">
           {config.tabs.find((tab) => tab.key === active)?.label}
         </p>
-        <h2 className="mt-2 text-xl font-semibold text-slate-950">Módulo preparado</h2>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{config.description}</p>
+        <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
+          Módulo preparado
+        </h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+          {config.description}
+        </p>
         <p className="mt-5 text-sm text-slate-400">
           Primero estabilizaremos Inventario y después conectaremos esta vista al flujo real.
         </p>

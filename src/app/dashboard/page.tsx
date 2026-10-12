@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import { AppShell } from "@/components/dashboard/app-shell";
 import { InventoryManagement } from "@/components/dashboard/inventory-management";
 import { ModuleContent } from "@/components/dashboard/module-content";
 import { PersonalManagement } from "@/components/dashboard/personal-management";
+import { AppShell } from "@/components/shell/app-shell";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +58,13 @@ type PersonaRow = {
   is_active: boolean;
 };
 
-const modules = new Set(["inventario", "ventas", "cuotas", "personal", "herramientas"]);
+const modules = new Set([
+  "inventario",
+  "ventas",
+  "cuotas",
+  "personal",
+  "herramientas",
+]);
 
 function defaultView(module: string) {
   if (module === "inventario") return "stock";
@@ -68,7 +74,9 @@ function defaultView(module: string) {
   return "";
 }
 
-export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+export default async function DashboardPage({
+  searchParams,
+}: DashboardPageProps) {
   const supabase = await createClient();
   const { data: claimsData, error } = await supabase.auth.getClaims();
 
@@ -77,7 +85,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   }
 
   const params = await searchParams;
-  const activeModule = modules.has(params.module ?? "") ? params.module! : "inventario";
+  const activeModule = modules.has(params.module ?? "")
+    ? params.module!
+    : "inventario";
   const activeView = params.view ?? defaultView(activeModule);
 
   let products: ProductRow[] = [];
@@ -87,20 +97,30 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   let personas: PersonaRow[] = [];
 
   if (activeModule === "inventario") {
-    const [{ data: productData }, { data: stockData }, { data: movementData }] = await Promise.all([
+    const [
+      { data: productData },
+      { data: stockData },
+      { data: movementData },
+    ] = await Promise.all([
       supabase
         .from("productos")
-        .select("id, sku, nombre, marca, categoria, costo, precio, stock_minimo, is_active")
+        .select(
+          "id, sku, nombre, marca, categoria, costo, precio, stock_minimo, is_active",
+        )
         .eq("is_active", true)
         .order("nombre"),
       supabase
         .from("inventario_stock")
-        .select("id, sku, nombre, marca, categoria, costo, precio, stock_minimo, is_active, stock_actual, valor_stock")
+        .select(
+          "id, sku, nombre, marca, categoria, costo, precio, stock_minimo, is_active, stock_actual, valor_stock",
+        )
         .eq("is_active", true)
         .order("nombre"),
       supabase
         .from("inventario_movimientos")
-        .select("id, producto_id, tipo, cantidad, costo_unitario, referencia, nota, fecha")
+        .select(
+          "id, producto_id, tipo, cantidad, costo_unitario, referencia, nota, fecha",
+        )
         .order("fecha", { ascending: false })
         .limit(100),
     ]);
@@ -136,7 +156,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       producto_id: row.producto_id,
       tipo: row.tipo,
       cantidad: Number(row.cantidad),
-      costo_unitario: row.costo_unitario === null ? null : Number(row.costo_unitario),
+      costo_unitario:
+        row.costo_unitario === null ? null : Number(row.costo_unitario),
       referencia: row.referencia,
       nota: row.nota,
       fecha: row.fecha,
@@ -152,7 +173,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         .order("nombre"),
       supabase
         .from("personas")
-        .select("id, puesto_id, nombres, apellidos, documento, telefono, email, is_active")
+        .select(
+          "id, puesto_id, nombres, apellidos, documento, telefono, email, is_active",
+        )
         .order("apellidos")
         .order("nombres"),
     ]);
@@ -176,7 +199,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   return (
     <AppShell
-      email={typeof claimsData.claims.email === "string" ? claimsData.claims.email : "usuario"}
+      email={
+        typeof claimsData.claims.email === "string"
+          ? claimsData.claims.email
+          : "usuario"
+      }
       activeModule={activeModule}
       activeView={activeView || undefined}
     >
