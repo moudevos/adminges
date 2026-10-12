@@ -1,8 +1,9 @@
 "use client";
 
 import { InventoryUploadView } from "@/components/dashboard/inventory-upload-view";
+import type { SnapshotHistoryRow } from "@/lib/inventory/types";
 
-type ProductRow = {
+type StockRow = {
   id: string;
   sku: string;
   nombre: string;
@@ -12,47 +13,43 @@ type ProductRow = {
   precio: number;
   stock_minimo: number;
   is_active: boolean;
-};
-
-type StockRow = ProductRow & {
   stock_actual: number;
   valor_stock: number;
+  almacen?: string | null;
+  ubicacion?: string | null;
 };
 
 type MovementRow = {
   id: number;
   producto_id: string;
   tipo: string;
+  direccion: string;
   cantidad: number;
-  costo_unitario: number | null;
-  referencia: string | null;
-  nota: string | null;
   fecha: string;
 };
 
 type Props = {
   activeView: string;
-  products: ProductRow[];
   stock: StockRow[];
   movements: MovementRow[];
+  snapshots: SnapshotHistoryRow[];
 };
 
 export function InventoryManagement({
   activeView,
   stock,
   movements,
+  snapshots,
 }: Props) {
-  const view = ["cargar", "stock", "analisis"].includes(activeView)
-    ? activeView
-    : "stock";
+  if (activeView === "cargar") {
+    return <InventoryUploadView history={snapshots} />;
+  }
 
-  return (
-    <>
-      {view === "cargar" ? <InventoryUploadView /> : null}
-      {view === "analisis" ? <AnalysisView stock={stock} movements={movements} /> : null}
-      {view === "stock" ? <StockView stock={stock} /> : null}
-    </>
-  );
+  if (activeView === "analisis") {
+    return <AnalysisView stock={stock} movements={movements} />;
+  }
+
+  return <StockView stock={stock} />;
 }
 
 function StockView({ stock }: { stock: StockRow[] }) {
@@ -61,77 +58,52 @@ function StockView({ stock }: { stock: StockRow[] }) {
       <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-[15px] font-semibold text-slate-900">Stock actual</h2>
         <p className="mt-1 text-xs text-slate-500">
-          {stock.length} productos activos
+          Stock operativo: disponible en KIOSKO MALL IQUITOS - KIO37 / Stock.
         </p>
       </div>
 
       <div className="overflow-x-auto p-2">
-        <table className="w-full min-w-[950px] text-left text-sm">
+        <table className="w-full min-w-[850px] text-left text-sm">
           <thead className="text-xs font-semibold text-slate-500">
             <tr>
               <th className="border-b border-slate-200 px-3 py-3">SKU</th>
               <th className="border-b border-slate-200 px-3 py-3">Producto</th>
               <th className="border-b border-slate-200 px-3 py-3">Categoría</th>
-              <th className="border-b border-slate-200 px-3 py-3 text-right">Stock</th>
-              <th className="border-b border-slate-200 px-3 py-3 text-right">Mínimo</th>
-              <th className="border-b border-slate-200 px-3 py-3 text-right">Costo</th>
-              <th className="border-b border-slate-200 px-3 py-3 text-right">Valor</th>
-              <th className="border-b border-slate-200 px-3 py-3">Estado</th>
+              <th className="border-b border-slate-200 px-3 py-3">Ubicación</th>
+              <th className="border-b border-slate-200 px-3 py-3 text-right">
+                Cantidad
+              </th>
             </tr>
           </thead>
 
           <tbody>
-            {stock.map((item) => {
-              const low = item.stock_actual <= item.stock_minimo;
-
-              return (
-                <tr key={item.id} className="transition hover:bg-slate-50">
-                  <td className="border-b border-slate-100 px-3 py-3.5 font-mono text-xs font-semibold text-slate-500">
-                    {item.sku}
-                  </td>
-                  <td className="border-b border-slate-100 px-3 py-3.5">
-                    <p className="font-medium text-slate-900">{item.nombre}</p>
-                    <p className="text-xs text-slate-400">
-                      {item.marca || "Sin marca"}
-                    </p>
-                  </td>
-                  <td className="border-b border-slate-100 px-3 py-3.5 text-slate-600">
-                    {item.categoria || "—"}
-                  </td>
-                  <td className="border-b border-slate-100 px-3 py-3.5 text-right text-base font-semibold text-slate-900">
-                    {item.stock_actual}
-                  </td>
-                  <td className="border-b border-slate-100 px-3 py-3.5 text-right text-slate-500">
-                    {item.stock_minimo}
-                  </td>
-                  <td className="border-b border-slate-100 px-3 py-3.5 text-right text-slate-600">
-                    {money(item.costo)}
-                  </td>
-                  <td className="border-b border-slate-100 px-3 py-3.5 text-right font-medium text-slate-900">
-                    {money(item.valor_stock)}
-                  </td>
-                  <td className="border-b border-slate-100 px-3 py-3.5">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
-                        low
-                          ? "bg-amber-50 text-amber-700"
-                          : "bg-emerald-50 text-emerald-700"
-                      }`}
-                    >
-                      {low ? "Stock bajo" : "Disponible"}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
+            {stock.map((item) => (
+              <tr key={item.id} className="transition hover:bg-slate-50">
+                <td className="border-b border-slate-100 px-3 py-3.5 font-mono text-xs font-semibold text-slate-500">
+                  {item.sku}
+                </td>
+                <td className="border-b border-slate-100 px-3 py-3.5 font-medium text-slate-900">
+                  {item.nombre}
+                </td>
+                <td className="border-b border-slate-100 px-3 py-3.5 text-slate-600">
+                  {item.categoria || "—"}
+                </td>
+                <td className="border-b border-slate-100 px-3 py-3.5 text-slate-600">
+                  {item.ubicacion || item.almacen || "—"}
+                </td>
+                <td className="border-b border-slate-100 px-3 py-3.5 text-right text-base font-semibold text-slate-900">
+                  {item.stock_actual}
+                </td>
+              </tr>
+            ))}
 
             {stock.length === 0 ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={5}
                   className="px-5 py-10 text-center text-slate-400"
                 >
-                  Aún no hay productos en inventario.
+                  Aún no hay un snapshot aplicado.
                 </td>
               </tr>
             ) : null}
@@ -151,11 +123,11 @@ function AnalysisView({
 }) {
   const totalUnits = stock.reduce((sum, item) => sum + item.stock_actual, 0);
   const totalValue = stock.reduce((sum, item) => sum + item.valor_stock, 0);
-  const lowStock = stock.filter(
-    (item) => item.stock_actual <= item.stock_minimo,
-  ).length;
-  const loadedUnits = movements
-    .filter((movement) => movement.tipo === "carga")
+  const entrances = movements
+    .filter((movement) => movement.direccion === "entrada")
+    .reduce((sum, movement) => sum + movement.cantidad, 0);
+  const exits = movements
+    .filter((movement) => movement.direccion === "salida")
     .reduce((sum, movement) => sum + movement.cantidad, 0);
 
   const top = stock
@@ -167,15 +139,15 @@ function AnalysisView({
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric label="Productos" value={String(stock.length)} />
-        <Metric label="Unidades en stock" value={String(totalUnits)} />
-        <Metric label="Stock bajo" value={String(lowStock)} />
-        <Metric label="Valor inventario" value={money(totalValue)} />
+        <Metric label="Unidades operativas" value={String(totalUnits)} />
+        <Metric label="Entradas Kardex" value={String(entrances)} />
+        <Metric label="Salidas Kardex" value={String(exits)} />
       </div>
 
       <section className="grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-[15px] font-semibold text-slate-900">
-            Productos con mayor stock
+            Productos con mayor stock operativo
           </h2>
 
           <div className="mt-5 space-y-4">
@@ -193,38 +165,27 @@ function AnalysisView({
                   <div
                     className="h-full rounded-full bg-indigo-600"
                     style={{
-                      width: `${Math.max(4, (item.stock_actual / max) * 100)}%`,
+                      width:
+                        String(Math.max(4, (item.stock_actual / max) * 100)) +
+                        "%",
                     }}
                   />
                 </div>
               </div>
             ))}
-
-            {top.length === 0 ? (
-              <p className="text-sm text-slate-400">Sin datos todavía.</p>
-            ) : null}
           </div>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-            Movimientos recientes
+            Valor del stock operativo
           </p>
-          <p className="mt-3 text-3xl font-semibold text-slate-900">
-            {movements.length}
+          <p className="mt-3 text-2xl font-semibold text-slate-900">
+            {money(totalValue)}
           </p>
           <p className="mt-1 text-sm text-slate-500">
-            Últimos movimientos consultados.
+            El Kardex conserva {movements.length} movimientos recientes.
           </p>
-
-          <div className="mt-6 border-t border-slate-100 pt-4">
-            <p className="text-xs text-slate-400">
-              Unidades cargadas en la muestra
-            </p>
-            <p className="mt-1 text-xl font-semibold text-slate-900">
-              {loadedUnits}
-            </p>
-          </div>
         </div>
       </section>
     </div>

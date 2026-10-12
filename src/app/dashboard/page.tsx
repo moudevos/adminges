@@ -3,6 +3,7 @@ import { InventoryManagement } from "@/components/dashboard/inventory-management
 import { ModuleContent } from "@/components/dashboard/module-content";
 import { PersonalManagement } from "@/components/dashboard/personal-management";
 import { AppShell } from "@/components/shell/app-shell";
+import type { SnapshotHistoryRow } from "@/lib/inventory/types";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ type DashboardPageProps = {
   }>;
 };
 
-type ProductRow = {
+type StockRow = {
   id: string;
   sku: string;
   nombre: string;
@@ -24,21 +25,18 @@ type ProductRow = {
   precio: number;
   stock_minimo: number;
   is_active: boolean;
-};
-
-type StockRow = ProductRow & {
   stock_actual: number;
   valor_stock: number;
+  almacen?: string | null;
+  ubicacion?: string | null;
 };
 
 type MovementRow = {
   id: number;
   producto_id: string;
   tipo: string;
+  direccion: string;
   cantidad: number;
-  costo_unitario: number | null;
-  referencia: string | null;
-  nota: string | null;
   fecha: string;
 };
 
@@ -90,78 +88,78 @@ export default async function DashboardPage({
     : "inventario";
   const activeView = params.view ?? defaultView(activeModule);
 
-  let products: ProductRow[] = [];
   let stock: StockRow[] = [];
   let movements: MovementRow[] = [];
+  let snapshots: SnapshotHistoryRow[] = [];
   let puestos: PuestoRow[] = [];
   let personas: PersonaRow[] = [];
 
   if (activeModule === "inventario") {
-    const [
-      { data: productData },
-      { data: stockData },
-      { data: movementData },
-    ] = await Promise.all([
-      supabase
-        .from("productos")
+    if (activeView === "cargar") {
+      const { data } = await supabase
+        .from("inventory_snapshots")
         .select(
-          "id, sku, nombre, marca, categoria, costo, precio, stock_minimo, is_active",
+          "id, snapshot_date, file_name, status, sku_count, unit_count, series_count, new_sku_count, exhausted_sku_count, created_at",
         )
-        .eq("is_active", true)
-        .order("nombre"),
-      supabase
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      snapshots = (data ?? []).map((row) => ({
+        id: row.id,
+        snapshotDate: row.snapshot_date,
+        fileName: row.file_name,
+        status: row.status,
+        skuCount: Number(row.sku_count),
+        unitCount: Number(row.unit_count),
+        seriesCount: Number(row.series_count),
+        newSkuCount: Number(row.new_sku_count),
+        exhaustedSkuCount: Number(row.exhausted_sku_count),
+        createdAt: row.created_at,
+      }));
+    } else {
+      const { data: stockData } = await supabase
         .from("inventario_stock")
         .select(
-          "id, sku, nombre, marca, categoria, costo, precio, stock_minimo, is_active, stock_actual, valor_stock",
+          "id, sku, nombre, marca, categoria, costo, precio, stock_minimo, is_active, stock_actual, valor_stock, almacen, ubicacion",
         )
         .eq("is_active", true)
-        .order("nombre"),
-      supabase
-        .from("inventario_movimientos")
-        .select(
-          "id, producto_id, tipo, cantidad, costo_unitario, referencia, nota, fecha",
-        )
-        .order("fecha", { ascending: false })
-        .limit(100),
-    ]);
+        .gt("stock_actual", 0)
+        .order("nombre");
 
-    products = (productData ?? []).map((row) => ({
-      id: row.id,
-      sku: row.sku,
-      nombre: row.nombre,
-      marca: row.marca,
-      categoria: row.categoria,
-      costo: Number(row.costo),
-      precio: Number(row.precio),
-      stock_minimo: Number(row.stock_minimo),
-      is_active: Boolean(row.is_active),
-    }));
+      stock = (stockData ?? []).map((row) => ({
+        id: row.id,
+        sku: row.sku,
+        nombre: row.nombre,
+        marca: row.marca,
+        categoria: row.categoria,
+        costo: Number(row.costo),
+        precio: Number(row.precio),
+        stock_minimo: Number(row.stock_minimo),
+        is_active: Boolean(row.is_active),
+        stock_actual: Number(row.stock_actual),
+        valor_stock: Number(row.valor_stock),
+        almacen: row.almacen,
+        ubicacion: row.ubicacion,
+      }));
 
-    stock = (stockData ?? []).map((row) => ({
-      id: row.id,
-      sku: row.sku,
-      nombre: row.nombre,
-      marca: row.marca,
-      categoria: row.categoria,
-      costo: Number(row.costo),
-      precio: Number(row.precio),
-      stock_minimo: Number(row.stock_minimo),
-      is_active: Boolean(row.is_active),
-      stock_actual: Number(row.stock_actual),
-      valor_stock: Number(row.valor_stock),
-    }));
+      if (activeView === "analisis") {
+        const { data: movementData } = await supabase
+          .from("inventario_kardex")
+          .select("id, producto_id, tipo, direccion, cantidad, fecha")
+          .order("fecha", { ascending: false })
+          .order("id", { ascending: false })
+          .limit(200);
 
-    movements = (movementData ?? []).map((row) => ({
-      id: Number(row.id),
-      producto_id: row.producto_id,
-      tipo: row.tipo,
-      cantidad: Number(row.cantidad),
-      costo_unitario:
-        row.costo_unitario === null ? null : Number(row.costo_unitario),
-      referencia: row.referencia,
-      nota: row.nota,
-      fecha: row.fecha,
-    }));
+        movements = (movementData ?? []).map((row) => ({
+          id: Number(row.id),
+          producto_id: row.producto_id,
+          tipo: row.tipo,
+          direccion: row.direccion,
+          cantidad: Number(row.cantidad),
+          fecha: row.fecha,
+        }));
+      }
+    }
   }
 
   if (activeModule === "personal") {
@@ -210,9 +208,9 @@ export default async function DashboardPage({
       {activeModule === "inventario" ? (
         <InventoryManagement
           activeView={activeView}
-          products={products}
           stock={stock}
           movements={movements}
+          snapshots={snapshots}
         />
       ) : activeModule === "personal" ? (
         <PersonalManagement personas={personas} puestos={puestos} />
