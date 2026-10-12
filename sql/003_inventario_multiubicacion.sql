@@ -781,15 +781,18 @@ with current_snapshot as (
 location_stock as (
   select
     i.producto_id,
-    i.almacen,
-    i.ubicacion,
+    max(i.almacen) as almacen,
+    max(i.ubicacion) as ubicacion,
     sum(i.cantidad_fisica)::bigint as cantidad_fisica,
     sum(i.cantidad_disponible)::bigint as cantidad_disponible,
     sum(i.cantidad_operativa)::bigint as stock_actual,
     count(i.serial) filter (where i.serial is not null)::bigint as series_count
   from public.inventory_snapshot_items i
   join current_snapshot cs on cs.id = i.snapshot_id
-  group by i.producto_id, i.almacen, i.ubicacion
+  group by
+    i.producto_id,
+    lower(regexp_replace(trim(i.almacen), '\\s+', ' ', 'g')),
+    lower(regexp_replace(trim(i.ubicacion), '\\s+', ' ', 'g'))
 )
 select
   (
