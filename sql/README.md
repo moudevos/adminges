@@ -7,6 +7,7 @@ Orden actual:
 ```text
 001_reset_nucleo.sql
 002_inventario_snapshots_kardex.sql
+003_inventario_multiubicacion.sql
 ```
 
 ## 001
@@ -26,6 +27,16 @@ Convierte Inventario al modelo canónico por snapshots:
 - RPC transaccional `apply_inventory_snapshot`
 - vista `inventario_stock` basada en el último snapshot aplicado
 
+## 003
+
+Habilita correctamente inventario multiubicación:
+
+- un SKU puede coexistir en Stock, Exhibición, Devoluciones y Tránsito
+- una serie/IMEI sigue siendo única
+- no serializados se concilian por SKU + almacén + ubicación
+- cambios de ubicación generan traslados en Kardex
+- la vista `inventario_stock` devuelve una fila por SKU + ubicación
+
 El Excel aplicado es el estado canónico. El Kardex es el libro histórico que
 explica entradas, salidas y traslados; no se usa como fuente para reconstruir el
 stock vigente.
@@ -39,4 +50,4 @@ order by version;
 ```
 
 No editar un SQL ya aplicado. Los siguientes cambios deben usar
-`003_...`, `004_...`, etc.
+`004_...`, `005_...`, etc.

@@ -16,6 +16,7 @@ type DashboardPageProps = {
 };
 
 type StockRow = {
+  row_key: string;
   id: string;
   sku: string;
   nombre: string;
@@ -25,10 +26,13 @@ type StockRow = {
   precio: number;
   stock_minimo: number;
   is_active: boolean;
+  cantidad_fisica: number;
+  cantidad_disponible: number;
   stock_actual: number;
   valor_stock: number;
-  almacen?: string | null;
-  ubicacion?: string | null;
+  series_count: number;
+  almacen: string | null;
+  ubicacion: string | null;
 };
 
 type MovementRow = {
@@ -120,13 +124,16 @@ export default async function DashboardPage({
       const { data: stockData } = await supabase
         .from("inventario_stock")
         .select(
-          "id, sku, nombre, marca, categoria, costo, precio, stock_minimo, is_active, stock_actual, valor_stock, almacen, ubicacion",
+          "row_key, id, sku, nombre, marca, categoria, costo, precio, stock_minimo, is_active, cantidad_fisica, cantidad_disponible, stock_actual, valor_stock, series_count, almacen, ubicacion",
         )
         .eq("is_active", true)
-        .gt("stock_actual", 0)
-        .order("nombre");
+        .gt("cantidad_fisica", 0)
+        .order("nombre")
+        .order("almacen")
+        .order("ubicacion");
 
       stock = (stockData ?? []).map((row) => ({
+        row_key: row.row_key,
         id: row.id,
         sku: row.sku,
         nombre: row.nombre,
@@ -136,8 +143,11 @@ export default async function DashboardPage({
         precio: Number(row.precio),
         stock_minimo: Number(row.stock_minimo),
         is_active: Boolean(row.is_active),
+        cantidad_fisica: Number(row.cantidad_fisica),
+        cantidad_disponible: Number(row.cantidad_disponible),
         stock_actual: Number(row.stock_actual),
         valor_stock: Number(row.valor_stock),
+        series_count: Number(row.series_count),
         almacen: row.almacen,
         ubicacion: row.ubicacion,
       }));

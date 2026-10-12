@@ -19,9 +19,8 @@ export function validateInventoryRows(rows: NormalizedInventoryRow[]) {
     string,
     {
       row: NormalizedInventoryRow;
-      location: string;
       serialized: boolean;
-      nonSerializedRows: number;
+      nonSerializedLocations: Set<string>;
     }
   >();
 
@@ -47,24 +46,12 @@ export function validateInventoryRows(rows: NormalizedInventoryRow[]) {
     if (!current) {
       skuState.set(row.sku, {
         row,
-        location: locationKey(row),
         serialized,
-        nonSerializedRows: serialized ? 0 : 1,
+        nonSerializedLocations: serialized
+          ? new Set<string>()
+          : new Set([locationKey(row)]),
       });
       continue;
-    }
-
-    if (current.location !== locationKey(row)) {
-      errors.push({
-        row: row.rowNumber,
-        code: "SKU_MULTIPLE_LOCATIONS",
-        message:
-          "El SKU " +
-          row.sku +
-          " aparece en más de una ubicación dentro del mismo archivo.",
-        sku: row.sku,
-        serial: row.serial ?? undefined,
-      });
     }
 
     if (current.serialized !== serialized) {
@@ -100,17 +87,20 @@ export function validateInventoryRows(rows: NormalizedInventoryRow[]) {
     }
 
     if (!serialized) {
-      current.nonSerializedRows += 1;
-      if (current.nonSerializedRows > 1) {
+      const key = locationKey(row);
+
+      if (current.nonSerializedLocations.has(key)) {
         errors.push({
           row: row.rowNumber,
-          code: "DUPLICATE_NON_SERIALIZED_SKU",
+          code: "DUPLICATE_NON_SERIALIZED_LOCATION",
           message:
             "El SKU no serializado " +
             row.sku +
-            " aparece en más de una fila.",
+            " repite la misma ubicación dentro del archivo.",
           sku: row.sku,
         });
+      } else {
+        current.nonSerializedLocations.add(key);
       }
     }
   }
