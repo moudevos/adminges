@@ -1,20 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { parseInventoryWorkbook } from "@/lib/inventory/parser";
-import { normalizeInventoryRows } from "@/lib/inventory/normalize";
-import { summarizeSnapshot } from "@/lib/inventory/reconcile";
+import { parseInventoryWorkbook } from "@/features/inventario/domain/parser";
+import { normalizeInventoryRows } from "@/features/inventario/domain/normalize";
+import { summarizeSnapshot } from "@/features/inventario/domain/reconcile";
 import type {
   ComparableInventoryRow,
   InventoryValidationError,
   NormalizedInventoryRow,
-} from "@/lib/inventory/types";
+} from "@/features/inventario/domain/types";
 import {
   validateInventoryRows,
   validateSerializationAgainstCurrent,
-} from "@/lib/inventory/validate";
+} from "@/features/inventario/domain/validate";
 import { createClient } from "@/lib/supabase/server";
-
-export const runtime = "nodejs";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const acceptedExtensions = [".xlsx", ".xls", ".csv"];
@@ -156,7 +154,7 @@ async function insertItems(
   }
 }
 
-export async function POST(request: Request) {
+export async function prepareInventorySnapshot(request: Request) {
   const supabase = await createClient();
   const { data: claims, error: authError } = await supabase.auth.getClaims();
 

@@ -6,7 +6,7 @@ const schema = z.object({
   snapshotId: z.string().uuid(),
 });
 
-export async function POST(request: Request) {
+export async function applyInventorySnapshot(request: Request) {
   const supabase = await createClient();
   const { data: claims, error: authError } = await supabase.auth.getClaims();
 

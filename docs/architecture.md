@@ -1,69 +1,78 @@
 # AdminGes — arquitectura
 
-## Núcleo
+## Principio
 
-AdminGes tiene cinco módulos operativos: Inventario, Ventas, Cuotas, Personal y Herramientas. No se modelan zonas, clusters, roles ni permisos por alcance.
+AdminGes se organiza por **rutas** y por **features**. App Router decide la URL y los layouts; cada feature contiene sus componentes, dominio y lógica de servidor.
 
-Supabase Auth mantiene un único usuario de acceso. `personas` representa personal comercial y no usuarios Auth.
-
-## Ruteo
-
-El shell autenticado vive en un route group de Next.js:
+## Rutas
 
 ```text
-src/app/(app)/layout.tsx
+src/app/
+├── (auth)/
+│   └── login/
+├── (app)/
+│   ├── layout.tsx
+│   ├── inventario/
+│   │   ├── cargar/
+│   │   ├── stock/
+│   │   └── analisis/
+│   ├── ventas/
+│   ├── cuotas/
+│   ├── personal/
+│   └── herramientas/
+├── api/
+│   └── inventario/
+│       └── snapshots/
+└── dashboard/
+    └── page.tsx
 ```
 
-El nombre `(app)` no forma parte de la URL. Cada módulo tiene rutas semánticas reales:
+Los route groups `(auth)` y `(app)` no aparecen en la URL. `/dashboard` existe únicamente como redirect legacy.
+
+## Features
 
 ```text
-/inventario/cargar
-/inventario/stock
-/inventario/analisis
-
-/ventas/agregar
-/ventas/historial
-/ventas/analisis
-
-/cuotas/diaria
-/cuotas/mensual
-/cuotas/seguimiento-mensual
-/cuotas/seguimiento-diario
-
-/personal
-
-/herramientas/specs
-/herramientas/gancheras
-/herramientas/preciador
+src/features/
+├── auth/
+│   ├── components/
+│   └── server/
+├── inventario/
+│   ├── components/
+│   ├── domain/
+│   └── server/
+├── personal/
+│   ├── components/
+│   └── server/
+├── ventas/
+│   └── components/
+├── cuotas/
+│   └── components/
+└── herramientas/
+    └── components/
 ```
 
-`/dashboard` existe únicamente como redirect de compatibilidad para enlaces antiguos con `?module=&view=`. No contiene la lógica de los módulos.
+Regla: una página de `src/app` debe ser delgada. No concentra lógica de negocio; importa la vista y el loader/acción desde su feature.
 
-El sidebar y el topbar derivan su estado activo del pathname. La URL es la única fuente de verdad para módulo y vista.
+## Compartido
+
+```text
+src/components/
+├── shell/   # sidebar, topbar, app shell
+└── ui/      # primitivas reutilizables
+
+src/config/
+└── navigation.ts
+
+src/lib/
+└── supabase/ # clientes SSR/browser/proxy
+```
 
 ## Inventario
 
-El Excel aplicado es el canon del inventario. El sistema conserva snapshots completos y compara el snapshot candidato contra el snapshot vigente antes de aplicar cambios.
+El Excel diario es el canon. Los archivos se normalizan en `features/inventario/domain`, se procesan en `features/inventario/server` y se exponen por `/api/inventario/snapshots/*`.
 
-`inventario_stock` representa el estado vigente por SKU + ubicación lógica. El stock operativo para venta corresponde a `Cantidad disponible` en `KIOSKO MALL IQUITOS - KIO37 / Stock`.
+El snapshot aplicado representa el estado vigente. `inventario_kardex` explica entradas, salidas y traslados. La vista `inventario_stock` expone el estado por SKU + ubicación lógica.
 
-`inventario_kardex` conserva entradas, salidas y traslados. Para productos serializados también conserva la serie/IMEI asociada al movimiento.
+## Autenticación
 
-## Datos principales
-
-```text
-puestos
-  └── personas
-        ├── ventas
-        ├── cuotas_diarias
-        └── cuotas_mensuales
-
-productos
-  ├── inventory_snapshot_items
-  ├── inventory_serial_registry
-  ├── inventario_kardex
-  └── venta_detalles
-
-inventory_snapshots
-  └── inventory_snapshot_items
-```
+Supabase Auth mantiene un único usuario de acceso. Las acciones de login/logout viven en `features/auth/server/actions.ts`. Personal comercial vive en `public.personas` y no representa usuarios Auth.

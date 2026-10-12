@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { ModuleContent } from "@/components/dashboard/module-content";
+import { QuotasView } from "@/features/cuotas/components/quotas-view";
 
 const views = new Set([
   "diaria",
@@ -14,10 +14,6 @@ export default async function QuotasViewPage({
   params: Promise<{ view: string }>;
 }) {
   const { view } = await params;
-
-  if (!views.has(view)) {
-    notFound();
-  }
-
-  return <ModuleContent activeModule="cuotas" activeView={view} />;
+  if (!views.has(view)) notFound();
+  return <QuotasView view={view} />;
 }

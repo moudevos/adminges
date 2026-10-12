@@ -1,15 +1,7 @@
-import { InventoryManagement } from "@/components/dashboard/inventory-management";
-import { loadInventoryStock } from "@/lib/dashboard/loaders";
+import { InventoryStockTable } from "@/features/inventario/components/stock-table";
+import { loadInventoryStock } from "@/features/inventario/server/loaders";
 
 export default async function InventoryStockPage() {
   const stock = await loadInventoryStock();
-
-  return (
-    <InventoryManagement
-      activeView="stock"
-      stock={stock}
-      movements={[]}
-      snapshots={[]}
-    />
-  );
+  return <InventoryStockTable rows={stock} />;
 }

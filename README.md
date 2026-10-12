@@ -103,3 +103,19 @@ La aplicación usa rutas semánticas por módulo. Ejemplos:
 ```
 
 `/dashboard` se conserva únicamente como redirect de compatibilidad para enlaces antiguos.
+
+
+## Estructura del código
+
+AdminGes usa organización por features:
+
+```text
+src/app/       rutas, layouts y route handlers
+src/features/  lógica y UI por módulo
+src/components/shell/  shell compartido
+src/components/ui/     primitivas reutilizables
+src/config/    configuración estática
+src/lib/supabase/ integración Supabase
+```
+
+Las páginas de App Router son delgadas y delegan el trabajo a su feature. La API de inventario vive bajo `/api/inventario/*`.
