@@ -3,8 +3,17 @@ import "server-only";
 import type {
   InventoryStockRow,
   SnapshotHistoryRow,
-} from "@/lib/inventory/types";
+} from "@/features/inventario/domain/types";
 import { createClient } from "@/lib/supabase/server";
+
+export type InventoryMovementRow = {
+  id: number;
+  producto_id: string;
+  tipo: string;
+  direccion: string;
+  cantidad: number;
+  fecha: string;
+};
 
 export type InventoryMovementRow = {
   id: number;
@@ -146,41 +155,4 @@ export async function loadInventoryAnalysis() {
   );
 
   return { stock, movements };
-}
-
-export async function loadPersonalData() {
-  const supabase = await createClient();
-
-  const [puestoResult, personaResult] = await Promise.all([
-    supabase
-      .from("puestos")
-      .select("id, nombre")
-      .eq("is_active", true)
-      .order("nombre"),
-    supabase
-      .from("personas")
-      .select(
-        "id, puesto_id, nombres, apellidos, documento, telefono, email, is_active",
-      )
-      .order("apellidos")
-      .order("nombres"),
-  ]);
-
-  const puestos: PuestoRow[] = (puestoResult.data ?? []).map((row) => ({
-    id: row.id,
-    nombre: row.nombre,
-  }));
-
-  const personas: PersonaRow[] = (personaResult.data ?? []).map((row) => ({
-    id: row.id,
-    puesto_id: row.puesto_id,
-    nombres: row.nombres,
-    apellidos: row.apellidos,
-    documento: row.documento,
-    telefono: row.telefono,
-    email: row.email,
-    is_active: Boolean(row.is_active),
-  }));
-
-  return { puestos, personas };
 }

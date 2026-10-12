@@ -10,13 +10,13 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useRouter } from "next/navigation";
 import { type ChangeEvent, type DragEvent, useState } from "react";
-import { LoadingIndicator } from "@/components/dashboard/loading-indicator";
+import { LoadingIndicator } from "@/components/ui/loading-indicator";
 import { Modal } from "@/components/ui/modal";
 import type {
   InventoryValidationError,
   PreparedSnapshot,
   SnapshotHistoryRow,
-} from "@/lib/inventory/types";
+} from "@/features/inventario/domain/types";
 
 type CountMode = "digital" | "manual";
 
@@ -126,7 +126,7 @@ export function InventoryUploadView({
     formData.set("snapshotDate", snapshotDate);
 
     try {
-      const response = await fetch("/api/inventory/snapshots/prepare", {
+      const response = await fetch("/api/inventario/snapshots/prepare", {
         method: "POST",
         body: formData,
       });
@@ -157,7 +157,7 @@ export function InventoryUploadView({
     setProcessingMessage("Actualizando inventario y generando Kardex...");
 
     try {
-      const response = await fetch("/api/inventory/snapshots/apply", {
+      const response = await fetch("/api/inventario/snapshots/apply", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ snapshotId: prepared.id }),

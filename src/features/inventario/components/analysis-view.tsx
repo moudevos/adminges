@@ -1,51 +1,14 @@
 "use client";
 
-import { InventoryStockTable } from "@/components/dashboard/inventory-stock-table";
-import { InventoryUploadView } from "@/components/dashboard/inventory-upload-view";
-import type {
-  InventoryStockRow,
-  SnapshotHistoryRow,
-} from "@/lib/inventory/types";
+import type { InventoryStockRow } from "@/features/inventario/domain/types";
+import type { InventoryMovementRow } from "@/features/inventario/server/loaders";
 
-type MovementRow = {
-  id: number;
-  producto_id: string;
-  tipo: string;
-  direccion: string;
-  cantidad: number;
-  fecha: string;
-};
-
-type Props = {
-  activeView: string;
-  stock: InventoryStockRow[];
-  movements: MovementRow[];
-  snapshots: SnapshotHistoryRow[];
-};
-
-export function InventoryManagement({
-  activeView,
-  stock,
-  movements,
-  snapshots,
-}: Props) {
-  if (activeView === "cargar") {
-    return <InventoryUploadView history={snapshots} />;
-  }
-
-  if (activeView === "analisis") {
-    return <AnalysisView stock={stock} movements={movements} />;
-  }
-
-  return <InventoryStockTable rows={stock} />;
-}
-
-function AnalysisView({
+export function InventoryAnalysisView({
   stock,
   movements,
 }: {
   stock: InventoryStockRow[];
-  movements: MovementRow[];
+  movements: InventoryMovementRow[];
 }) {
   const products = new Set(stock.map((item) => item.sku)).size;
   const totalUnits = stock.reduce((sum, item) => sum + item.stockActual, 0);
@@ -64,15 +27,17 @@ function AnalysisView({
 
   for (const item of stock) {
     const current = productTotals.get(item.sku);
+
     if (current) {
       current.stock += item.stockActual;
-    } else {
-      productTotals.set(item.sku, {
-        id: item.id,
-        nombre: item.nombre,
-        stock: item.stockActual,
-      });
+      continue;
     }
+
+    productTotals.set(item.sku, {
+      id: item.id,
+      nombre: item.nombre,
+      stock: item.stockActual,
+    });
   }
 
   const top = [...productTotals.values()]

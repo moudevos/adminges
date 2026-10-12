@@ -3,7 +3,7 @@ import {
   type ComparableInventoryRow,
   type InventorySnapshotSummary,
   type NormalizedInventoryRow,
-} from "@/lib/inventory/types";
+} from "@/features/inventario/domain/types";
 
 function skuSet(rows: Array<{ sku: string }>) {
   return new Set(rows.map((row) => row.sku));

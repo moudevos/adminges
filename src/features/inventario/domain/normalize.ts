@@ -1,10 +1,10 @@
-import { normalizeCategory } from "@/lib/inventory/categories";
+import { normalizeCategory } from "@/features/inventario/domain/categories";
 import {
   MAIN_WAREHOUSE,
   type InventoryValidationError,
   type NormalizedInventoryRow,
   type RawInventoryRow,
-} from "@/lib/inventory/types";
+} from "@/features/inventario/domain/types";
 
 function cleanText(value: string) {
   return value.replace(/\s+/g, " ").trim();

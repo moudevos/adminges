@@ -2,7 +2,7 @@ import type {
   ComparableInventoryRow,
   InventoryValidationError,
   NormalizedInventoryRow,
-} from "@/lib/inventory/types";
+} from "@/features/inventario/domain/types";
 
 function locationKey(row: { almacen: string; ubicacion: string }) {
   return (

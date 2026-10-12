@@ -1,4 +1,4 @@
-import type { RawInventoryRow } from "@/lib/inventory/types";
+import type { RawInventoryRow } from "@/features/inventario/domain/types";
 
 type InventoryColumn =
   | "sku"

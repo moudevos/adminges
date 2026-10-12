@@ -20,7 +20,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
-import type { InventoryStockRow } from "@/lib/inventory/types";
+import type { InventoryStockRow } from "@/features/inventario/domain/types";
 
 const columnHelper = createColumnHelper<InventoryStockRow>();
 

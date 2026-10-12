@@ -1,9 +1,9 @@
 import * as XLSX from "xlsx";
-import { findHeaderRow, mapRawRow } from "@/lib/inventory/headers";
+import { findHeaderRow, mapRawRow } from "@/features/inventario/domain/headers";
 import type {
   InventoryValidationError,
   RawInventoryRow,
-} from "@/lib/inventory/types";
+} from "@/features/inventario/domain/types";
 
 const columnLabels: Record<string, string> = {
   sku: "Producto/Referencia Interna",
