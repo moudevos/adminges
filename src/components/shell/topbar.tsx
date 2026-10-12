@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  faBars,
-  faChevronLeft,
-  faChevronRight,
-} from "@fortawesome/free-solid-svg-icons";
+import { faBars } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { MODULE_TITLES } from "@/components/shell/navigation";
 import { UserMenu } from "@/components/shell/user-menu";
@@ -45,7 +41,7 @@ export function ShellTopbar({
         className="hidden size-9 place-items-center rounded-[9px] text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 md:grid"
         aria-label={collapsed ? "Expandir menú lateral" : "Contraer menú lateral"}
       >
-        <FontAwesomeIcon icon={collapsed ? faChevronRight : faChevronLeft} />
+        <FontAwesomeIcon icon={faBars} />
       </button>
 
       <div className="min-w-0">

@@ -28,6 +28,7 @@ export function AppShell({
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [openGroup, setOpenGroup] = useState<string | null>(activeModule);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   const navigating = Boolean(pendingHref && pendingHref !== currentHref);
@@ -35,10 +36,22 @@ export function AppShell({
   function beginNavigation(href: string) {
     setPendingHref(href);
     setMobileOpen(false);
+    const nextModule = new URL(href, "https://adminges.local").searchParams.get("module");
+    if (nextModule) setOpenGroup(nextModule);
   }
 
   function toggleCollapse() {
     setCollapsed((value) => !value);
+  }
+
+  function toggleGroup(key: string) {
+    if (collapsed) {
+      setCollapsed(false);
+      setOpenGroup(key);
+      return;
+    }
+
+    setOpenGroup((value) => (value === key ? null : key));
   }
 
   return (
@@ -51,8 +64,10 @@ export function AppShell({
         <div className="hidden shrink-0 md:block">
           <ShellSidebar
             activeModule={activeModule}
+            activeView={activeView}
             collapsed={collapsed}
-            onToggleCollapse={toggleCollapse}
+            openGroup={openGroup}
+            onGroupToggle={toggleGroup}
           />
         </div>
 
@@ -67,8 +82,10 @@ export function AppShell({
             <div className="relative h-full shadow-2xl">
               <ShellSidebar
                 activeModule={activeModule}
+                activeView={activeView}
                 collapsed={false}
-                onToggleCollapse={() => setMobileOpen(false)}
+                openGroup={openGroup}
+                onGroupToggle={toggleGroup}
               />
             </div>
           </div>
