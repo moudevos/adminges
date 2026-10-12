@@ -1,7 +1,6 @@
 "use client";
 
 import { InventoryUploadView } from "@/components/dashboard/inventory-upload-view";
-import { ModuleTabs } from "@/components/dashboard/module-tabs";
 
 type ProductRow = {
   id: string;
@@ -38,33 +37,21 @@ type Props = {
   movements: MovementRow[];
 };
 
-const tabs = [
-  { key: "cargar", label: "Cargar" },
-  { key: "stock", label: "Stock" },
-  { key: "analisis", label: "Análisis" },
-];
-
 export function InventoryManagement({
   activeView,
   stock,
   movements,
 }: Props) {
-  const view = tabs.some((item) => item.key === activeView)
+  const view = ["cargar", "stock", "analisis"].includes(activeView)
     ? activeView
     : "stock";
 
   return (
-    <div className="space-y-4">
-      <ModuleTabs module="inventario" tabs={tabs} active={view} />
-
-      {view === "cargar" ? (
-        <InventoryUploadView />
-      ) : view === "analisis" ? (
-        <AnalysisView stock={stock} movements={movements} />
-      ) : (
-        <StockView stock={stock} />
-      )}
-    </div>
+    <>
+      {view === "cargar" ? <InventoryUploadView /> : null}
+      {view === "analisis" ? <AnalysisView stock={stock} movements={movements} /> : null}
+      {view === "stock" ? <StockView stock={stock} /> : null}
+    </>
   );
 }
 
