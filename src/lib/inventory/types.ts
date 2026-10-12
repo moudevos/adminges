@@ -93,3 +93,26 @@ export type PreparedSnapshot = InventorySnapshotSummary & {
   snapshotDate: string;
   fileName: string;
 };
+
+export type InventoryStockRow = {
+  rowKey: string;
+  id: string;
+  sku: string;
+  nombre: string;
+  marca: string | null;
+  categoria: string | null;
+  categoriaPrincipal: string | null;
+  categoriaVenta: string | null;
+  costo: number;
+  precio: number;
+  stockMinimo: number;
+  isActive: boolean;
+  cantidadFisica: number;
+  cantidadDisponible: number;
+  stockActual: number;
+  valorStock: number;
+  seriesCount: number;
+  serials: string[];
+  almacen: string | null;
+  ubicacion: string | null;
+};

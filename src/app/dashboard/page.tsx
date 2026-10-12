@@ -3,7 +3,10 @@ import { InventoryManagement } from "@/components/dashboard/inventory-management
 import { ModuleContent } from "@/components/dashboard/module-content";
 import { PersonalManagement } from "@/components/dashboard/personal-management";
 import { AppShell } from "@/components/shell/app-shell";
-import type { SnapshotHistoryRow } from "@/lib/inventory/types";
+import type {
+  InventoryStockRow,
+  SnapshotHistoryRow,
+} from "@/lib/inventory/types";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -13,26 +16,6 @@ type DashboardPageProps = {
     module?: string;
     view?: string;
   }>;
-};
-
-type StockRow = {
-  row_key: string;
-  id: string;
-  sku: string;
-  nombre: string;
-  marca: string | null;
-  categoria: string | null;
-  costo: number;
-  precio: number;
-  stock_minimo: number;
-  is_active: boolean;
-  cantidad_fisica: number;
-  cantidad_disponible: number;
-  stock_actual: number;
-  valor_stock: number;
-  series_count: number;
-  almacen: string | null;
-  ubicacion: string | null;
 };
 
 type MovementRow = {
@@ -92,7 +75,7 @@ export default async function DashboardPage({
     : "inventario";
   const activeView = params.view ?? defaultView(activeModule);
 
-  let stock: StockRow[] = [];
+  let stock: InventoryStockRow[] = [];
   let movements: MovementRow[] = [];
   let snapshots: SnapshotHistoryRow[] = [];
   let puestos: PuestoRow[] = [];
@@ -124,30 +107,36 @@ export default async function DashboardPage({
       const { data: stockData } = await supabase
         .from("inventario_stock")
         .select(
-          "row_key, id, sku, nombre, marca, categoria, costo, precio, stock_minimo, is_active, cantidad_fisica, cantidad_disponible, stock_actual, valor_stock, series_count, almacen, ubicacion",
+          "row_key, id, sku, nombre, marca, categoria, categoria_principal, categoria_venta, costo, precio, stock_minimo, is_active, cantidad_fisica, cantidad_disponible, stock_actual, valor_stock, series_count, serials, almacen, ubicacion",
         )
         .eq("is_active", true)
-        .gt("cantidad_fisica", 0)
         .order("nombre")
         .order("almacen")
         .order("ubicacion");
 
       stock = (stockData ?? []).map((row) => ({
-        row_key: row.row_key,
+        rowKey: row.row_key,
         id: row.id,
         sku: row.sku,
         nombre: row.nombre,
         marca: row.marca,
         categoria: row.categoria,
+        categoriaPrincipal: row.categoria_principal,
+        categoriaVenta: row.categoria_venta,
         costo: Number(row.costo),
         precio: Number(row.precio),
-        stock_minimo: Number(row.stock_minimo),
-        is_active: Boolean(row.is_active),
-        cantidad_fisica: Number(row.cantidad_fisica),
-        cantidad_disponible: Number(row.cantidad_disponible),
-        stock_actual: Number(row.stock_actual),
-        valor_stock: Number(row.valor_stock),
-        series_count: Number(row.series_count),
+        stockMinimo: Number(row.stock_minimo),
+        isActive: Boolean(row.is_active),
+        cantidadFisica: Number(row.cantidad_fisica),
+        cantidadDisponible: Number(row.cantidad_disponible),
+        stockActual: Number(row.stock_actual),
+        valorStock: Number(row.valor_stock),
+        seriesCount: Number(row.series_count),
+        serials: Array.isArray(row.serials)
+          ? row.serials.filter(
+              (serial): serial is string => typeof serial === "string",
+            )
+          : [],
         almacen: row.almacen,
         ubicacion: row.ubicacion,
       }));

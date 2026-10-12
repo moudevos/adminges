@@ -8,6 +8,7 @@ Orden actual:
 001_reset_nucleo.sql
 002_inventario_snapshots_kardex.sql
 003_inventario_multiubicacion.sql
+004_inventario_stock_filtros_series.sql
 ```
 
 ## 001
@@ -37,6 +38,14 @@ Habilita correctamente inventario multiubicación:
 - cambios de ubicación generan traslados en Kardex
 - la vista `inventario_stock` devuelve una fila por SKU + ubicación
 
+## 004
+
+Amplía `inventario_stock` para la vista filtrable:
+
+- expone categoría principal y subcategoría comercial
+- expone las series/IMEIs por SKU + ubicación como `text[]`
+- permite búsqueda local por nombre, SKU o IMEI sin crear filas duplicadas
+
 El Excel aplicado es el estado canónico. El Kardex es el libro histórico que
 explica entradas, salidas y traslados; no se usa como fuente para reconstruir el
 stock vigente.
@@ -50,4 +59,4 @@ order by version;
 ```
 
 No editar un SQL ya aplicado. Los siguientes cambios deben usar
-`004_...`, `005_...`, etc.
+`005_...`, `006_...`, etc.
