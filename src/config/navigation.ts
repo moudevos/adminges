@@ -45,6 +45,11 @@ export const SHELL_NAVIGATION: NavigationSection[] = [
         children: [
           { key: "cargar", label: "Cargar", href: "/inventario/cargar" },
           { key: "stock", label: "Stock", href: "/inventario/stock" },
+          {
+            key: "movimientos",
+            label: "Movimientos",
+            href: "/inventario/movimientos",
+          },
           { key: "analisis", label: "Análisis", href: "/inventario/analisis" },
         ],
       },

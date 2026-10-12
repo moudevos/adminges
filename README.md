@@ -95,6 +95,7 @@ La aplicación usa rutas semánticas por módulo. Ejemplos:
 
 ```text
 /inventario/stock
+/inventario/movimientos
 /inventario/cargar
 /ventas/historial
 /cuotas/seguimiento-diario

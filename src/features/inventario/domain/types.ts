@@ -116,3 +116,45 @@ export type InventoryStockRow = {
   almacen: string | null;
   ubicacion: string | null;
 };
+
+
+export type InventoryKardexMovement = {
+  id: number;
+  fecha: string;
+  sku: string;
+  descripcion: string;
+  serial: string | null;
+  direccion: "entrada" | "salida" | "traslado";
+  tipo: "snapshot_inicial" | "reconciliacion" | "traslado" | "venta";
+  clasificacion: "confirmado" | "pendiente_venta";
+  cantidad: number;
+  almacenOrigen: string | null;
+  ubicacionOrigen: string | null;
+  almacenDestino: string | null;
+  ubicacionDestino: string | null;
+};
+
+export type InventoryMovementSearchResult = {
+  mode: "sku" | "imei";
+  query: string;
+  sku: string;
+  descripcion: string;
+  serial: string | null;
+  movements: InventoryKardexMovement[];
+  total: number;
+};
+
+export type InventoryMovementSearchResponse =
+  | {
+      status: "found";
+      result: InventoryMovementSearchResult;
+    }
+  | {
+      status: "not-found";
+      query: string;
+    }
+  | {
+      status: "error";
+      query: string;
+      message: string;
+    };

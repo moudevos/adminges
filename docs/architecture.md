@@ -76,3 +76,8 @@ El snapshot aplicado representa el estado vigente. `inventario_kardex` explica e
 ## Autenticación
 
 Supabase Auth mantiene un único usuario de acceso. Las acciones de login/logout viven en `features/auth/server/actions.ts`. Personal comercial vive en `public.personas` y no representa usuarios Auth.
+
+
+### Movimientos
+
+`/inventario/movimientos` consulta el Kardex por SKU o por IMEI/serie. La búsqueda se ejecuta en servidor. Por SKU devuelve todos los movimientos del producto; por IMEI devuelve exclusivamente la trazabilidad de esa unidad. Entradas suman, salidas restan y traslados tienen impacto neto cero.
