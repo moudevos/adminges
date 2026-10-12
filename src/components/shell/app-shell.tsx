@@ -101,8 +101,8 @@ export function AppShell({
             onToggleCollapse={toggleCollapse}
           />
 
-          <main className="min-h-0 flex-1 overflow-y-auto">
-            <div className="mx-auto w-full max-w-[1280px] px-4 py-5 sm:px-6 md:py-7">
+          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+            <div className="w-full px-4 py-5 sm:px-6 md:py-7">
               {children}
             </div>
           </main>
