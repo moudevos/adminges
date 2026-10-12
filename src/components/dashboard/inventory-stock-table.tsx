@@ -37,30 +37,25 @@ function uniqueSorted(values: Array<string | null>) {
     .sort((a, b) => a.localeCompare(b, "es"));
 }
 
-function locationLabel(row: InventoryStockRow) {
-  if (!row.almacen) return row.ubicacion || "—";
-
-  if (row.almacen === "KIOSKO MALL IQUITOS - KIO37") {
-    return row.ubicacion || row.almacen;
-  }
-
-  return "Tránsito · " + row.almacen;
-}
-
 function SortIcon({
   direction,
 }: {
   direction: false | "asc" | "desc";
 }) {
   if (direction === "asc") {
-    return <FontAwesomeIcon icon={faSortUp} className="text-[10px]" />;
+    return <FontAwesomeIcon icon={faSortUp} className="text-[9px]" />;
   }
 
   if (direction === "desc") {
-    return <FontAwesomeIcon icon={faSortDown} className="text-[10px]" />;
+    return <FontAwesomeIcon icon={faSortDown} className="text-[9px]" />;
   }
 
-  return <FontAwesomeIcon icon={faSort} className="text-[10px] text-slate-300" />;
+  return (
+    <FontAwesomeIcon
+      icon={faSort}
+      className="text-[9px] text-slate-300"
+    />
+  );
 }
 
 export function InventoryStockTable({
@@ -71,16 +66,20 @@ export function InventoryStockTable({
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [subcategory, setSubcategory] = useState("");
-  const [warehouse, setWarehouse] = useState("");
+  const [logicalWarehouse, setLogicalWarehouse] = useState("");
   const [showZero, setShowZero] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([
     { id: "nombre", desc: false },
   ]);
 
   const categories = useMemo(
-    () => uniqueSorted(rows.map((row) => row.categoriaPrincipal || row.categoria)),
+    () =>
+      uniqueSorted(
+        rows.map((row) => row.categoriaPrincipal || row.categoria),
+      ),
     [rows],
   );
+
   const subcategories = useMemo(
     () =>
       uniqueSorted(
@@ -94,8 +93,9 @@ export function InventoryStockTable({
       ),
     [category, rows],
   );
-  const warehouses = useMemo(
-    () => uniqueSorted(rows.map((row) => row.almacen)),
+
+  const logicalWarehouses = useMemo(
+    () => uniqueSorted(rows.map((row) => row.ubicacion)),
     [rows],
   );
 
@@ -104,32 +104,41 @@ export function InventoryStockTable({
 
     return rows.filter((row) => {
       if (!showZero && row.cantidadFisica <= 0) return false;
+
       if (
         category &&
         (row.categoriaPrincipal || row.categoria || "") !== category
       ) {
         return false;
       }
+
       if (subcategory && (row.categoriaVenta || "") !== subcategory) {
         return false;
       }
-      if (warehouse && (row.almacen || "") !== warehouse) {
+
+      if (
+        logicalWarehouse &&
+        (row.ubicacion || "") !== logicalWarehouse
+      ) {
         return false;
       }
 
       if (!query) return true;
 
       const searchable = normalize(
-        [
-          row.nombre,
-          row.sku,
-          ...row.serials,
-        ].join(" "),
+        [row.nombre, row.sku, ...row.serials].join(" "),
       );
 
       return searchable.includes(query);
     });
-  }, [category, rows, search, showZero, subcategory, warehouse]);
+  }, [
+    category,
+    logicalWarehouse,
+    rows,
+    search,
+    showZero,
+    subcategory,
+  ]);
 
   const columns = useMemo(
     () => [
@@ -145,12 +154,14 @@ export function InventoryStockTable({
         header: "Producto",
         cell: (info) => (
           <div className="min-w-[240px]">
-            <p className="font-medium text-slate-900">{info.getValue()}</p>
+            <p className="font-medium leading-5 text-slate-900">
+              {info.getValue()}
+            </p>
             {info.row.original.seriesCount > 0 ? (
-              <p className="mt-0.5 text-[11px] text-slate-400">
+              <span className="mt-1 inline-flex rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
                 {info.row.original.seriesCount}{" "}
                 {info.row.original.seriesCount === 1 ? "serie" : "series"}
-              </p>
+              </span>
             ) : null}
           </div>
         ),
@@ -166,30 +177,35 @@ export function InventoryStockTable({
         id: "subcategoria",
         header: "Subcategoría",
       }),
-      columnHelper.accessor((row) => row.almacen || "—", {
-        id: "almacen",
-        header: "Almacén",
+      columnHelper.accessor((row) => row.ubicacion || "—", {
+        id: "ubicacion",
+        header: "Almacén lógico",
         cell: (info) => (
-          <div className="min-w-[190px]">
-            <p className="text-slate-700">{info.getValue()}</p>
-            <p className="mt-0.5 text-[11px] text-slate-400">
-              {locationLabel(info.row.original)}
-            </p>
-          </div>
+          <span className="font-medium text-slate-700">
+            {info.getValue()}
+          </span>
         ),
       }),
       columnHelper.accessor("cantidadFisica", {
         header: "Cantidad",
-        cell: (info) => (
-          <div className="text-right">
-            <p className="font-semibold text-slate-900">{info.getValue()}</p>
-            {info.row.original.stockActual > 0 ? (
-              <p className="mt-0.5 text-[11px] font-medium text-emerald-600">
-                {info.row.original.stockActual} disponible
+        cell: (info) => {
+          const item = info.row.original;
+          const showAvailable =
+            item.cantidadDisponible !== item.cantidadFisica;
+
+          return (
+            <div className="text-right">
+              <p className="font-semibold tabular-nums text-slate-900">
+                {info.getValue()}
               </p>
-            ) : null}
-          </div>
-        ),
+              {showAvailable ? (
+                <p className="mt-0.5 text-[10px] tabular-nums text-slate-400">
+                  {item.cantidadDisponible} disponible
+                </p>
+              ) : null}
+            </div>
+          );
+        },
       }),
     ],
     [],
@@ -205,25 +221,25 @@ export function InventoryStockTable({
     getPaginationRowModel: getPaginationRowModel(),
     initialState: {
       pagination: {
-        pageSize: 20,
+        pageSize: 25,
       },
     },
   });
 
-  function clearDependentCategory(nextCategory: string) {
+  function changeCategory(nextCategory: string) {
     setCategory(nextCategory);
     setSubcategory("");
     table.setPageIndex(0);
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="grid gap-2 border-b border-slate-100 p-3 md:grid-cols-2 xl:grid-cols-[minmax(280px,1.5fr)_minmax(150px,0.7fr)_minmax(150px,0.7fr)_minmax(190px,0.9fr)_auto]">
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="grid gap-2 border-b border-slate-100 bg-white p-2.5 md:grid-cols-2 xl:grid-cols-[minmax(280px,1.45fr)_minmax(145px,0.65fr)_minmax(145px,0.65fr)_minmax(150px,0.7fr)_auto]">
         <label className="relative block">
           <span className="sr-only">Buscar por nombre, SKU o IMEI</span>
           <FontAwesomeIcon
             icon={faMagnifyingGlass}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-400"
           />
           <input
             type="search"
@@ -232,15 +248,15 @@ export function InventoryStockTable({
               setSearch(event.target.value);
               table.setPageIndex(0);
             }}
-            placeholder="Buscar por nombre, SKU o IMEI"
-            className="control-input pl-9"
+            placeholder="Buscar nombre, SKU o IMEI"
+            className="control-input h-10 pl-9 text-sm"
           />
         </label>
 
         <FilterSelect
           label="Categoría"
           value={category}
-          onChange={clearDependentCategory}
+          onChange={changeCategory}
           options={categories}
         />
 
@@ -255,16 +271,16 @@ export function InventoryStockTable({
         />
 
         <FilterSelect
-          label="Almacén"
-          value={warehouse}
+          label="Almacén lógico"
+          value={logicalWarehouse}
           onChange={(value) => {
-            setWarehouse(value);
+            setLogicalWarehouse(value);
             table.setPageIndex(0);
           }}
-          options={warehouses}
+          options={logicalWarehouses}
         />
 
-        <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm text-slate-600 transition hover:bg-slate-50">
+        <label className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-600 transition hover:bg-slate-50">
           <input
             type="checkbox"
             checked={showZero}
@@ -279,8 +295,8 @@ export function InventoryStockTable({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1040px] text-left text-sm">
-          <thead className="bg-slate-50/80 text-[11px] font-semibold uppercase tracking-[0.035em] text-slate-500">
+        <table className="w-full min-w-[980px] text-left text-sm">
+          <thead className="bg-slate-50/70 text-[10px] font-semibold uppercase tracking-[0.04em] text-slate-500">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
@@ -291,7 +307,7 @@ export function InventoryStockTable({
                     <th
                       key={header.id}
                       className={
-                        "border-b border-slate-200 px-4 py-3 " +
+                        "border-b border-slate-200 px-4 py-2.5 " +
                         (header.column.id === "cantidadFisica"
                           ? "text-right"
                           : "")
@@ -302,7 +318,7 @@ export function InventoryStockTable({
                           type="button"
                           onClick={header.column.getToggleSortingHandler()}
                           className={
-                            "inline-flex items-center gap-2 transition hover:text-slate-900 " +
+                            "inline-flex items-center gap-1.5 transition hover:text-slate-900 " +
                             (header.column.id === "cantidadFisica"
                               ? "ml-auto"
                               : "")
@@ -331,14 +347,16 @@ export function InventoryStockTable({
             {table.getRowModel().rows.map((row) => (
               <tr
                 key={row.original.rowKey}
-                className="transition hover:bg-slate-50/80"
+                className="transition hover:bg-slate-50/60"
               >
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
                     className={
-                      "border-b border-slate-100 px-4 py-3.5 text-slate-600 " +
-                      (cell.column.id === "cantidadFisica" ? "text-right" : "")
+                      "border-b border-slate-100 px-4 py-3 text-slate-600 " +
+                      (cell.column.id === "cantidadFisica"
+                        ? "text-right"
+                        : "")
                     }
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -361,14 +379,14 @@ export function InventoryStockTable({
         </table>
       </div>
 
-      <div className="flex flex-col gap-3 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-        <span>
+      <div className="flex min-h-12 flex-col gap-2 px-4 py-2.5 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+        <span className="tabular-nums">
           {filteredRows.length}{" "}
           {filteredRows.length === 1 ? "registro" : "registros"}
         </span>
 
         <div className="flex items-center gap-2">
-          <span>
+          <span className="tabular-nums">
             Página {table.getState().pagination.pageIndex + 1} de{" "}
             {Math.max(1, table.getPageCount())}
           </span>
@@ -376,7 +394,7 @@ export function InventoryStockTable({
             type="button"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            className="grid size-8 place-items-center rounded-lg border border-slate-200 bg-white transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="grid size-8 place-items-center rounded-lg border border-slate-200 bg-white transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
             aria-label="Página anterior"
           >
             <FontAwesomeIcon icon={faChevronLeft} />
@@ -385,7 +403,7 @@ export function InventoryStockTable({
             type="button"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            className="grid size-8 place-items-center rounded-lg border border-slate-200 bg-white transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="grid size-8 place-items-center rounded-lg border border-slate-200 bg-white transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
             aria-label="Página siguiente"
           >
             <FontAwesomeIcon icon={faChevronRight} />
@@ -413,7 +431,7 @@ function FilterSelect({
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="control-input appearance-none pr-8"
+        className="control-input h-10 appearance-none pr-8 text-sm"
       >
         <option value="">{label}: Todos</option>
         {options.map((option) => (
@@ -424,7 +442,7 @@ function FilterSelect({
       </select>
       <FontAwesomeIcon
         icon={faChevronDown}
-        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400"
+        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[9px] text-slate-400"
       />
     </label>
   );
