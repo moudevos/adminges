@@ -2,6 +2,7 @@ import "server-only";
 
 import type {
   InventoryKardexMovement,
+  InventoryMovementSearchMode,
   InventoryMovementSearchResponse,
   InventoryMovementSearchResult,
 } from "@/features/inventario/domain/types";
@@ -25,6 +26,11 @@ type KardexRecord = {
   almacen_destino: string | null;
   ubicacion_destino: string | null;
   fecha: string;
+};
+
+type SearchInput = {
+  mode: InventoryMovementSearchMode;
+  query: string;
 };
 
 const PAGE_SIZE = 1000;
@@ -69,18 +75,18 @@ function consolidationKey(movement: InventoryKardexMovement) {
   ].join("::");
 }
 
-function consolidateSkuMovements(
+export function consolidateSkuMovements(
   movements: InventoryKardexMovement[],
 ): InventoryKardexMovement[] {
   const grouped = new Map<string, InventoryKardexMovement>();
 
   for (const movement of movements) {
     const key = consolidationKey(movement);
-    const current = grouped.get(key);
+    const existing = grouped.get(key);
 
-    if (current) {
-      current.cantidad += movement.cantidad;
-      current.id = Math.min(current.id, movement.id);
+    if (existing) {
+      existing.cantidad += movement.cantidad;
+      existing.id = Math.min(existing.id, movement.id);
       continue;
     }
 
@@ -125,9 +131,7 @@ async function fetchMovements({
 
     const { data, error } = await query;
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     const batch = (data ?? []) as KardexRecord[];
     rows.push(...batch);
@@ -162,87 +166,115 @@ async function findProductBySku(sku: string) {
   return data as ProductRecord | null;
 }
 
-export async function searchInventoryMovements(
-  rawQuery: string,
-): Promise<InventoryMovementSearchResponse> {
-  const query = rawQuery.trim();
+function buildResult({
+  mode,
+  query,
+  product,
+  serial,
+  movements,
+}: {
+  mode: InventoryMovementSearchMode;
+  query: string;
+  product: ProductRecord;
+  serial: string | null;
+  movements: InventoryKardexMovement[];
+}): InventoryMovementSearchResult {
+  return {
+    mode,
+    query,
+    sku: product.sku,
+    descripcion: product.nombre,
+    serial,
+    movements,
+    total: movements.reduce(
+      (sum, movement) => sum + movementDelta(movement),
+      0,
+    ),
+  };
+}
 
-  if (!query) {
+async function searchMovementsBySku(
+  query: string,
+): Promise<InventoryMovementSearchResponse> {
+  const sku = query.trim().toUpperCase();
+  const product = await findProductBySku(sku);
+
+  if (!product) {
+    return { status: "not-found", query };
+  }
+
+  const rows = await fetchMovements({ productoId: product.id });
+  const individualMovements = rows.map((row) => mapMovement(row, product));
+  const movements = consolidateSkuMovements(individualMovements);
+
+  return {
+    status: "found",
+    result: buildResult({
+      mode: "sku",
+      query,
+      product,
+      serial: null,
+      movements,
+    }),
+  };
+}
+
+async function searchMovementsByImei(
+  query: string,
+): Promise<InventoryMovementSearchResponse> {
+  const serial = query.replace(/\s+/g, "").toUpperCase();
+  const supabase = await createClient();
+  const { data: serialMatch, error } = await supabase
+    .from("inventory_serial_registry")
+    .select("serial, producto_id")
+    .eq("serial", serial)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  if (!serialMatch) {
+    return { status: "not-found", query };
+  }
+
+  const product = await findProductById(serialMatch.producto_id);
+
+  if (!product) {
     return {
-      status: "not-found",
-      query: "",
+      status: "error",
+      query,
+      message: "La serie existe, pero su producto asociado no está disponible.",
     };
   }
 
-  const serialCandidate = query.replace(/\s+/g, "");
-  const skuCandidate = query.toUpperCase();
+  const rows = await fetchMovements({ serial: serialMatch.serial });
+  const movements = rows.map((row) => mapMovement(row, product));
+
+  return {
+    status: "found",
+    result: buildResult({
+      mode: "imei",
+      query,
+      product,
+      serial: serialMatch.serial,
+      movements,
+    }),
+  };
+}
+
+export async function searchInventoryMovements({
+  mode,
+  query: rawQuery,
+}: SearchInput): Promise<InventoryMovementSearchResponse> {
+  const query = rawQuery.trim();
+
+  if (!query) {
+    return { status: "not-found", query: "" };
+  }
 
   try {
-    const supabase = await createClient();
-
-    const { data: serialMatch, error: serialError } = await supabase
-      .from("inventory_serial_registry")
-      .select("serial, sku, producto_id")
-      .eq("serial", serialCandidate)
-      .maybeSingle();
-
-    if (serialError) throw serialError;
-
-    if (serialMatch) {
-      const product = await findProductById(serialMatch.producto_id);
-
-      if (!product) {
-        return {
-          status: "error",
-          query,
-          message: "La serie existe, pero su producto asociado no está disponible.",
-        };
-      }
-
-      const rows = await fetchMovements({ serial: serialMatch.serial });
-      const movements = rows.map((row) => mapMovement(row, product));
-      const result: InventoryMovementSearchResult = {
-        mode: "imei",
-        query,
-        sku: product.sku,
-        descripcion: product.nombre,
-        serial: serialMatch.serial,
-        movements,
-        total: movements.reduce(
-          (sum, movement) => sum + movementDelta(movement),
-          0,
-        ),
-      };
-
-      return { status: "found", result };
-    }
-
-    const product = await findProductBySku(skuCandidate);
-
-    if (!product) {
-      return {
-        status: "not-found",
-        query,
-      };
-    }
-
-    const rows = await fetchMovements({ productoId: product.id });
-    const individualMovements = rows.map((row) => mapMovement(row, product));
-    const movements = consolidateSkuMovements(individualMovements);
-    const result: InventoryMovementSearchResult = {
-      mode: "sku",
-      query,
-      sku: product.sku,
-      descripcion: product.nombre,
-      serial: null,
-      movements,
-      total: movements.reduce(
-        (sum, movement) => sum + movementDelta(movement),
-        0,
-      ),
-    };
-
-    return { status: "found", result };
+    return mode === "imei"
+      ? await searchMovementsByImei(query)
+      : await searchMovementsBySku(query);
   } catch {
     return {
       status: "error",

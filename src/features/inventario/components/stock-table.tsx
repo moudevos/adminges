@@ -437,25 +437,40 @@ export function InventoryStockTable({
       <Modal
         open={Boolean(selectedRow)}
         title={selectedRow?.sku ?? "Series"}
-        description={
-          selectedRow
-            ? (selectedRow.ubicacion || "Sin ubicación") +
-              " · " +
-              selectedRow.nombre
-            : undefined
-        }
+        description={selectedRow?.nombre}
         onClose={() => setSelectedRow(null)}
         maxWidthClassName="max-w-lg"
       >
         {selectedRow ? (
           selectedRow.serials.length > 0 ? (
-            <div>
-              <div className="mb-3 flex items-center justify-between text-xs text-slate-500">
-                <span>Series esperadas</span>
-                <span className="font-semibold tabular-nums text-slate-700">
-                  {selectedRow.serials.length}
-                </span>
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2 rounded-lg bg-slate-50 p-3 text-xs">
+                <div>
+                  <p className="text-slate-400">Almacén lógico</p>
+                  <p className="mt-1 font-semibold text-slate-700">
+                    {selectedRow.ubicacion || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Cantidad esperada</p>
+                  <p className="mt-1 font-semibold tabular-nums text-slate-700">
+                    {selectedRow.cantidadFisica}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Series</p>
+                  <p className="mt-1 font-semibold tabular-nums text-slate-700">
+                    {selectedRow.serials.length}
+                  </p>
+                </div>
               </div>
+
+              {selectedRow.cantidadFisica !== selectedRow.serials.length ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+                  El snapshot indica {selectedRow.cantidadFisica} unidades, pero
+                  existen {selectedRow.serials.length} series asociadas.
+                </div>
+              ) : null}
 
               <div className="max-h-[55vh] overflow-y-auto rounded-lg border border-slate-200">
                 {selectedRow.serials.map((serial, index) => (

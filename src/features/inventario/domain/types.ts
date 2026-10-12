@@ -134,8 +134,10 @@ export type InventoryKardexMovement = {
   ubicacionDestino: string | null;
 };
 
+export type InventoryMovementSearchMode = "sku" | "imei";
+
 export type InventoryMovementSearchResult = {
-  mode: "sku" | "imei";
+  mode: InventoryMovementSearchMode;
   query: string;
   sku: string;
   descripcion: string;

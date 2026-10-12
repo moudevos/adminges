@@ -1,10 +1,12 @@
 import {
   faArrowRightArrowLeft,
+  faChevronDown,
   faMagnifyingGlass,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type {
   InventoryKardexMovement,
+  InventoryMovementSearchMode,
   InventoryMovementSearchResponse,
 } from "@/features/inventario/domain/types";
 import { MAIN_WAREHOUSE } from "@/features/inventario/domain/types";
@@ -98,23 +100,42 @@ function totalClass(total: number) {
 }
 
 export function InventoryMovementsView({
+  mode,
   query,
   response,
 }: {
+  mode: InventoryMovementSearchMode;
   query: string;
   response: InventoryMovementSearchResponse | null;
 }) {
   const found = response?.status === "found" ? response.result : null;
+  const modeLabel = mode === "imei" ? "IMEI" : "SKU";
 
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
       <form
         action="/inventario/movimientos"
         method="get"
-        className="flex flex-col gap-2 border-b border-slate-100 p-2.5 sm:flex-row"
+        className="grid gap-2 border-b border-slate-100 p-2.5 sm:grid-cols-[120px_minmax(0,1fr)_auto]"
       >
-        <label className="relative min-w-0 flex-1">
-          <span className="sr-only">Buscar por SKU o IMEI</span>
+        <label className="relative block">
+          <span className="sr-only">Tipo de búsqueda</span>
+          <select
+            name="tipo"
+            defaultValue={mode}
+            className="control-input h-10 appearance-none pr-8 text-sm font-medium"
+          >
+            <option value="sku">SKU</option>
+            <option value="imei">IMEI</option>
+          </select>
+          <FontAwesomeIcon
+            icon={faChevronDown}
+            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[9px] text-slate-400"
+          />
+        </label>
+
+        <label className="relative min-w-0">
+          <span className="sr-only">Buscar por {modeLabel}</span>
           <FontAwesomeIcon
             icon={faMagnifyingGlass}
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-400"
@@ -125,7 +146,11 @@ export function InventoryMovementsView({
             defaultValue={query}
             autoComplete="off"
             spellCheck={false}
-            placeholder="Buscar por SKU o IMEI"
+            placeholder={
+              mode === "imei"
+                ? "Buscar IMEI o serie"
+                : "Buscar SKU"
+            }
             className="control-input h-10 pl-9 text-sm"
           />
         </label>
@@ -140,7 +165,7 @@ export function InventoryMovementsView({
 
       {response?.status === "not-found" && query ? (
         <div className="px-5 py-12 text-center text-sm text-slate-400">
-          No se encontró un SKU o IMEI que coincida con “{query}”.
+          No se encontró el {modeLabel} “{query}”.
         </div>
       ) : null}
 
@@ -152,7 +177,7 @@ export function InventoryMovementsView({
 
       {!response ? (
         <div className="px-5 py-12 text-center text-sm text-slate-400">
-          Ingresa un SKU o IMEI para consultar su Kardex.
+          Selecciona SKU o IMEI e ingresa el valor a consultar.
         </div>
       ) : null}
 
@@ -165,8 +190,24 @@ export function InventoryMovementsView({
             <span className="font-mono font-semibold text-slate-700">
               {found.mode === "imei" ? found.serial : found.sku}
             </span>
+            {found.mode === "imei" ? (
+              <>
+                <span className="text-slate-300">·</span>
+                <span className="font-mono font-semibold text-slate-600">
+                  {found.sku}
+                </span>
+              </>
+            ) : null}
             <span className="text-slate-300">·</span>
-            <span className="truncate">{found.descripcion}</span>
+            <span className="min-w-0 flex-1 truncate">{found.descripcion}</span>
+            <span className="text-slate-400">Total</span>
+            <span
+              className={
+                "text-base font-bold tabular-nums " + totalClass(found.total)
+              }
+            >
+              {found.total}
+            </span>
           </div>
 
           <div className="overflow-x-auto">
@@ -216,8 +257,9 @@ export function InventoryMovementsView({
                         {movement.descripcion}
                       </td>
                       <td className="border-b border-slate-100 px-4 py-3 font-mono text-xs text-slate-500">
-                        {movement.serial ||
-                          (found.mode === "sku" ? "—" : "No aplica")}
+                        {found.mode === "sku"
+                          ? "—"
+                          : movement.serial || "No aplica"}
                       </td>
                       <td className="border-b border-slate-100 px-4 py-3 text-slate-600">
                         {movementLocation(movement)}
