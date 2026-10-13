@@ -21,7 +21,7 @@ export function LoadingIndicator({
       <div className="flex min-w-56 flex-col items-center rounded-xl border border-slate-200 bg-white px-7 py-6 text-center shadow-[0_12px_32px_rgba(15,20,30,0.12)]">
         <div className="relative size-9" aria-hidden="true">
           <span className="absolute inset-0 rounded-full border-[3px] border-indigo-100" />
-          <span className="absolute inset-0 animate-spin rounded-full border-[3px] border-transparent border-t-indigo-600" />
+          <span className="loading-spinner absolute inset-0 rounded-full border-[3px] border-transparent border-t-indigo-600" />
         </div>
         <p className="mt-4 text-sm font-semibold text-slate-900">Procesando</p>
         <p className="mt-1 text-xs text-slate-500">{message}</p>

@@ -73,6 +73,16 @@ summary {
   color: #98a2b3;
 }
 
+@keyframes loading-spinner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-spinner {
+  animation: loading-spinner-spin 800ms linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -81,5 +91,10 @@ summary {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  /* El indicador comunica que una operación sigue en curso. */
+  .loading-spinner {
+    animation: loading-spinner-spin 800ms linear infinite !important;
   }
 }

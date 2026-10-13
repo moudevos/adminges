@@ -1,8 +1,4 @@
-import {
-  faArrowRightArrowLeft,
-  faChevronDown,
-  faMagnifyingGlass,
-} from "@fortawesome/free-solid-svg-icons";
+import { faArrowRightLong, faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type {
   InventoryKardexMovement,
@@ -17,10 +13,7 @@ function formatDate(value: string) {
   return day + "/" + month + "/" + year;
 }
 
-function logicalLocation(
-  warehouse: string | null,
-  location: string | null,
-) {
+function logicalLocation(warehouse: string | null, location: string | null) {
   if (
     warehouse &&
     warehouse.trim().toLowerCase() !== MAIN_WAREHOUSE.toLowerCase()
@@ -31,7 +24,7 @@ function logicalLocation(
   return location?.trim() || "—";
 }
 
-function movementLocation(movement: InventoryKardexMovement) {
+function movementRoute(movement: InventoryKardexMovement) {
   if (movement.direccion === "traslado") {
     const origin = logicalLocation(
       movement.almacenOrigen,
@@ -42,21 +35,22 @@ function movementLocation(movement: InventoryKardexMovement) {
       movement.ubicacionDestino,
     );
 
-    if (origin === destination) return origin;
-    return origin + " → " + destination;
+    return origin === destination
+      ? { from: origin, to: null }
+      : { from: origin, to: destination };
   }
 
   if (movement.direccion === "entrada") {
-    return logicalLocation(
-      movement.almacenDestino,
-      movement.ubicacionDestino,
-    );
+    return {
+      from: logicalLocation(movement.almacenDestino, movement.ubicacionDestino),
+      to: null,
+    };
   }
 
-  return logicalLocation(
-    movement.almacenOrigen,
-    movement.ubicacionOrigen,
-  );
+  return {
+    from: logicalLocation(movement.almacenOrigen, movement.ubicacionOrigen),
+    to: null,
+  };
 }
 
 function movementLabel(movement: InventoryKardexMovement) {
@@ -66,31 +60,26 @@ function movementLabel(movement: InventoryKardexMovement) {
   }
   if (movement.tipo === "snapshot_inicial") return "Ingreso inicial";
   if (movement.direccion === "entrada") return "Ingreso conciliación";
-  if (movement.clasificacion === "pendiente_venta") {
-    return "Salida pendiente";
-  }
+  if (movement.clasificacion === "pendiente_venta") return "Salida pendiente";
   return "Salida conciliación";
+}
+
+function dotClass(direccion: InventoryKardexMovement["direccion"]) {
+  if (direccion === "entrada") return "bg-emerald-500";
+  if (direccion === "traslado") return "bg-slate-300";
+  return "bg-rose-400";
 }
 
 function quantityDisplay(movement: InventoryKardexMovement) {
   if (movement.direccion === "traslado") {
-    return {
-      text: "↔ " + movement.cantidad,
-      className: "text-indigo-600",
-    };
+    return { text: "↔ " + movement.cantidad, className: "text-slate-400" };
   }
 
   if (movement.direccion === "entrada") {
-    return {
-      text: "+" + movement.cantidad,
-      className: "text-emerald-600",
-    };
+    return { text: "+" + movement.cantidad, className: "text-emerald-600" };
   }
 
-  return {
-    text: "-" + movement.cantidad,
-    className: "text-rose-600",
-  };
+  return { text: "−" + movement.cantidad, className: "text-rose-600" };
 }
 
 function totalClass(total: number) {
@@ -98,6 +87,13 @@ function totalClass(total: number) {
   if (total < 0) return "text-rose-700";
   return "text-slate-900";
 }
+
+const emptyState = "px-5 py-14 text-center text-sm text-slate-400";
+
+const MODES: Array<{ value: InventoryMovementSearchMode; label: string }> = [
+  { value: "sku", label: "SKU" },
+  { value: "imei", label: "IMEI" },
+];
 
 export function InventoryMovementsView({
   mode,
@@ -112,29 +108,35 @@ export function InventoryMovementsView({
   const modeLabel = mode === "imei" ? "IMEI" : "SKU";
 
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
       <form
         action="/inventario/movimientos"
         method="get"
-        className="grid gap-2 border-b border-slate-100 p-2.5 sm:grid-cols-[120px_minmax(0,1fr)_auto]"
+        className="flex flex-wrap items-center gap-2 border-b border-slate-100 p-3"
       >
-        <label className="relative block">
-          <span className="sr-only">Tipo de búsqueda</span>
-          <select
-            name="tipo"
-            defaultValue={mode}
-            className="control-input h-10 appearance-none pr-8 text-sm font-medium"
-          >
-            <option value="sku">SKU</option>
-            <option value="imei">IMEI</option>
-          </select>
-          <FontAwesomeIcon
-            icon={faChevronDown}
-            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[9px] text-slate-400"
-          />
-        </label>
+        {/* Selector segmentado */}
+        <div
+          role="radiogroup"
+          aria-label="Tipo de búsqueda"
+          className="inline-flex h-9 rounded-lg bg-slate-100 p-0.5"
+        >
+          {MODES.map((option) => (
+            <label key={option.value} className="cursor-pointer">
+              <input
+                type="radio"
+                name="tipo"
+                value={option.value}
+                defaultChecked={mode === option.value}
+                className="peer sr-only"
+              />
+              <span className="flex h-8 items-center rounded-md px-3 text-xs font-medium text-slate-500 transition peer-checked:bg-white peer-checked:text-slate-900 peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-200">
+                {option.label}
+              </span>
+            </label>
+          ))}
+        </div>
 
-        <label className="relative min-w-0">
+        <label className="relative min-w-[200px] flex-1">
           <span className="sr-only">Buscar por {modeLabel}</span>
           <FontAwesomeIcon
             icon={faMagnifyingGlass}
@@ -146,147 +148,151 @@ export function InventoryMovementsView({
             defaultValue={query}
             autoComplete="off"
             spellCheck={false}
-            placeholder={
-              mode === "imei"
-                ? "Buscar IMEI o serie"
-                : "Buscar SKU"
-            }
-            className="control-input h-10 pl-9 text-sm"
+            placeholder="Código a consultar"
+            className="h-9 w-full rounded-lg border border-transparent bg-slate-50 pl-9 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:ring-2 focus:ring-indigo-100"
           />
         </label>
 
         <button
           type="submit"
-          className="h-10 rounded-lg bg-indigo-600 px-5 text-sm font-semibold text-white transition hover:bg-indigo-700"
+          className="h-9 rounded-lg bg-indigo-600 px-4 text-sm font-medium text-white transition hover:bg-indigo-700"
         >
           Buscar
         </button>
       </form>
 
+      {!response ? (
+        <div className={emptyState}>Elige SKU o IMEI y escribe el código.</div>
+      ) : null}
+
       {response?.status === "not-found" && query ? (
-        <div className="px-5 py-12 text-center text-sm text-slate-400">
-          No se encontró el {modeLabel} “{query}”.
+        <div className={emptyState}>
+          Sin coincidencias para el {modeLabel} “{query}”.
         </div>
       ) : null}
 
       {response?.status === "error" ? (
-        <div className="px-5 py-12 text-center text-sm text-rose-600">
+        <div className="px-5 py-14 text-center text-sm text-rose-600">
           {response.message}
-        </div>
-      ) : null}
-
-      {!response ? (
-        <div className="px-5 py-12 text-center text-sm text-slate-400">
-          Selecciona SKU o IMEI e ingresa el valor a consultar.
         </div>
       ) : null}
 
       {found ? (
         <>
-          <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-2.5 text-xs text-slate-500">
-            <span className="rounded-md bg-slate-100 px-2 py-1 font-semibold uppercase tracking-wide text-slate-600">
-              {found.mode === "imei" ? "IMEI" : "SKU"}
-            </span>
-            <span className="font-mono font-semibold text-slate-700">
-              {found.mode === "imei" ? found.serial : found.sku}
-            </span>
-            {found.mode === "imei" ? (
-              <>
-                <span className="text-slate-300">·</span>
-                <span className="font-mono font-semibold text-slate-600">
-                  {found.sku}
-                </span>
-              </>
-            ) : null}
-            <span className="text-slate-300">·</span>
-            <span className="min-w-0 flex-1 truncate">{found.descripcion}</span>
-            <span className="text-slate-400">Total</span>
-            <span
-              className={
-                "text-base font-bold tabular-nums " + totalClass(found.total)
-              }
-            >
-              {found.total}
-            </span>
+          {/* Resumen */}
+          <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-4 py-3">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-slate-500">
+                {found.mode === "imei" ? "IMEI" : "SKU"}
+              </span>
+              <span className="font-mono text-sm font-semibold text-slate-800">
+                {found.mode === "imei" ? found.serial : found.sku}
+              </span>
+              {found.mode === "imei" ? (
+                <>
+                  <span aria-hidden className="text-slate-300">
+                    ·
+                  </span>
+                  <span className="font-mono text-xs text-slate-400">
+                    {found.sku}
+                  </span>
+                </>
+              ) : null}
+              <span className="hidden truncate text-sm text-slate-400 sm:block">
+                {found.descripcion}
+              </span>
+            </div>
+
+            <div className="flex shrink-0 items-baseline gap-2">
+              <span className="text-xs text-slate-400">Total</span>
+              <span
+                className={
+                  "text-xl font-semibold tabular-nums " + totalClass(found.total)
+                }
+              >
+                {found.total}
+              </span>
+            </div>
           </div>
 
+          {/* Tabla */}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1080px] text-left text-sm">
-              <thead className="bg-slate-50/70 text-[10px] font-semibold uppercase tracking-[0.04em] text-slate-500">
-                <tr>
-                  <th className="border-b border-slate-200 px-4 py-2.5">
-                    Fecha
-                  </th>
-                  <th className="border-b border-slate-200 px-4 py-2.5">
-                    SKU
-                  </th>
-                  <th className="border-b border-slate-200 px-4 py-2.5">
-                    Descripción
-                  </th>
-                  <th className="border-b border-slate-200 px-4 py-2.5">
-                    Serie
-                  </th>
-                  <th className="border-b border-slate-200 px-4 py-2.5">
-                    Almacén
-                  </th>
-                  <th className="border-b border-slate-200 px-4 py-2.5">
-                    Movimiento
-                  </th>
-                  <th className="border-b border-slate-200 px-4 py-2.5 text-right">
-                    Cantidad
-                  </th>
+            <table className="w-full min-w-[760px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-xs font-medium text-slate-400">
+                  <th className="px-4 py-2.5">Fecha</th>
+                  <th className="px-4 py-2.5">Producto</th>
+                  <th className="px-4 py-2.5">Almacén</th>
+                  <th className="px-4 py-2.5">Movimiento</th>
+                  <th className="px-4 py-2.5 text-right">Cantidad</th>
                 </tr>
               </thead>
 
-              <tbody>
+              <tbody className="divide-y divide-slate-50">
                 {found.movements.map((movement) => {
                   const quantity = quantityDisplay(movement);
+                  const route = movementRoute(movement);
+                  const serial =
+                    found.mode === "imei" ? movement.serial : null;
 
                   return (
                     <tr
                       key={movement.id}
-                      className="transition hover:bg-slate-50/60"
+                      className="transition hover:bg-slate-50/70"
                     >
-                      <td className="border-b border-slate-100 px-4 py-3 text-slate-500">
+                      <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-slate-500">
                         {formatDate(movement.fecha)}
                       </td>
-                      <td className="border-b border-slate-100 px-4 py-3 font-mono text-xs font-semibold text-slate-600">
-                        {movement.sku}
+
+                      <td className="px-4 py-2.5">
+                        <div className="min-w-[220px]">
+                          <p className="font-medium leading-5 text-slate-900">
+                            {movement.descripcion}
+                          </p>
+                          <p className="mt-0.5 flex items-center gap-1.5 font-mono text-[11px] text-slate-400">
+                            <span>{movement.sku}</span>
+                            {serial ? (
+                              <>
+                                <span aria-hidden className="font-sans">
+                                  ·
+                                </span>
+                                <span>{serial}</span>
+                              </>
+                            ) : null}
+                          </p>
+                        </div>
                       </td>
-                      <td className="border-b border-slate-100 px-4 py-3 font-medium text-slate-800">
-                        {movement.descripcion}
-                      </td>
-                      <td className="border-b border-slate-100 px-4 py-3 font-mono text-xs text-slate-500">
-                        {found.mode === "sku"
-                          ? "—"
-                          : movement.serial || "No aplica"}
-                      </td>
-                      <td className="border-b border-slate-100 px-4 py-3 text-slate-600">
-                        {movementLocation(movement)}
-                      </td>
-                      <td className="border-b border-slate-100 px-4 py-3">
-                        <span
-                          className={
-                            "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium " +
-                            (movement.direccion === "traslado"
-                              ? "bg-indigo-50 text-indigo-700"
-                              : movement.direccion === "entrada"
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-rose-50 text-rose-700")
-                          }
-                        >
-                          {movement.direccion === "traslado" ? (
-                            <FontAwesomeIcon
-                              icon={faArrowRightArrowLeft}
-                              className="text-[9px]"
-                            />
+
+                      <td className="px-4 py-2.5 text-slate-600">
+                        <span className="inline-flex items-center gap-1.5">
+                          {route.from}
+                          {route.to ? (
+                            <>
+                              <FontAwesomeIcon
+                                icon={faArrowRightLong}
+                                className="text-[9px] text-slate-300"
+                              />
+                              {route.to}
+                            </>
                           ) : null}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-2.5">
+                        <span className="inline-flex items-center gap-2 text-slate-700">
+                          <span
+                            className={
+                              "size-1.5 rounded-full " +
+                              dotClass(movement.direccion)
+                            }
+                          />
                           {movementLabel(movement)}
                         </span>
                       </td>
+
                       <td
                         className={
-                          "border-b border-slate-100 px-4 py-3 text-right font-semibold tabular-nums " +
+                          "px-4 py-2.5 text-right font-semibold tabular-nums " +
                           quantity.className
                         }
                       >
@@ -298,48 +304,27 @@ export function InventoryMovementsView({
 
                 {found.movements.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="px-5 py-12 text-center text-sm text-slate-400"
-                    >
-                      El producto existe, pero todavía no tiene movimientos en
-                      el Kardex.
+                    <td colSpan={5} className={emptyState}>
+                      Este producto aún no tiene movimientos.
                     </td>
                   </tr>
                 ) : null}
               </tbody>
-
-              <tfoot>
-                <tr className="bg-slate-50/70">
-                  <td
-                    colSpan={6}
-                    className="border-t border-slate-200 px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.05em] text-slate-500"
-                  >
-                    Total
-                  </td>
-                  <td
-                    className={
-                      "border-t border-slate-200 px-4 py-3 text-right text-base font-bold tabular-nums " +
-                      totalClass(found.total)
-                    }
-                  >
-                    {found.total}
-                  </td>
-                </tr>
-              </tfoot>
             </table>
           </div>
 
-          <div className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-400">
-            {found.movements.length}{" "}
-            {found.mode === "sku"
-              ? found.movements.length === 1
-                ? "movimiento consolidado"
-                : "movimientos consolidados"
-              : found.movements.length === 1
-                ? "movimiento"
-                : "movimientos"}{" "}
-            · Los traslados no modifican el total neto.
+          <div className="flex items-center justify-between border-t border-slate-100 px-4 py-2 text-xs text-slate-400">
+            <span className="tabular-nums">
+              {found.movements.length}{" "}
+              {found.mode === "sku"
+                ? found.movements.length === 1
+                  ? "movimiento consolidado"
+                  : "movimientos consolidados"
+                : found.movements.length === 1
+                  ? "movimiento"
+                  : "movimientos"}
+            </span>
+            <span>Los traslados no afectan el total.</span>
           </div>
         </>
       ) : null}
