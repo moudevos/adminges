@@ -37,6 +37,10 @@ function friendlyError(message: string) {
     ["PAYMENT_TOTAL_MISMATCH", "Los pagos deben sumar exactamente el total de la venta."],
     ["INVALID_PAYMENT_METHOD", "Uno de los métodos de pago no es válido."],
     ["INVALID_PAYMENT_AMOUNT", "Uno de los montos de pago no es válido."],
+    ["SALE_NOT_FOUND", "La venta no existe."],
+    ["SALE_ALREADY_REVERSED", "La venta ya fue anulada."],
+    ["SALE_NOT_REVERSIBLE", "La venta no se puede anular en su estado actual."],
+    ["REVERSAL_REASON_REQUIRED", "Ingresa el motivo de la reversa."],
     ["SALE_ITEMS_REQUIRED", "Agrega al menos un producto a la venta."],
     ["SALE_PAYMENTS_REQUIRED", "Agrega al menos un método de pago."],
   ];
@@ -135,4 +139,21 @@ export async function registerSale(input: {
 
   if (error) return { ok: false, message: friendlyError(error.message) };
   return { ok: true, id: data as string };
+}
+
+
+export async function reverseSale(input: {
+  saleId: string;
+  reason: string;
+}): Promise<SalesMutationResult> {
+  const supabase = await authenticatedClient();
+  if (!supabase) return { ok: false, message: "La sesión expiró." };
+
+  const { error } = await supabase.rpc("reverse_sale", {
+    p_venta_id: input.saleId,
+    p_motivo: input.reason.trim(),
+  });
+
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  return { ok: true };
 }

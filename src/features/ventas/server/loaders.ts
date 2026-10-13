@@ -10,8 +10,14 @@ import type {
   PaymentMethodOption,
   SalesCatalogItem,
   SalesDayData,
+  SaleHistoryDetailData,
+  SaleHistoryItem,
+  SaleHistoryPayment,
   SalesDayHistoryItem,
   SalesDaysHistoryData,
+  SalesHistoryData,
+  SalesHistoryFilters,
+  SalesHistoryRow,
   SalesJourney,
   SalesMetricProgress,
   SalesPersonOption,
@@ -130,14 +136,26 @@ async function loadPeople(supabase: SupabaseClient) {
 }
 
 async function loadCatalog(supabase: SupabaseClient) {
-  const result = await supabase
-    .from("inventario_stock")
-    .select(
-      "id, sku, nombre, categoria, categoria_principal, categoria_venta, familia, variante, precio, stock_actual, serials, almacen, ubicacion",
-    )
-    .eq("is_active", true);
+  const [result, priceResult] = await Promise.all([
+    supabase
+      .from("inventario_stock")
+      .select(
+        "id, sku, nombre, categoria, categoria_principal, categoria_venta, familia, variante, precio, stock_actual, serials, almacen, ubicacion",
+      )
+      .eq("is_active", true),
+    supabase
+      .from("ultimo_precio_venta")
+      .select("producto_id, precio_unitario"),
+  ]);
 
   if (result.error) return [] as SalesCatalogItem[];
+
+  const lastPrices = new Map<string, number>(
+    (priceResult.data ?? []).map((row) => [
+      row.producto_id,
+      Number(row.precio_unitario),
+    ]),
+  );
 
   return (result.data ?? [])
     .filter(
@@ -147,16 +165,12 @@ async function loadCatalog(supabase: SupabaseClient) {
         String(row.ubicacion ?? "").trim().toLowerCase() === "stock" &&
         Number(row.stock_actual) > 0,
     )
-    .map((row) => ({
-      productId: row.id,
-      sku: row.sku,
-      name: row.nombre,
-      category: row.categoria,
-      primaryCategory: row.categoria_principal,
-      saleCategory: row.categoria_venta,
-      family: row.familia,
-      variant: row.variante,
-      reportGroup: classifySalesProduct({
+    .map((row) => {
+      const basePrice = Number(row.precio);
+      const lastSalePrice = lastPrices.get(row.id) ?? null;
+
+      return {
+        productId: row.id,
         sku: row.sku,
         name: row.nombre,
         category: row.categoria,
@@ -164,17 +178,28 @@ async function loadCatalog(supabase: SupabaseClient) {
         saleCategory: row.categoria_venta,
         family: row.familia,
         variant: row.variante,
-      }),
-      price: Number(row.precio),
-      available: Number(row.stock_actual),
-      serials: Array.isArray(row.serials)
-        ? row.serials.filter(
-            (serial): serial is string => typeof serial === "string",
-          )
-        : [],
-      warehouse: row.almacen,
-      location: row.ubicacion,
-    }));
+        reportGroup: classifySalesProduct({
+          sku: row.sku,
+          name: row.nombre,
+          category: row.categoria,
+          primaryCategory: row.categoria_principal,
+          saleCategory: row.categoria_venta,
+          family: row.familia,
+          variant: row.variante,
+        }),
+        price: lastSalePrice ?? basePrice,
+        basePrice,
+        lastSalePrice,
+        available: Number(row.stock_actual),
+        serials: Array.isArray(row.serials)
+          ? row.serials.filter(
+              (serial): serial is string => typeof serial === "string",
+            )
+          : [],
+        warehouse: row.almacen,
+        location: row.ubicacion,
+      };
+    });
 }
 
 async function buildDayData({
@@ -613,4 +638,255 @@ export async function loadPaymentMethods(): Promise<PaymentMethodOption[]> {
     sortOrder: Number(method.sort_order),
     system: Boolean(method.is_system),
   }));
+}
+
+
+function mapSalesHistoryRow(row: {
+  id: string;
+  jornada_id: string | null;
+  fecha: string;
+  estado: string;
+  total: number | string;
+  observacion: string | null;
+  anulada_at: string | null;
+  anulada_motivo: string | null;
+  promotor_id: string;
+  promotor_nombre: string;
+  unidades: number | string;
+  lineas: number | string;
+  categorias: unknown;
+  tipos: unknown;
+  metodos_pago: unknown;
+}): SalesHistoryRow {
+  return {
+    id: row.id,
+    journeyId: row.jornada_id,
+    date: row.fecha,
+    status: row.estado === "anulada" ? "anulada" : "confirmada",
+    total: Number(row.total),
+    observation: row.observacion,
+    reversedAt: row.anulada_at,
+    reversalReason: row.anulada_motivo,
+    promoterId: row.promotor_id,
+    promoterName: row.promotor_nombre,
+    units: Number(row.unidades),
+    lines: Number(row.lineas),
+    categories: Array.isArray(row.categorias)
+      ? row.categorias.filter((value): value is string => typeof value === "string")
+      : [],
+    types: Array.isArray(row.tipos)
+      ? row.tipos.filter((value): value is string => typeof value === "string")
+      : [],
+    paymentMethods: Array.isArray(row.metodos_pago)
+      ? row.metodos_pago.filter(
+          (value): value is string => typeof value === "string",
+        )
+      : [],
+  };
+}
+
+export async function loadSalesHistory(
+  filters: SalesHistoryFilters,
+): Promise<SalesHistoryData> {
+  const supabase = await createClient();
+  const pageSize = 25;
+  const offset = (Math.max(filters.page, 1) - 1) * pageSize;
+
+  const [peopleResult, productResult, paymentMethods] = await Promise.all([
+    supabase
+      .from("personas")
+      .select("id, nombres, apellidos")
+      .order("nombres")
+      .order("apellidos"),
+    supabase
+      .from("productos")
+      .select("categoria, categoria_principal, categoria_venta"),
+    loadPaymentMethods(),
+  ]);
+
+  const promoters = (peopleResult.data ?? []).map((person) => ({
+    id: person.id,
+    name: (person.nombres + " " + person.apellidos).trim(),
+  }));
+
+  const categories = [
+    ...new Set(
+      (productResult.data ?? [])
+        .map((product) => product.categoria_principal ?? product.categoria)
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ].sort((a, b) => a.localeCompare(b, "es"));
+
+  const types = [
+    ...new Set(
+      (productResult.data ?? [])
+        .map((product) => product.categoria_venta)
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ].sort((a, b) => a.localeCompare(b, "es"));
+
+  let query = supabase
+    .from("ventas_historial_resumen")
+    .select(
+      "id, jornada_id, fecha, estado, total, observacion, anulada_at, anulada_motivo, promotor_id, promotor_nombre, unidades, lineas, categorias, tipos, metodos_pago",
+      { count: "exact" },
+    )
+    .gte("fecha", filters.from + "T00:00:00-05:00")
+    .lte("fecha", filters.to + "T23:59:59.999-05:00");
+
+  if (filters.status !== "todos") {
+    query = query.eq("estado", filters.status);
+  }
+
+  if (filters.promoterId) {
+    query = query.eq("promotor_id", filters.promoterId);
+  }
+
+  if (filters.category) {
+    query = query.contains("categorias", [filters.category]);
+  }
+
+  if (filters.type) {
+    query = query.contains("tipos", [filters.type]);
+  }
+
+  if (filters.paymentMethod) {
+    query = query.contains("metodos_pago", [filters.paymentMethod]);
+  }
+
+  if (filters.search.trim()) {
+    query = query.ilike("busqueda", "%" + filters.search.trim() + "%");
+  }
+
+  const { data, error, count } = await query
+    .order("fecha", { ascending: false })
+    .range(offset, offset + pageSize - 1);
+
+  if (error) {
+    return {
+      schemaReady: false,
+      schemaMessage:
+        "Histórico de ventas requiere ejecutar sql/009_ventas_historial_reversa_ultimo_precio.sql.",
+      filters,
+      rows: [],
+      total: 0,
+      pageSize,
+      promoters,
+      categories,
+      types,
+      paymentMethods,
+    };
+  }
+
+  return {
+    schemaReady: true,
+    filters,
+    rows: (data ?? []).map(mapSalesHistoryRow),
+    total: count ?? 0,
+    pageSize,
+    promoters,
+    categories,
+    types,
+    paymentMethods,
+  };
+}
+
+export async function loadSaleHistoryDetail(
+  id: string,
+): Promise<SaleHistoryDetailData> {
+  const supabase = await createClient();
+
+  const [summaryResult, detailsResult, paymentsResult, paymentMethods] =
+    await Promise.all([
+      supabase
+        .from("ventas_historial_resumen")
+        .select(
+          "id, jornada_id, fecha, estado, total, observacion, anulada_at, anulada_motivo, promotor_id, promotor_nombre, unidades, lineas, categorias, tipos, metodos_pago",
+        )
+        .eq("id", id)
+        .maybeSingle(),
+      supabase
+        .from("venta_detalles")
+        .select(
+          "id, producto_id, sku, descripcion, serial, cantidad, precio_unitario, subtotal, productos(categoria, categoria_principal, categoria_venta, familia, variante, nombre)",
+        )
+        .eq("venta_id", id)
+        .order("id"),
+      supabase
+        .from("venta_pagos")
+        .select("id, metodo, monto, referencia")
+        .eq("venta_id", id)
+        .order("id"),
+      loadPaymentMethods(),
+    ]);
+
+  if (summaryResult.error) {
+    return {
+      schemaReady: false,
+      schemaMessage:
+        "Detalle de venta requiere ejecutar sql/009_ventas_historial_reversa_ultimo_precio.sql.",
+      sale: null,
+      items: [],
+      payments: [],
+    };
+  }
+
+  if (!summaryResult.data) {
+    return {
+      schemaReady: true,
+      sale: null,
+      items: [],
+      payments: [],
+    };
+  }
+
+  const methodNames = new Map(
+    paymentMethods.map((method) => [method.code, method.name]),
+  );
+
+  const items: SaleHistoryItem[] = (detailsResult.data ?? []).map((detail) => {
+    const product = Array.isArray(detail.productos)
+      ? detail.productos[0]
+      : detail.productos;
+
+    return {
+      id: Number(detail.id),
+      productId: detail.producto_id,
+      sku: detail.sku ?? "",
+      name: detail.descripcion ?? product?.nombre ?? "",
+      serial: detail.serial,
+      quantity: Number(detail.cantidad),
+      unitPrice: Number(detail.precio_unitario),
+      subtotal: Number(detail.subtotal),
+      category: product?.categoria_principal ?? product?.categoria ?? null,
+      type: product?.categoria_venta ?? null,
+      family: product?.familia ?? null,
+      reportGroup: classifySalesProduct({
+        sku: detail.sku,
+        name: detail.descripcion ?? product?.nombre,
+        category: product?.categoria,
+        primaryCategory: product?.categoria_principal,
+        saleCategory: product?.categoria_venta,
+        family: product?.familia,
+        variant: product?.variante,
+      }),
+    };
+  });
+
+  const payments: SaleHistoryPayment[] = (paymentsResult.data ?? []).map(
+    (payment) => ({
+      id: Number(payment.id),
+      method: payment.metodo,
+      methodName: methodNames.get(payment.metodo) ?? payment.metodo,
+      amount: Number(payment.monto),
+      reference: payment.referencia,
+    }),
+  );
+
+  return {
+    schemaReady: true,
+    sale: mapSalesHistoryRow(summaryResult.data),
+    items,
+    payments,
+  };
 }

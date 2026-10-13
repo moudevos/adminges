@@ -78,6 +78,8 @@ export type SalesCatalogItem = {
   variant: string | null;
   reportGroup: SalesProductGroup;
   price: number;
+  basePrice: number;
+  lastSalePrice: number | null;
   available: number;
   serials: string[];
   warehouse: string | null;
@@ -148,4 +150,81 @@ export type SalePaymentInput = {
   metodo: SalePaymentMethod;
   monto: number;
   referencia?: string | null;
+};
+
+
+export type SalesHistoryStatusFilter = "todos" | "confirmada" | "anulada";
+
+export type SalesHistoryFilters = {
+  from: string;
+  to: string;
+  status: SalesHistoryStatusFilter;
+  promoterId: string;
+  category: string;
+  type: string;
+  paymentMethod: string;
+  search: string;
+  page: number;
+};
+
+export type SalesHistoryRow = {
+  id: string;
+  journeyId: string | null;
+  date: string;
+  status: "confirmada" | "anulada";
+  total: number;
+  observation: string | null;
+  reversedAt: string | null;
+  reversalReason: string | null;
+  promoterId: string;
+  promoterName: string;
+  units: number;
+  lines: number;
+  categories: string[];
+  types: string[];
+  paymentMethods: string[];
+};
+
+export type SalesHistoryData = {
+  schemaReady: boolean;
+  schemaMessage?: string;
+  filters: SalesHistoryFilters;
+  rows: SalesHistoryRow[];
+  total: number;
+  pageSize: number;
+  promoters: Array<{ id: string; name: string }>;
+  categories: string[];
+  types: string[];
+  paymentMethods: PaymentMethodOption[];
+};
+
+export type SaleHistoryItem = {
+  id: number;
+  productId: string;
+  sku: string;
+  name: string;
+  serial: string | null;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  category: string | null;
+  type: string | null;
+  family: string | null;
+  reportGroup: SalesProductGroup;
+};
+
+export type SaleHistoryPayment = {
+  id: number;
+  method: string;
+  methodName: string;
+  amount: number;
+  reference: string | null;
+};
+
+export type SaleHistoryDetailData = {
+  schemaReady: boolean;
+  schemaMessage?: string;
+  sale: SalesHistoryRow | null;
+  items: SaleHistoryItem[];
+  payments: SaleHistoryPayment[];
 };
