@@ -356,51 +356,52 @@ export async function loadSalesRegistration(): Promise<SalesRegistrationData> {
 
   const peopleMap = new Map(people.map((person) => [person.id, person]));
 
-  const staff: SalesStaffMember[] = (shiftResult.data ?? [])
-    .filter((shift) => Boolean(shift.disponible))
-    .map((shift) => {
-      const person = peopleMap.get(shift.persona_id);
-      if (!person) return null;
+  const staff: SalesStaffMember[] = [];
 
-      const personSales = confirmedSales.filter(
-        (sale) => sale.promotor_id === person.id,
-      );
-      const personMetrics = metricsByPerson.get(person.id) ?? {
-        laminas: 0,
-        scPlus: 0,
-        units: 0,
-      };
-      const total = personSales.reduce(
-        (sum, sale) => sum + Number(sale.total),
-        0,
-      );
+  for (const shift of shiftResult.data ?? []) {
+    if (!shift.disponible) continue;
 
-      return {
-        ...person,
-        available: true,
-        sellsToday: Boolean(shift.vende_hoy),
-        scheduledTime: shift.hora_ingreso_programada
-          ? String(shift.hora_ingreso_programada).slice(0, 5)
-          : null,
-        onShift: Boolean(shift.en_turno),
-        shiftStartedAt: shift.inicio_turno ?? null,
-        salesCount: personSales.length,
-        units: personMetrics.units,
-        total,
-        progress: {
-          amt: metric(total, shift.vende_hoy ? personalTargets.amt : 0),
-          laminas: metric(
-            personMetrics.laminas,
-            shift.vende_hoy ? personalTargets.laminas : 0,
-          ),
-          scPlus: metric(
-            personMetrics.scPlus,
-            shift.vende_hoy ? personalTargets.scPlus : 0,
-          ),
-        },
-      } satisfies SalesStaffMember;
-    })
-    .filter((person): person is SalesStaffMember => person !== null);
+    const person = peopleMap.get(shift.persona_id);
+    if (!person) continue;
+
+    const personSales = confirmedSales.filter(
+      (sale) => sale.promotor_id === person.id,
+    );
+    const personMetrics = metricsByPerson.get(person.id) ?? {
+      laminas: 0,
+      scPlus: 0,
+      units: 0,
+    };
+    const total = personSales.reduce(
+      (sum, sale) => sum + Number(sale.total),
+      0,
+    );
+
+    staff.push({
+      ...person,
+      available: true,
+      sellsToday: Boolean(shift.vende_hoy),
+      scheduledTime: shift.hora_ingreso_programada
+        ? String(shift.hora_ingreso_programada).slice(0, 5)
+        : null,
+      onShift: Boolean(shift.en_turno),
+      shiftStartedAt: shift.inicio_turno ?? null,
+      salesCount: personSales.length,
+      units: personMetrics.units,
+      total,
+      progress: {
+        amt: metric(total, shift.vende_hoy ? personalTargets.amt : 0),
+        laminas: metric(
+          personMetrics.laminas,
+          shift.vende_hoy ? personalTargets.laminas : 0,
+        ),
+        scPlus: metric(
+          personMetrics.scPlus,
+          shift.vende_hoy ? personalTargets.scPlus : 0,
+        ),
+      },
+    });
+  }
 
   const totalAmount = confirmedSales.reduce(
     (sum, sale) => sum + Number(sale.total),
