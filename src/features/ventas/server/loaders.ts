@@ -1,16 +1,34 @@
 import "server-only";
 
 import type {
+  OpenSalesDayReference,
   SalesCatalogItem,
+  SalesDayData,
+  SalesDayHistoryItem,
+  SalesDaysHistoryData,
+  SalesJourney,
   SalesMetricProgress,
   SalesPersonOption,
   SalesProgress,
-  SalesRegistrationData,
   SalesStaffMember,
 } from "@/features/ventas/domain/types";
 import { createClient } from "@/lib/supabase/server";
 
 const MAIN_WAREHOUSE = "KIOSKO MALL IQUITOS - KIO37";
+
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+type JourneyRow = {
+  id: string;
+  fecha: string;
+  estado: string;
+  configurada: boolean;
+  opened_at: string;
+  closed_at: string | null;
+  cuota_amt: number | string;
+  cuota_laminas: number | string;
+  cuota_sc_plus: number | string;
+};
 
 export function peruDateString(date = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -19,6 +37,12 @@ export function peruDateString(date = new Date()) {
     month: "2-digit",
     day: "2-digit",
   }).format(date);
+}
+
+export function daysAgoDateString(days: number) {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() - days);
+  return peruDateString(date);
 }
 
 function initials(names: string, surnames: string) {
@@ -43,6 +67,10 @@ function emptyProgress(): SalesProgress {
   };
 }
 
+function emptyTotals() {
+  return { sales: 0, units: 0, amount: 0, laminas: 0, scPlus: 0 };
+}
+
 function normalizedText(values: Array<string | null | undefined>) {
   return values
     .filter((value): value is string => Boolean(value))
@@ -59,15 +87,13 @@ function isLamina(product: {
   variante?: string | null;
   nombre?: string | null;
 }) {
-  const value = normalizedText([
+  return normalizedText([
     product.categoria_principal,
     product.categoria_venta,
     product.familia,
     product.variante,
     product.nombre,
-  ]);
-
-  return value.includes("LAMINA");
+  ]).includes("LAMINA");
 }
 
 function isScPlus(product: {
@@ -92,10 +118,23 @@ function isScPlus(product: {
   );
 }
 
-export async function loadSalesRegistration(): Promise<SalesRegistrationData> {
-  const supabase = await createClient();
-  const date = peruDateString();
+function mapJourney(row: JourneyRow): SalesJourney {
+  return {
+    id: row.id,
+    date: row.fecha,
+    status: row.estado === "cerrada" ? "cerrada" : "abierta",
+    configured: Boolean(row.configurada),
+    openedAt: row.opened_at,
+    closedAt: row.closed_at,
+    quotas: {
+      amt: Number(row.cuota_amt),
+      laminas: Number(row.cuota_laminas),
+      scPlus: Number(row.cuota_sc_plus),
+    },
+  };
+}
 
+async function loadPeople(supabase: SupabaseClient) {
   const [peopleResult, puestosResult] = await Promise.all([
     supabase
       .from("personas")
@@ -108,19 +147,7 @@ export async function loadSalesRegistration(): Promise<SalesRegistrationData> {
   ]);
 
   if (peopleResult.error || puestosResult.error) {
-    return {
-      schemaReady: false,
-      schemaMessage:
-        "Ventas requiere ejecutar sql/006_ventas_cuotas_equipo_diario.sql.",
-      date,
-      journey: null,
-      people: [],
-      staff: [],
-      catalog: [],
-      sellerCount: 0,
-      teamProgress: emptyProgress(),
-      totals: { sales: 0, units: 0, amount: 0, laminas: 0, scPlus: 0 },
-    };
+    return { ok: false as const, people: [] as SalesPersonOption[] };
   }
 
   const puestos = new Map(
@@ -140,54 +167,20 @@ export async function loadSalesRegistration(): Promise<SalesRegistrationData> {
     }),
   );
 
-  const { data: journeyData, error: journeyError } = await supabase
-    .from("jornadas_venta")
-    .select(
-      "id, fecha, estado, configurada, opened_at, closed_at, cuota_amt, cuota_laminas, cuota_sc_plus",
-    )
-    .eq("fecha", date)
-    .maybeSingle();
+  return { ok: true as const, people };
+}
 
-  if (journeyError) {
-    return {
-      schemaReady: false,
-      schemaMessage:
-        "Ventas requiere ejecutar sql/006_ventas_cuotas_equipo_diario.sql.",
-      date,
-      journey: null,
-      people,
-      staff: [],
-      catalog: [],
-      sellerCount: 0,
-      teamProgress: emptyProgress(),
-      totals: { sales: 0, units: 0, amount: 0, laminas: 0, scPlus: 0 },
-    };
-  }
-
-  const journey = journeyData
-    ? {
-        id: journeyData.id,
-        date: journeyData.fecha,
-        status: journeyData.estado as "abierta" | "cerrada",
-        configured: Boolean(journeyData.configurada),
-        openedAt: journeyData.opened_at,
-        closedAt: journeyData.closed_at,
-        quotas: {
-          amt: Number(journeyData.cuota_amt),
-          laminas: Number(journeyData.cuota_laminas),
-          scPlus: Number(journeyData.cuota_sc_plus),
-        },
-      }
-    : null;
-
-  const stockResult = await supabase
+async function loadCatalog(supabase: SupabaseClient) {
+  const result = await supabase
     .from("inventario_stock")
     .select(
       "id, sku, nombre, categoria, categoria_venta, precio, stock_actual, serials, almacen, ubicacion",
     )
     .eq("is_active", true);
 
-  const catalog: SalesCatalogItem[] = (stockResult.data ?? [])
+  if (result.error) return [] as SalesCatalogItem[];
+
+  return (result.data ?? [])
     .filter(
       (row) =>
         String(row.almacen ?? "").trim().toLowerCase() ===
@@ -211,21 +204,21 @@ export async function loadSalesRegistration(): Promise<SalesRegistrationData> {
       warehouse: row.almacen,
       location: row.ubicacion,
     }));
+}
 
-  if (!journey) {
-    return {
-      schemaReady: true,
-      date,
-      journey: null,
-      people,
-      staff: [],
-      catalog,
-      sellerCount: 0,
-      teamProgress: emptyProgress(),
-      totals: { sales: 0, units: 0, amount: 0, laminas: 0, scPlus: 0 },
-    };
-  }
-
+async function buildDayData({
+  supabase,
+  journey,
+  people,
+  catalog,
+  blockingOpenDay = null,
+}: {
+  supabase: SupabaseClient;
+  journey: SalesJourney;
+  people: SalesPersonOption[];
+  catalog: SalesCatalogItem[];
+  blockingOpenDay?: OpenSalesDayReference | null;
+}): Promise<SalesDayData> {
   const [shiftResult, salesResult] = await Promise.all([
     supabase
       .from("jornada_personal")
@@ -243,15 +236,16 @@ export async function loadSalesRegistration(): Promise<SalesRegistrationData> {
     return {
       schemaReady: false,
       schemaMessage:
-        "No se pudo cargar la configuración diaria. Verifica SQL 006.",
-      date,
+        "No se pudo cargar el día de venta. Verifica SQL 006 y SQL 007.",
+      date: journey.date,
       journey,
+      blockingOpenDay,
       people,
       staff: [],
       catalog,
       sellerCount: 0,
       teamProgress: emptyProgress(),
-      totals: { sales: 0, units: 0, amount: 0, laminas: 0, scPlus: 0 },
+      totals: emptyTotals(),
     };
   }
 
@@ -306,10 +300,7 @@ export async function loadSalesRegistration(): Promise<SalesRegistrationData> {
     }
   }
 
-  const saleMap = new Map(
-    confirmedSales.map((sale) => [sale.id, sale]),
-  );
-
+  const saleMap = new Map(confirmedSales.map((sale) => [sale.id, sale]));
   let laminas = 0;
   let scPlus = 0;
   const metricsByPerson = new Map<
@@ -349,13 +340,11 @@ export async function loadSalesRegistration(): Promise<SalesRegistrationData> {
 
   const personalTargets = {
     amt: sellerCount > 0 ? journey.quotas.amt / sellerCount : 0,
-    laminas:
-      sellerCount > 0 ? journey.quotas.laminas / sellerCount : 0,
+    laminas: sellerCount > 0 ? journey.quotas.laminas / sellerCount : 0,
     scPlus: sellerCount > 0 ? journey.quotas.scPlus / sellerCount : 0,
   };
 
   const peopleMap = new Map(people.map((person) => [person.id, person]));
-
   const staff: SalesStaffMember[] = [];
 
   for (const shift of shiftResult.data ?? []) {
@@ -410,8 +399,9 @@ export async function loadSalesRegistration(): Promise<SalesRegistrationData> {
 
   return {
     schemaReady: true,
-    date,
+    date: journey.date,
     journey,
+    blockingOpenDay,
     people,
     staff,
     catalog,
@@ -429,4 +419,203 @@ export async function loadSalesRegistration(): Promise<SalesRegistrationData> {
       scPlus,
     },
   };
+}
+
+export async function loadCurrentSalesDay(): Promise<SalesDayData> {
+  const supabase = await createClient();
+  const date = peruDateString();
+  const peopleResult = await loadPeople(supabase);
+
+  if (!peopleResult.ok) {
+    return {
+      schemaReady: false,
+      schemaMessage:
+        "Ventas requiere ejecutar sql/006_ventas_cuotas_equipo_diario.sql.",
+      date,
+      journey: null,
+      blockingOpenDay: null,
+      people: [],
+      staff: [],
+      catalog: [],
+      sellerCount: 0,
+      teamProgress: emptyProgress(),
+      totals: emptyTotals(),
+    };
+  }
+
+  const [todayResult, openResult, catalog] = await Promise.all([
+    supabase
+      .from("jornadas_venta")
+      .select(
+        "id, fecha, estado, configurada, opened_at, closed_at, cuota_amt, cuota_laminas, cuota_sc_plus",
+      )
+      .eq("fecha", date)
+      .maybeSingle(),
+    supabase
+      .from("jornadas_venta")
+      .select("id, fecha, configurada")
+      .eq("estado", "abierta")
+      .order("fecha", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    loadCatalog(supabase),
+  ]);
+
+  if (todayResult.error || openResult.error) {
+    return {
+      schemaReady: false,
+      schemaMessage:
+        "Ventas requiere ejecutar sql/006 y sql/007 antes de continuar.",
+      date,
+      journey: null,
+      blockingOpenDay: null,
+      people: peopleResult.people,
+      staff: [],
+      catalog,
+      sellerCount: 0,
+      teamProgress: emptyProgress(),
+      totals: emptyTotals(),
+    };
+  }
+
+  const blockingOpenDay =
+    openResult.data && openResult.data.fecha !== date
+      ? {
+          id: openResult.data.id,
+          date: openResult.data.fecha,
+          configured: Boolean(openResult.data.configurada),
+        }
+      : null;
+
+  if (!todayResult.data) {
+    return {
+      schemaReady: true,
+      date,
+      journey: null,
+      blockingOpenDay,
+      people: peopleResult.people,
+      staff: [],
+      catalog,
+      sellerCount: 0,
+      teamProgress: emptyProgress(),
+      totals: emptyTotals(),
+    };
+  }
+
+  return buildDayData({
+    supabase,
+    journey: mapJourney(todayResult.data as JourneyRow),
+    people: peopleResult.people,
+    catalog,
+    blockingOpenDay,
+  });
+}
+
+export async function loadSalesDayById(
+  id: string,
+): Promise<SalesDayData | null> {
+  const supabase = await createClient();
+  const peopleResult = await loadPeople(supabase);
+
+  if (!peopleResult.ok) return null;
+
+  const { data, error } = await supabase
+    .from("jornadas_venta")
+    .select(
+      "id, fecha, estado, configurada, opened_at, closed_at, cuota_amt, cuota_laminas, cuota_sc_plus",
+    )
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  return buildDayData({
+    supabase,
+    journey: mapJourney(data as JourneyRow),
+    people: peopleResult.people,
+    catalog: [],
+  });
+}
+
+export async function loadSalesDaysHistory(
+  from: string,
+  to: string,
+): Promise<SalesDaysHistoryData> {
+  const supabase = await createClient();
+  const { data: journeyRows, error } = await supabase
+    .from("jornadas_venta")
+    .select(
+      "id, fecha, estado, configurada, opened_at, closed_at, cuota_amt, cuota_laminas, cuota_sc_plus",
+    )
+    .gte("fecha", from)
+    .lte("fecha", to)
+    .order("fecha", { ascending: false });
+
+  if (error || !journeyRows) {
+    return { from, to, days: [] };
+  }
+
+  const journeys = (journeyRows as JourneyRow[]).map(mapJourney);
+  const journeyIds = journeys.map((journey) => journey.id);
+  if (journeyIds.length === 0) return { from, to, days: [] };
+
+  const [salesResult, shiftsResult] = await Promise.all([
+    supabase
+      .from("ventas")
+      .select("id, jornada_id, total, estado")
+      .in("jornada_id", journeyIds),
+    supabase
+      .from("jornada_personal")
+      .select("jornada_id, disponible, vende_hoy")
+      .in("jornada_id", journeyIds),
+  ]);
+
+  const confirmedSales = (salesResult.data ?? []).filter(
+    (sale) => sale.estado === "confirmada",
+  );
+  const saleIds = confirmedSales.map((sale) => sale.id);
+  const unitsBySale = new Map<string, number>();
+
+  if (saleIds.length > 0) {
+    const { data } = await supabase
+      .from("venta_detalles")
+      .select("venta_id, cantidad")
+      .in("venta_id", saleIds);
+
+    for (const detail of data ?? []) {
+      unitsBySale.set(
+        detail.venta_id,
+        (unitsBySale.get(detail.venta_id) ?? 0) + Number(detail.cantidad),
+      );
+    }
+  }
+
+  const days: SalesDayHistoryItem[] = journeys.map((journey) => {
+    const daySales = confirmedSales.filter(
+      (sale) => sale.jornada_id === journey.id,
+    );
+    const dayShifts = (shiftsResult.data ?? []).filter(
+      (shift) => shift.jornada_id === journey.id && shift.disponible,
+    );
+
+    return {
+      id: journey.id,
+      date: journey.date,
+      status: journey.status,
+      configured: journey.configured,
+      openedAt: journey.openedAt,
+      closedAt: journey.closedAt,
+      quotas: journey.quotas,
+      staffCount: dayShifts.length,
+      sellerCount: dayShifts.filter((shift) => shift.vende_hoy).length,
+      sales: daySales.length,
+      units: daySales.reduce(
+        (sum, sale) => sum + (unitsBySale.get(sale.id) ?? 0),
+        0,
+      ),
+      amount: daySales.reduce((sum, sale) => sum + Number(sale.total), 0),
+    };
+  });
+
+  return { from, to, days };
 }

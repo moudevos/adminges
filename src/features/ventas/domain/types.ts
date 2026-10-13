@@ -29,6 +29,12 @@ export type SalesJourney = {
   quotas: SalesQuotas;
 };
 
+export type OpenSalesDayReference = {
+  id: string;
+  date: string;
+  configured: boolean;
+};
+
 export type SalesPersonOption = {
   id: string;
   name: string;
@@ -64,11 +70,12 @@ export type SalesCatalogItem = {
   location: string | null;
 };
 
-export type SalesRegistrationData = {
+export type SalesDayData = {
   schemaReady: boolean;
   schemaMessage?: string;
   date: string;
   journey: SalesJourney | null;
+  blockingOpenDay: OpenSalesDayReference | null;
   people: SalesPersonOption[];
   staff: SalesStaffMember[];
   catalog: SalesCatalogItem[];
@@ -81,6 +88,27 @@ export type SalesRegistrationData = {
     laminas: number;
     scPlus: number;
   };
+};
+
+export type SalesDayHistoryItem = {
+  id: string;
+  date: string;
+  status: SalesDayStatus;
+  configured: boolean;
+  openedAt: string;
+  closedAt: string | null;
+  quotas: SalesQuotas;
+  staffCount: number;
+  sellerCount: number;
+  sales: number;
+  units: number;
+  amount: number;
+};
+
+export type SalesDaysHistoryData = {
+  from: string;
+  to: string;
+  days: SalesDayHistoryItem[];
 };
 
 export type SaleItemInput = {
