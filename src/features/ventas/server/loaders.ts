@@ -9,6 +9,9 @@ import type {
   OpenSalesDayReference,
   PaymentMethodOption,
   SalesCatalogItem,
+  SalesClosureGroup,
+  SalesClosureGroupUnits,
+  SalesClosureReport,
   SalesDayData,
   SaleHistoryDetailData,
   SaleHistoryItem,
@@ -77,6 +80,30 @@ function emptyProgress(): SalesProgress {
     laminas: metric(0, 0),
     scPlus: metric(0, 0),
   };
+}
+
+const CLOSURE_GROUPS: SalesClosureGroup[] = [
+  "HHP_SERIE_S",
+  "HHP_SERIE_A",
+  "HHP_SERIE_Z",
+  "TABLETS",
+  "WEA",
+  "LAMINAS",
+];
+
+function emptyGroupUnits(): SalesClosureGroupUnits {
+  return {
+    HHP_SERIE_S: 0,
+    HHP_SERIE_A: 0,
+    HHP_SERIE_Z: 0,
+    TABLETS: 0,
+    WEA: 0,
+    LAMINAS: 0,
+  };
+}
+
+function isClosureGroup(value: string): value is SalesClosureGroup {
+  return CLOSURE_GROUPS.includes(value as SalesClosureGroup);
 }
 
 function emptyTotals() {
@@ -215,24 +242,41 @@ async function buildDayData({
   catalog: SalesCatalogItem[];
   blockingOpenDay?: OpenSalesDayReference | null;
 }): Promise<SalesDayData> {
-  const [shiftResult, salesResult] = await Promise.all([
-    supabase
-      .from("jornada_personal")
-      .select(
-        "persona_id, disponible, vende_hoy, hora_ingreso_programada, en_turno, inicio_turno",
-      )
-      .eq("jornada_id", journey.id),
-    supabase
-      .from("ventas")
-      .select("id, promotor_id, total, estado")
-      .eq("jornada_id", journey.id),
-  ]);
+  const [shiftResult, salesResult, reportResult, breakageResult] =
+    await Promise.all([
+      supabase
+        .from("jornada_personal")
+        .select(
+          "persona_id, disponible, vende_hoy, hora_ingreso_programada, en_turno, inicio_turno",
+        )
+        .eq("jornada_id", journey.id),
+      supabase
+        .from("ventas")
+        .select("id, promotor_id, total, estado")
+        .eq("jornada_id", journey.id),
+      supabase
+        .from("jornada_cierre_reportes")
+        .select(
+          "jornada_id, cuota_amt, venta_amt, cuota_laminas, venta_laminas, cuota_sc_plus, venta_sc_plus, comentarios, created_at",
+        )
+        .eq("jornada_id", journey.id)
+        .maybeSingle(),
+      supabase
+        .from("jornada_cierre_quiebres")
+        .select("grupo, venta_unid, quiebre, detalle")
+        .eq("jornada_id", journey.id),
+    ]);
 
-  if (shiftResult.error || salesResult.error) {
+  if (
+    shiftResult.error ||
+    salesResult.error ||
+    reportResult.error ||
+    breakageResult.error
+  ) {
     return {
       schemaReady: false,
       schemaMessage:
-        "No se pudo cargar el día de venta. Verifica SQL 006 y SQL 007.",
+        "No se pudo cargar el día de venta. Verifica que SQL 010 esté aplicado.",
       date: journey.date,
       journey,
       blockingOpenDay,
@@ -241,6 +285,8 @@ async function buildDayData({
       catalog,
       sellerCount: 0,
       teamProgress: emptyProgress(),
+      groupUnits: emptyGroupUnits(),
+      closureReport: null,
       totals: emptyTotals(),
     };
   }
@@ -275,6 +321,8 @@ async function buildDayData({
   const productMap = new Map<
     string,
     {
+      sku: string | null;
+      categoria: string | null;
       categoria_principal: string | null;
       categoria_venta: string | null;
       familia: string | null;
@@ -287,7 +335,7 @@ async function buildDayData({
     const { data } = await supabase
       .from("productos")
       .select(
-        "id, nombre, categoria_principal, categoria_venta, familia, variante",
+        "id, sku, nombre, categoria, categoria_principal, categoria_venta, familia, variante",
       )
       .in("id", productIds);
 
@@ -299,6 +347,7 @@ async function buildDayData({
   const saleMap = new Map(confirmedSales.map((sale) => [sale.id, sale]));
   let laminas = 0;
   let scPlus = 0;
+  const groupUnits = emptyGroupUnits();
   const metricsByPerson = new Map<
     string,
     { laminas: number; scPlus: number; units: number }
@@ -316,6 +365,13 @@ async function buildDayData({
     };
 
     current.units += detail.cantidad;
+
+    if (product) {
+      const reportGroup = classifySalesProduct(product);
+      if (isClosureGroup(reportGroup)) {
+        groupUnits[reportGroup] += detail.cantidad;
+      }
+    }
 
     if (product && isLaminaProduct(product)) {
       laminas += detail.cantidad;
@@ -393,6 +449,36 @@ async function buildDayData({
     0,
   );
 
+  const closureReport: SalesClosureReport | null = reportResult.data
+    ? {
+        journeyId: reportResult.data.jornada_id,
+        quotas: {
+          amt: Number(reportResult.data.cuota_amt),
+          laminas: Number(reportResult.data.cuota_laminas),
+          scPlus: Number(reportResult.data.cuota_sc_plus),
+        },
+        sales: {
+          amt: Number(reportResult.data.venta_amt),
+          laminas: Number(reportResult.data.venta_laminas),
+          scPlus: Number(reportResult.data.venta_sc_plus),
+        },
+        comments: reportResult.data.comentarios,
+        closedAt: reportResult.data.created_at,
+        breakages: CLOSURE_GROUPS.map((group) => {
+          const row = (breakageResult.data ?? []).find(
+            (item) => item.grupo === group,
+          );
+
+          return {
+            group,
+            units: Number(row?.venta_unid ?? 0),
+            breakage: Boolean(row?.quiebre),
+            detail: row?.detalle ?? null,
+          };
+        }),
+      }
+    : null;
+
   return {
     schemaReady: true,
     date: journey.date,
@@ -407,6 +493,8 @@ async function buildDayData({
       laminas: metric(laminas, journey.quotas.laminas),
       scPlus: metric(scPlus, journey.quotas.scPlus),
     },
+    groupUnits,
+    closureReport,
     totals: {
       sales: confirmedSales.length,
       units: details.reduce((sum, detail) => sum + detail.cantidad, 0),
@@ -435,6 +523,8 @@ export async function loadCurrentSalesDay(): Promise<SalesDayData> {
       catalog: [],
       sellerCount: 0,
       teamProgress: emptyProgress(),
+      groupUnits: emptyGroupUnits(),
+      closureReport: null,
       totals: emptyTotals(),
     };
   }
@@ -470,6 +560,8 @@ export async function loadCurrentSalesDay(): Promise<SalesDayData> {
       catalog,
       sellerCount: 0,
       teamProgress: emptyProgress(),
+      groupUnits: emptyGroupUnits(),
+      closureReport: null,
       totals: emptyTotals(),
     };
   }
@@ -494,6 +586,8 @@ export async function loadCurrentSalesDay(): Promise<SalesDayData> {
       catalog,
       sellerCount: 0,
       teamProgress: emptyProgress(),
+      groupUnits: emptyGroupUnits(),
+      closureReport: null,
       totals: emptyTotals(),
     };
   }
