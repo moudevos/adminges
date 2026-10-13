@@ -2,13 +2,21 @@
 
 import {
   faArrowRight,
+  faBoxOpen,
+  faBuildingColumns,
+  faBullseye,
   faCashRegister,
+  faCircleExclamation,
   faCreditCard,
+  faMinus,
+  faMobileScreenButton,
   faMoneyBillWave,
+  faPlus,
   faQrcode,
   faTrash,
   faWallet,
 } from "@fortawesome/free-solid-svg-icons";
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useMemo, useRef, useState } from "react";
 import { Modal } from "@/components/ui/modal";
@@ -46,6 +54,20 @@ const paymentLabels: Record<SalePaymentMethod, string> = {
   transferencia: "Transferencia",
 };
 
+const paymentMeta: Record<
+  SalePaymentMethod,
+  { icon: IconDefinition; tile: string }
+> = {
+  efectivo: { icon: faMoneyBillWave, tile: "bg-emerald-50 text-emerald-600" },
+  tarjeta: { icon: faCreditCard, tile: "bg-sky-50 text-sky-600" },
+  yape: { icon: faMobileScreenButton, tile: "bg-violet-50 text-violet-600" },
+  plin: { icon: faWallet, tile: "bg-cyan-50 text-cyan-600" },
+  transferencia: {
+    icon: faBuildingColumns,
+    tile: "bg-slate-100 text-slate-600",
+  },
+};
+
 function money(value: number) {
   return new Intl.NumberFormat("es-PE", {
     style: "currency",
@@ -80,6 +102,21 @@ async function postJson(path: string, body: unknown) {
   }
 }
 
+function SectionTitle({
+  children,
+  aside,
+}: {
+  children: React.ReactNode;
+  aside?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <h3 className="text-sm font-semibold text-slate-800">{children}</h3>
+      {aside}
+    </div>
+  );
+}
+
 export function SaleModal({
   staff,
   journeyId,
@@ -106,10 +143,7 @@ export function SaleModal({
 
   const totalCents = useMemo(
     () =>
-      items.reduce(
-        (sum, item) => sum + item.quantity * cents(item.price),
-        0,
-      ),
+      items.reduce((sum, item) => sum + item.quantity * cents(item.price), 0),
     [items],
   );
   const paidCents = useMemo(
@@ -117,6 +151,11 @@ export function SaleModal({
     [payments],
   );
   const remainingCents = totalCents - paidCents;
+  const coverage =
+    totalCents > 0 ? Math.max(0, Math.min((paidCents / totalCents) * 100, 100)) : 0;
+  const balanced = totalCents > 0 && remainingCents === 0;
+  const over = remainingCents < 0;
+  const unitCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const usedSerials = useMemo(
     () =>
@@ -237,6 +276,12 @@ export function SaleModal({
     );
   }
 
+  function setQuantity(item: DraftItem, next: number) {
+    updateItem(item.key, {
+      quantity: Math.max(1, Math.min(next || 1, item.available)),
+    });
+  }
+
   function addPayment(method: SalePaymentMethod) {
     if (remainingCents <= 0) {
       setError("No existe saldo pendiente por asignar.");
@@ -326,81 +371,91 @@ export function SaleModal({
     }
   }
 
+  const fieldLabel = "mb-1 block text-[11px] font-medium text-slate-400";
+
   return (
     <Modal
       open
       title="Nueva venta"
       description={"Registrando para: " + staff.name + " · " + formatDate(date)}
       onClose={onClose}
-      maxWidthClassName="max-w-4xl"
+      maxWidthClassName="max-w-5xl"
     >
-      <div className="space-y-5">
-        {error ? (
-          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-700">
-            {error}
-          </div>
-        ) : null}
-
-        <section>
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.06em] text-slate-500">
-              Detalle de items
-            </p>
-            <span className="text-sm font-semibold text-indigo-600">
-              Total: {money(totalCents / 100)}
-            </span>
-          </div>
-
-          <div className="flex gap-2">
-            <label className="relative min-w-0 flex-1">
-              <FontAwesomeIcon
-                icon={faQrcode}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"
-              />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    addFromSearch();
-                  }
-                }}
-                placeholder="Buscar SKU o escanear IMEI"
-                className="control-input h-10 pl-9 text-sm"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={addFromSearch}
-              className="h-10 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        {/* ───────── Columna principal ───────── */}
+        <div className="min-w-0 space-y-7">
+          <section>
+            <SectionTitle
+              aside={
+                <span className="text-xs tabular-nums text-slate-400">
+                  {items.length} {items.length === 1 ? "producto" : "productos"}
+                </span>
+              }
             >
-              Agregar
-            </button>
-          </div>
+              Productos
+            </SectionTitle>
 
-          <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200">
-            <table className="w-full min-w-[820px] text-sm">
-              <thead className="bg-slate-50 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-3 py-2.5">SKU / Producto</th>
-                  <th className="px-3 py-2.5">Serie</th>
-                  <th className="px-3 py-2.5 text-right">Cant.</th>
-                  <th className="px-3 py-2.5 text-right">Precio</th>
-                  <th className="px-3 py-2.5 text-right">Subtotal</th>
-                  <th className="w-10 px-2 py-2.5" />
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.key} className="border-t border-slate-100">
-                    <td className="px-3 py-3">
-                      <p className="font-medium text-slate-900">{item.name}</p>
-                      <p className="mt-0.5 font-mono text-[10px] text-slate-400">
+            <div className="flex gap-2">
+              <label className="relative min-w-0 flex-1">
+                <FontAwesomeIcon
+                  icon={faQrcode}
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400"
+                />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      addFromSearch();
+                    }
+                  }}
+                  placeholder="Buscar SKU o escanear IMEI"
+                  className="control-input h-11 pl-10 text-sm"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={addFromSearch}
+                className="inline-flex h-11 items-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 active:scale-[0.98]"
+              >
+                <FontAwesomeIcon icon={faPlus} className="text-[10px]" />
+                Agregar
+              </button>
+            </div>
+
+            <div className="mt-3 space-y-2.5">
+              {items.map((item) => (
+                <div
+                  key={item.key}
+                  className="rounded-xl border border-slate-200 bg-white p-3.5 transition-shadow hover:shadow-[0_6px_18px_-12px_rgba(15,23,42,0.25)]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-900">
+                        {item.name}
+                      </p>
+                      <p className="mt-0.5 font-mono text-[11px] text-slate-400">
                         {item.sku}
                       </p>
-                    </td>
-                    <td className="px-3 py-3">
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setItems((current) =>
+                          current.filter((row) => row.key !== item.key),
+                        )
+                      }
+                      className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-300 transition hover:bg-rose-50 hover:text-rose-500"
+                      aria-label="Quitar producto"
+                    >
+                      <FontAwesomeIcon icon={faTrash} className="text-xs" />
+                    </button>
+                  </div>
+
+                  <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1.3fr)_auto_110px_auto] sm:items-end">
+                    <div>
+                      <span className={fieldLabel}>Serie / IMEI</span>
                       {item.serialized ? (
                         <select
                           value={item.serial ?? ""}
@@ -409,7 +464,10 @@ export function SaleModal({
                               serial: event.target.value || null,
                             })
                           }
-                          className="control-input h-9 min-w-44 text-xs"
+                          className={
+                            "control-input h-9 w-full text-xs " +
+                            (!item.serial ? "border-amber-300" : "")
+                          }
                         >
                           <option value="">Seleccionar serie</option>
                           {item.serialOptions.map((serial) => (
@@ -417,8 +475,7 @@ export function SaleModal({
                               key={serial}
                               value={serial}
                               disabled={
-                                usedSerials.has(serial) &&
-                                item.serial !== serial
+                                usedSerials.has(serial) && item.serial !== serial
                               }
                             >
                               {serial}
@@ -426,229 +483,324 @@ export function SaleModal({
                           ))}
                         </select>
                       ) : (
-                        <span className="text-xs text-slate-400">No aplica</span>
+                        <div className="flex h-9 items-center text-xs text-slate-400">
+                          No aplica
+                        </div>
                       )}
-                    </td>
-                    <td className="px-3 py-3 text-right">
+                    </div>
+
+                    <div>
+                      <span className={fieldLabel}>Cantidad</span>
                       {item.serialized ? (
-                        <span className="font-semibold tabular-nums">1</span>
+                        <div className="flex h-9 items-center text-sm font-semibold tabular-nums text-slate-700">
+                          1
+                        </div>
                       ) : (
+                        <div className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white">
+                          <button
+                            type="button"
+                            onClick={() => setQuantity(item, item.quantity - 1)}
+                            disabled={item.quantity <= 1}
+                            className="grid h-full w-8 place-items-center text-slate-400 transition hover:text-slate-700 disabled:opacity-30"
+                            aria-label="Restar"
+                          >
+                            <FontAwesomeIcon icon={faMinus} className="text-[10px]" />
+                          </button>
+                          <input
+                            type="number"
+                            min={1}
+                            max={item.available}
+                            value={item.quantity}
+                            onChange={(event) =>
+                              setQuantity(item, Number(event.target.value))
+                            }
+                            className="h-full w-10 border-x border-slate-100 bg-transparent text-center text-sm font-semibold tabular-nums text-slate-800 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setQuantity(item, item.quantity + 1)}
+                            disabled={item.quantity >= item.available}
+                            className="grid h-full w-8 place-items-center text-slate-400 transition hover:text-slate-700 disabled:opacity-30"
+                            aria-label="Sumar"
+                          >
+                            <FontAwesomeIcon icon={faPlus} className="text-[10px]" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <span className={fieldLabel}>Precio</span>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                          S/
+                        </span>
                         <input
                           type="number"
-                          min={1}
-                          max={item.available}
-                          value={item.quantity}
+                          min="0"
+                          step="0.01"
+                          value={item.price}
                           onChange={(event) =>
-                            updateItem(item.key, {
-                              quantity: Math.max(
-                                1,
-                                Math.min(
-                                  Number(event.target.value) || 1,
-                                  item.available,
-                                ),
-                              ),
-                            })
+                            updateItem(item.key, { price: event.target.value })
                           }
-                          className="control-input ml-auto h-9 w-20 text-right text-sm"
+                          className="control-input h-9 w-full pl-7 text-right text-sm tabular-nums"
                         />
-                      )}
-                    </td>
-                    <td className="px-3 py-3">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.price}
-                        onChange={(event) =>
-                          updateItem(item.key, { price: event.target.value })
-                        }
-                        className="control-input ml-auto h-9 w-28 text-right text-sm"
-                      />
-                    </td>
-                    <td className="px-3 py-3 text-right font-semibold tabular-nums text-slate-800">
-                      {money((item.quantity * cents(item.price)) / 100)}
-                    </td>
-                    <td className="px-2 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setItems((current) =>
-                            current.filter((row) => row.key !== item.key),
-                          )
-                        }
-                        className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                        aria-label="Quitar producto"
-                      >
-                        <FontAwesomeIcon icon={faTrash} className="text-xs" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </div>
+                    </div>
 
-                {items.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-400">
-                      Agrega productos por SKU o IMEI.
-                    </td>
-                  </tr>
+                    <div className="text-right sm:min-w-24">
+                      <span className={fieldLabel}>Subtotal</span>
+                      <p className="flex h-9 items-center justify-end text-sm font-semibold tabular-nums text-slate-900">
+                        {money((item.quantity * cents(item.price)) / 100)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {items.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center">
+                  <span className="grid size-10 place-items-center rounded-full bg-slate-50 text-slate-300">
+                    <FontAwesomeIcon icon={faBoxOpen} />
+                  </span>
+                  <p className="text-sm text-slate-400">
+                    Agrega productos por SKU o IMEI.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <section>
+            <SectionTitle>Medios de pago</SectionTitle>
+
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(paymentLabels) as SalePaymentMethod[]).map((method) => (
+                <button
+                  key={method}
+                  type="button"
+                  onClick={() => addPayment(method)}
+                  className="inline-flex h-9 items-center gap-2 rounded-full border border-slate-200 bg-white pl-1.5 pr-3.5 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.97]"
+                >
+                  <span
+                    className={
+                      "grid size-6 place-items-center rounded-full " +
+                      paymentMeta[method].tile
+                    }
+                  >
+                    <FontAwesomeIcon
+                      icon={paymentMeta[method].icon}
+                      className="text-[10px]"
+                    />
+                  </span>
+                  {paymentLabels[method]}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-3 space-y-2">
+              {payments.map((payment) => (
+                <div
+                  key={payment.key}
+                  className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 sm:flex-nowrap"
+                >
+                  <span
+                    className={
+                      "grid size-9 shrink-0 place-items-center rounded-lg " +
+                      paymentMeta[payment.method].tile
+                    }
+                  >
+                    <FontAwesomeIcon
+                      icon={paymentMeta[payment.method].icon}
+                      className="text-xs"
+                    />
+                  </span>
+
+                  <select
+                    value={payment.method}
+                    onChange={(event) =>
+                      updatePayment(payment.key, {
+                        method: event.target.value as SalePaymentMethod,
+                      })
+                    }
+                    className="control-input h-9 w-36 shrink-0 text-sm"
+                  >
+                    {(Object.keys(paymentLabels) as SalePaymentMethod[]).map(
+                      (method) => (
+                        <option key={method} value={method}>
+                          {paymentLabels[method]}
+                        </option>
+                      ),
+                    )}
+                  </select>
+
+                  <div className="relative w-32 shrink-0">
+                    <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                      S/
+                    </span>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={payment.amount}
+                      onChange={(event) =>
+                        updatePayment(payment.key, { amount: event.target.value })
+                      }
+                      className="control-input h-9 w-full pl-7 text-right text-sm tabular-nums"
+                    />
+                  </div>
+
+                  <input
+                    value={payment.reference}
+                    onChange={(event) =>
+                      updatePayment(payment.key, { reference: event.target.value })
+                    }
+                    placeholder="Referencia (opcional)"
+                    className="control-input h-9 min-w-0 flex-1 text-sm"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentToRemaining(payment.key)}
+                    title="Completar con el saldo exacto"
+                    aria-label="Saldo exacto"
+                    className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600"
+                  >
+                    <FontAwesomeIcon icon={faBullseye} className="text-xs" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPayments((current) =>
+                        current.filter((row) => row.key !== payment.key),
+                      )
+                    }
+                    className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-300 transition hover:bg-rose-50 hover:text-rose-500"
+                    aria-label="Quitar pago"
+                  >
+                    <FontAwesomeIcon icon={faTrash} className="text-xs" />
+                  </button>
+                </div>
+              ))}
+
+              {payments.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-slate-200 px-4 py-5 text-center text-xs text-slate-400">
+                  Elige un medio de pago para asignar el saldo.
+                </p>
+              ) : null}
+            </div>
+          </section>
+        </div>
+
+        {/* ───────── Resumen lateral ───────── */}
+        <aside className="lg:sticky lg:top-0 lg:self-start">
+          <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
+            <div>
+              <p className="text-xs text-slate-400">Total de la venta</p>
+              <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight text-slate-900">
+                {money(totalCents / 100)}
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                {unitCount} {unitCount === 1 ? "unidad" : "unidades"} ·{" "}
+                {items.length} {items.length === 1 ? "producto" : "productos"}
+              </p>
+            </div>
+
+            <div>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-200/70">
+                <div
+                  className={
+                    "h-full rounded-full transition-[width,background-color] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] " +
+                    (over
+                      ? "bg-rose-500"
+                      : balanced
+                        ? "bg-emerald-500"
+                        : "bg-amber-400")
+                  }
+                  style={{ width: coverage + "%" }}
+                />
+              </div>
+
+              <dl className="mt-3 space-y-1.5 text-sm">
+                <div className="flex items-center justify-between">
+                  <dt className="text-slate-500">Pagado</dt>
+                  <dd className="font-medium tabular-nums text-slate-800">
+                    {money(paidCents / 100)}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt className="text-slate-500">
+                    {over ? "Excedente" : "Pendiente"}
+                  </dt>
+                  <dd
+                    className={
+                      "font-semibold tabular-nums transition-colors duration-500 " +
+                      (over
+                        ? "text-rose-600"
+                        : balanced
+                          ? "text-emerald-600"
+                          : "text-amber-600")
+                    }
+                  >
+                    {money(Math.abs(remainingCents) / 100)}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-slate-500">
+                Observación
+              </span>
+              <textarea
+                value={observation}
+                onChange={(event) => setObservation(event.target.value)}
+                rows={2}
+                maxLength={500}
+                placeholder="Opcional"
+                className="control-input min-h-20 w-full resize-none bg-white py-2 text-sm"
+              />
+            </label>
+
+            {error ? (
+              <div className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-700">
+                <FontAwesomeIcon
+                  icon={faCircleExclamation}
+                  className="mt-0.5 text-[11px]"
+                />
+                <span>{error}</span>
+              </div>
+            ) : null}
+
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                disabled={
+                  saving ||
+                  items.length === 0 ||
+                  totalCents <= 0 ||
+                  remainingCents !== 0
+                }
+                onClick={saveSale}
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 active:scale-[0.98] disabled:bg-slate-200 disabled:text-slate-400"
+              >
+                <FontAwesomeIcon icon={faCashRegister} className="text-xs" />
+                {saving ? "Registrando..." : "Registrar venta"}
+                {!saving ? (
+                  <FontAwesomeIcon icon={faArrowRight} className="text-xs" />
                 ) : null}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section>
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.06em] text-slate-500">
-              Medios de pago
-            </p>
-            <div className="text-xs text-slate-500">
-              Pagado: <b>{money(paidCents / 100)}</b> · Pendiente:{" "}
-              <b className={remainingCents === 0 ? "text-emerald-600" : "text-amber-600"}>
-                {money(remainingCents / 100)}
-              </b>
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="h-10 w-full rounded-xl text-sm font-medium text-slate-500 transition hover:bg-slate-100"
+              >
+                Cancelar
+              </button>
             </div>
           </div>
-
-          <div className="mb-3 flex flex-wrap gap-2">
-            {(Object.keys(paymentLabels) as SalePaymentMethod[]).map((method) => (
-              <button
-                key={method}
-                type="button"
-                onClick={() => addPayment(method)}
-                className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
-              >
-                <FontAwesomeIcon
-                  icon={
-                    method === "efectivo"
-                      ? faMoneyBillWave
-                      : method === "tarjeta"
-                        ? faCreditCard
-                        : faWallet
-                  }
-                  className="text-[10px]"
-                />
-                {paymentLabels[method]}
-              </button>
-            ))}
-          </div>
-
-          <div className="space-y-2">
-            {payments.map((payment) => (
-              <div
-                key={payment.key}
-                className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-2 sm:grid-cols-[150px_130px_1fr_auto_auto]"
-              >
-                <select
-                  value={payment.method}
-                  onChange={(event) =>
-                    updatePayment(payment.key, {
-                      method: event.target.value as SalePaymentMethod,
-                    })
-                  }
-                  className="control-input h-9 text-sm"
-                >
-                  {(Object.keys(paymentLabels) as SalePaymentMethod[]).map((method) => (
-                    <option key={method} value={method}>
-                      {paymentLabels[method]}
-                    </option>
-                  ))}
-                </select>
-
-                <input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={payment.amount}
-                  onChange={(event) =>
-                    updatePayment(payment.key, { amount: event.target.value })
-                  }
-                  className="control-input h-9 text-right text-sm"
-                />
-
-                <input
-                  value={payment.reference}
-                  onChange={(event) =>
-                    updatePayment(payment.key, {
-                      reference: event.target.value,
-                    })
-                  }
-                  placeholder="Referencia opcional"
-                  className="control-input h-9 text-sm"
-                />
-
-                <button
-                  type="button"
-                  onClick={() => setPaymentToRemaining(payment.key)}
-                  className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600"
-                >
-                  Saldo exacto
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPayments((current) =>
-                      current.filter((row) => row.key !== payment.key),
-                    )
-                  }
-                  className="grid size-9 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                  aria-label="Quitar pago"
-                >
-                  <FontAwesomeIcon icon={faTrash} className="text-xs" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-slate-500">
-            Observación
-          </span>
-          <textarea
-            value={observation}
-            onChange={(event) => setObservation(event.target.value)}
-            rows={2}
-            maxLength={500}
-            placeholder="Opcional"
-            className="control-input min-h-20 resize-none py-2 text-sm"
-          />
-        </label>
-
-        <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm text-slate-500">
-            Total{" "}
-            <span className="ml-1 text-lg font-bold text-slate-900">
-              {money(totalCents / 100)}
-            </span>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-600"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              disabled={
-                saving ||
-                items.length === 0 ||
-                totalCents <= 0 ||
-                remainingCents !== 0
-              }
-              onClick={saveSale}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white disabled:bg-slate-200 disabled:text-slate-400"
-            >
-              <FontAwesomeIcon icon={faCashRegister} className="text-xs" />
-              {saving ? "Registrando..." : "Registrar venta"}
-              {!saving ? <FontAwesomeIcon icon={faArrowRight} className="text-xs" /> : null}
-            </button>
-          </div>
-        </div>
+        </aside>
       </div>
     </Modal>
   );

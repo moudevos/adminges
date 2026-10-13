@@ -1,8 +1,25 @@
 "use client";
 
-import { faClock, faPlus, faUsers } from "@fortawesome/free-solid-svg-icons";
+import {
+  faBolt,
+  faClock,
+  faCoins,
+  faLayerGroup,
+  faPlay,
+  faReceipt,
+  faShieldHalved,
+  faSquarePlus,
+  faStop,
+  faTrophy,
+  faUsers,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { SalesProgressBar } from "@/features/ventas/components/sales-progress";
+import {
+  overallPercent,
+  progressTone,
+  SalesProgressBar,
+  toneStyles,
+} from "@/features/ventas/components/sales-progress";
 import type {
   SalesDayData,
   SalesStaffMember,
@@ -13,6 +30,26 @@ function money(value: number) {
     style: "currency",
     currency: "PEN",
   }).format(value);
+}
+
+function Stat({
+  icon,
+  label,
+  value,
+}: {
+  icon: typeof faReceipt;
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 px-2">
+      <FontAwesomeIcon icon={icon} className="text-[10px] text-slate-300" />
+      <p className="text-sm font-semibold tabular-nums text-slate-800">
+        {value}
+      </p>
+      <p className="text-[10px] text-slate-400">{label}</p>
+    </div>
+  );
 }
 
 export function SalesDayOverview({
@@ -30,29 +67,68 @@ export function SalesDayOverview({
 }) {
   if (!data.journey?.configured) {
     return (
-      <section className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
         Este día no llegó a configurarse con cuotas y equipo.
       </section>
     );
   }
 
+  const team = overallPercent([
+    data.teamProgress.amt,
+    data.teamProgress.laminas,
+    data.teamProgress.scPlus,
+  ]);
+  const teamTone = progressTone(team.percent, team.target);
+  const teamStyle = toneStyles[teamTone];
+
   return (
     <>
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span
+              className={
+                "grid size-8 place-items-center rounded-lg " + teamStyle.soft
+              }
+            >
+              <FontAwesomeIcon icon={faTrophy} className="text-xs" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-slate-900">
+                Avance del equipo
+              </p>
+              <p className="text-[11px] text-slate-400">
+                Meta conjunta del día
+              </p>
+            </div>
+          </div>
+          <span
+            className={
+              "rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors duration-500 " +
+              teamStyle.soft
+            }
+          >
+            {teamStyle.label}
+          </span>
+        </div>
+
         <SalesProgressBar
           label="AMT"
+          icon={faCoins}
           progress={data.teamProgress.amt}
           kind="money"
         />
 
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="mt-4 grid gap-5 md:grid-cols-2">
           <SalesProgressBar
             label="Láminas"
+            icon={faLayerGroup}
             progress={data.teamProgress.laminas}
             kind="units"
           />
           <SalesProgressBar
             label="SC+"
+            icon={faShieldHalved}
             progress={data.teamProgress.scPlus}
             kind="money"
           />
@@ -62,7 +138,7 @@ export function SalesDayOverview({
       <section>
         <div className="mb-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-            <FontAwesomeIcon icon={faUsers} className="text-indigo-500" />
+            <FontAwesomeIcon icon={faUsers} className="text-slate-400" />
             Equipo comercial
           </div>
           <span className="text-xs text-slate-400">
@@ -70,139 +146,159 @@ export function SalesDayOverview({
           </span>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-2">
-          {data.staff.map((person) => (
-            <article
-              key={person.id}
-              className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-            >
-              <div className="flex items-start gap-3">
-                <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-slate-100 text-sm font-bold text-slate-600">
-                  {person.initials}
-                </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {data.staff.map((person) => {
+            const overall = person.sellsToday
+              ? overallPercent([
+                  person.progress.amt,
+                  person.progress.laminas,
+                  person.progress.scPlus,
+                ])
+              : { percent: 0, target: 0 };
+            const tone = progressTone(overall.percent, overall.target);
+            const style = toneStyles[tone];
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="truncate font-semibold text-slate-900">
-                        {person.name}
-                      </p>
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        {person.role}
-                        {person.sellsToday ? " · Vende hoy" : " · No vende hoy"}
-                      </p>
-                    </div>
-
-                    <span
+            return (
+              <article
+                key={person.id}
+                className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-4 transition-shadow duration-300 hover:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="relative shrink-0">
+                    <div
                       className={
-                        "rounded-full px-2 py-1 text-[10px] font-semibold " +
-                        (person.onShift
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-slate-100 text-slate-500")
+                        "grid size-11 place-items-center rounded-full bg-slate-50 text-sm font-semibold text-slate-700 ring-2 transition-colors duration-500 " +
+                        style.ring
                       }
                     >
-                      {person.onShift ? "En turno" : "Fuera de turno"}
+                      {person.initials}
+                    </div>
+                    <span
+                      className={
+                        "absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-white " +
+                        (person.onShift ? "bg-emerald-500" : "bg-slate-300")
+                      }
+                      title={person.onShift ? "En turno" : "Fuera de turno"}
+                    />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-900">
+                      {person.name}
+                    </p>
+                    <p className="truncate text-xs text-slate-500">
+                      {person.role}
+                    </p>
+                  </div>
+
+                  {person.sellsToday ? (
+                    <span
+                      className={
+                        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors duration-500 " +
+                        style.soft
+                      }
+                    >
+                      {overall.percent.toFixed(0)}%
                     </span>
-                  </div>
+                  ) : null}
+                </div>
 
-                  <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400">
+                <div className="mt-3 flex items-center gap-3 text-[11px] text-slate-400">
+                  <span className="inline-flex items-center gap-1.5">
                     <FontAwesomeIcon icon={faClock} className="text-[9px]" />
-                    Ingreso programado: {person.scheduledTime ?? "—"}
+                    {person.scheduledTime ?? "—"}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <FontAwesomeIcon icon={faBolt} className="text-[9px]" />
+                    {person.onShift ? "En turno" : "Fuera de turno"}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid grid-cols-3 divide-x divide-slate-100 rounded-xl bg-slate-50/70 py-3">
+                  <Stat icon={faReceipt} label="Ventas" value={person.salesCount} />
+                  <Stat
+                    icon={faLayerGroup}
+                    label="Unidades"
+                    value={person.units}
+                  />
+                  <Stat icon={faCoins} label="Venta" value={money(person.total)} />
+                </div>
+
+                {person.sellsToday ? (
+                  <div className="mt-4 space-y-3">
+                    <SalesProgressBar
+                      compact
+                      label="AMT"
+                      icon={faCoins}
+                      progress={person.progress.amt}
+                      kind="money"
+                    />
+                    <SalesProgressBar
+                      compact
+                      label="Láminas"
+                      icon={faLayerGroup}
+                      progress={person.progress.laminas}
+                      kind="units"
+                    />
+                    <SalesProgressBar
+                      compact
+                      label="SC+"
+                      icon={faShieldHalved}
+                      progress={person.progress.scPlus}
+                      kind="money"
+                    />
                   </div>
-                </div>
-              </div>
+                ) : (
+                  <div className="mt-4 rounded-xl border border-dashed border-slate-200 px-3 py-4 text-center text-xs text-slate-400">
+                    No participa en la cuota de este día.
+                  </div>
+                )}
 
-              <div className="mt-4 grid grid-cols-3 divide-x divide-slate-100 rounded-lg bg-slate-50 py-3 text-center">
-                <div>
-                  <p className="text-[9px] uppercase tracking-wide text-slate-400">
-                    Ventas
-                  </p>
-                  <p className="mt-1 font-semibold tabular-nums text-slate-800">
-                    {person.salesCount}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[9px] uppercase tracking-wide text-slate-400">
-                    Unidades
-                  </p>
-                  <p className="mt-1 font-semibold tabular-nums text-slate-800">
-                    {person.units}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[9px] uppercase tracking-wide text-slate-400">
-                    Venta
-                  </p>
-                  <p className="mt-1 text-sm font-semibold tabular-nums text-slate-800">
-                    {money(person.total)}
-                  </p>
-                </div>
-              </div>
+                {allowOperations ? (
+                  <div className="mt-auto grid grid-cols-2 gap-2 pt-4">
+                    <button
+                      type="button"
+                      disabled={
+                        data.journey?.status !== "abierta" ||
+                        !person.active ||
+                        person.employmentState !== "activo" ||
+                        busy
+                      }
+                      onClick={() => onToggleShift?.(person)}
+                      className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98] disabled:opacity-40"
+                    >
+                      <FontAwesomeIcon
+                        icon={person.onShift ? faStop : faPlay}
+                        className="text-[10px]"
+                      />
+                      {person.onShift ? "Finalizar turno" : "Iniciar turno"}
+                    </button>
 
-              {person.sellsToday ? (
-                <div className="mt-4 space-y-3">
-                  <SalesProgressBar
-                    compact
-                    label="AMT"
-                    progress={person.progress.amt}
-                    kind="money"
-                  />
-                  <SalesProgressBar
-                    compact
-                    label="Láminas"
-                    progress={person.progress.laminas}
-                    kind="units"
-                  />
-                  <SalesProgressBar
-                    compact
-                    label="SC+"
-                    progress={person.progress.scPlus}
-                    kind="money"
-                  />
-                </div>
-              ) : (
-                <div className="mt-4 rounded-lg bg-slate-50 px-3 py-3 text-xs text-slate-400">
-                  No participa en la cuota de ventas de este día.
-                </div>
-              )}
-
-              {allowOperations ? (
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    disabled={
-                      data.journey?.status !== "abierta" ||
-                      !person.active ||
-                      person.employmentState !== "activo" ||
-                      busy
-                    }
-                    onClick={() => onToggleShift?.(person)}
-                    className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 disabled:opacity-40"
-                  >
-                    {person.onShift ? "Finalizar turno" : "Iniciar turno"}
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={
-                      data.journey?.status !== "abierta" ||
-                      !person.sellsToday ||
-                      !person.onShift ||
-                      busy
-                    }
-                    onClick={() => onRegisterSale?.(person)}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 text-sm font-semibold text-white disabled:bg-slate-100 disabled:text-slate-400"
-                  >
-                    <FontAwesomeIcon icon={faPlus} className="text-xs" />
-                    Registrar venta
-                  </button>
-                </div>
-              ) : null}
-            </article>
-          ))}
+                    <button
+                      type="button"
+                      disabled={
+                        data.journey?.status !== "abierta" ||
+                        !person.sellsToday ||
+                        !person.onShift ||
+                        busy
+                      }
+                      onClick={() => onRegisterSale?.(person)}
+                      className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white transition hover:bg-slate-800 active:scale-[0.98] disabled:bg-slate-100 disabled:text-slate-400"
+                    >
+                      <FontAwesomeIcon
+                        icon={faSquarePlus}
+                        className="text-[11px]"
+                      />
+                      Registrar venta
+                    </button>
+                  </div>
+                ) : null}
+              </article>
+            );
+          })}
 
           {data.staff.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-white px-5 py-12 text-center text-sm text-slate-400">
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-12 text-center text-sm text-slate-400 md:col-span-2 xl:col-span-3">
               No se registró equipo para este día.
             </div>
           ) : null}
