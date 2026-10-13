@@ -17,6 +17,11 @@ function friendlyError(message: string) {
     ["DAY_ALREADY_CONFIGURED", "La jornada de hoy ya está configurada."],
     ["ANOTHER_DAY_OPEN", "Existe otra jornada abierta. Ciérrala primero."],
     ["DAY_NOT_OPEN", "La jornada no está abierta o no fue configurada."],
+    ["DAY_NOT_CONFIGURED", "La jornada no está configurada para cierre formal."],
+    ["DAY_REPORT_ALREADY_EXISTS", "El reporte de cierre ya existe."],
+    ["BREAKAGE_DATA_REQUIRED", "Falta la información de quiebres."],
+    ["BREAKAGE_DETAIL_REQUIRED", "Los quiebres marcados en Sí requieren detalle."],
+    ["INVALID_BREAKAGE_GROUP", "Hay un grupo de cierre inválido."],
     ["INVALID_DAILY_TARGETS", "Revisa las cuotas AMT, Láminas y SC+."],
     ["DAILY_TEAM_REQUIRED", "Selecciona al menos una persona disponible."],
     ["INVALID_TEAM_MEMBER", "Hay un integrante con datos inválidos."],
@@ -156,4 +161,31 @@ export async function reverseSale(input: {
 
   if (error) return { ok: false, message: friendlyError(error.message) };
   return { ok: true };
+}
+
+
+export async function closeSalesDayWithReport(input: {
+  journeyId: string;
+  comments?: string;
+  breakages: Array<{
+    group: string;
+    breakage: boolean;
+    detail?: string | null;
+  }>;
+}): Promise<SalesMutationResult & { report?: unknown }> {
+  const supabase = await authenticatedClient();
+  if (!supabase) return { ok: false, message: "La sesión expiró." };
+
+  const { data, error } = await supabase.rpc("close_sales_day_with_report", {
+    p_jornada_id: input.journeyId,
+    p_quiebres: input.breakages.map((item) => ({
+      grupo: item.group,
+      quiebre: item.breakage,
+      detalle: item.detail?.trim() || null,
+    })),
+    p_comentarios: input.comments?.trim() || null,
+  });
+
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  return { ok: true, report: data };
 }
