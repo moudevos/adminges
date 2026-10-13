@@ -58,7 +58,7 @@ export const SHELL_NAVIGATION: NavigationSection[] = [
         label: "Ventas",
         icon: faReceipt,
         children: [
-          { key: "agregar", label: "Agregar", href: "/ventas/agregar" },
+          { key: "agregar", label: "Registrar", href: "/ventas/agregar" },
           { key: "historial", label: "Historial", href: "/ventas/historial" },
           { key: "analisis", label: "Análisis", href: "/ventas/analisis" },
         ],

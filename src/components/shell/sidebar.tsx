@@ -1,5 +1,8 @@
 "use client";
 
+import { faPlus } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 import {
   DEFAULT_APP_HREF,
   SHELL_NAVIGATION,
@@ -52,6 +55,24 @@ export function ShellSidebar({
         aria-label="Navegación principal"
         className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4"
       >
+        <div className="mb-5">
+          <ShellLink
+            href="/ventas/agregar"
+            title="Registrar venta"
+            className={
+              "flex h-10 items-center rounded-[9px] bg-slate-900 text-white transition hover:bg-slate-800 " +
+              (collapsed ? "justify-center px-0" : "gap-3 px-3")
+            }
+          >
+            <FontAwesomeIcon icon={faPlus} className="w-4 shrink-0 text-xs" />
+            {!collapsed ? (
+              <span className="whitespace-nowrap text-sm font-semibold">
+                Registrar venta
+              </span>
+            ) : null}
+          </ShellLink>
+        </div>
+
         {SHELL_NAVIGATION.map((section) => (
           <section key={section.label} className="mb-6 last:mb-0">
             {!collapsed ? (
