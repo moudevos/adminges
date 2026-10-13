@@ -1,9 +1,5 @@
-import { SalesRegistrationView } from "@/features/ventas/components/sales-registration-view";
-import { loadSalesRegistration } from "@/features/ventas/server/loaders";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default async function SalesRegistrationPage() {
-  const data = await loadSalesRegistration();
-  return <SalesRegistrationView data={data} />;
+export default function LegacyAddSalePage() {
+  redirect("/ventas/dia");
 }
