@@ -78,6 +78,15 @@ export function SalesDayOpeningModal({
   }
 
   async function save() {
+    if (
+      quotaAmt.trim() === "" ||
+      quotaLaminas.trim() === "" ||
+      quotaScPlus.trim() === ""
+    ) {
+      setError("Ingresa las tres cuotas del día.");
+      return;
+    }
+
     const amt = Number(quotaAmt);
     const laminas = Number(quotaLaminas);
     const scPlus = Number(quotaScPlus);
