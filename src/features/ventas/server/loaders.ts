@@ -1,7 +1,13 @@
 import "server-only";
 
+import {
+  classifySalesProduct,
+  isLaminaProduct,
+  isScPlusProduct,
+} from "@/features/ventas/domain/product-classification";
 import type {
   OpenSalesDayReference,
+  PaymentMethodOption,
   SalesCatalogItem,
   SalesDayData,
   SalesDayHistoryItem,
@@ -71,53 +77,6 @@ function emptyTotals() {
   return { sales: 0, units: 0, amount: 0, laminas: 0, scPlus: 0 };
 }
 
-function normalizedText(values: Array<string | null | undefined>) {
-  return values
-    .filter((value): value is string => Boolean(value))
-    .join(" ")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase();
-}
-
-function isLamina(product: {
-  categoria_principal?: string | null;
-  categoria_venta?: string | null;
-  familia?: string | null;
-  variante?: string | null;
-  nombre?: string | null;
-}) {
-  return normalizedText([
-    product.categoria_principal,
-    product.categoria_venta,
-    product.familia,
-    product.variante,
-    product.nombre,
-  ]).includes("LAMINA");
-}
-
-function isScPlus(product: {
-  categoria_principal?: string | null;
-  categoria_venta?: string | null;
-  familia?: string | null;
-  variante?: string | null;
-  nombre?: string | null;
-}) {
-  const value = normalizedText([
-    product.categoria_principal,
-    product.categoria_venta,
-    product.familia,
-    product.variante,
-    product.nombre,
-  ]);
-
-  return (
-    value.includes("SC+") ||
-    value.includes("SC PLUS") ||
-    value.includes("SAMSUNG CARE")
-  );
-}
-
 function mapJourney(row: JourneyRow): SalesJourney {
   return {
     id: row.id,
@@ -174,7 +133,7 @@ async function loadCatalog(supabase: SupabaseClient) {
   const result = await supabase
     .from("inventario_stock")
     .select(
-      "id, sku, nombre, categoria, categoria_venta, precio, stock_actual, serials, almacen, ubicacion",
+      "id, sku, nombre, categoria, categoria_principal, categoria_venta, familia, variante, precio, stock_actual, serials, almacen, ubicacion",
     )
     .eq("is_active", true);
 
@@ -193,7 +152,19 @@ async function loadCatalog(supabase: SupabaseClient) {
       sku: row.sku,
       name: row.nombre,
       category: row.categoria,
+      primaryCategory: row.categoria_principal,
       saleCategory: row.categoria_venta,
+      family: row.familia,
+      variant: row.variante,
+      reportGroup: classifySalesProduct({
+        sku: row.sku,
+        name: row.nombre,
+        category: row.categoria,
+        primaryCategory: row.categoria_principal,
+        saleCategory: row.categoria_venta,
+        family: row.familia,
+        variant: row.variante,
+      }),
       price: Number(row.precio),
       available: Number(row.stock_actual),
       serials: Array.isArray(row.serials)
@@ -321,12 +292,12 @@ async function buildDayData({
 
     current.units += detail.cantidad;
 
-    if (product && isLamina(product)) {
+    if (product && isLaminaProduct(product)) {
       laminas += detail.cantidad;
       current.laminas += detail.cantidad;
     }
 
-    if (product && isScPlus(product)) {
+    if (product && isScPlusProduct(product)) {
       scPlus += detail.subtotal;
       current.scPlus += detail.subtotal;
     }
@@ -618,4 +589,28 @@ export async function loadSalesDaysHistory(
   });
 
   return { from, to, days };
+}
+
+
+export async function loadPaymentMethods(): Promise<PaymentMethodOption[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("metodos_pago")
+    .select(
+      "id, codigo, nombre, is_active, requiere_referencia, sort_order, is_system",
+    )
+    .order("sort_order")
+    .order("nombre");
+
+  if (error) return [];
+
+  return (data ?? []).map((method) => ({
+    id: method.id,
+    code: method.codigo,
+    name: method.nombre,
+    active: Boolean(method.is_active),
+    requiresReference: Boolean(method.requiere_referencia),
+    sortOrder: Number(method.sort_order),
+    system: Boolean(method.is_system),
+  }));
 }
