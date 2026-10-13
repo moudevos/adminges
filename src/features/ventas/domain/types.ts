@@ -57,12 +57,26 @@ export type SalesStaffMember = SalesPersonOption & {
   progress: SalesProgress;
 };
 
+export type SalesProductGroup =
+  | "HHP_SERIE_A"
+  | "HHP_SERIE_S"
+  | "HHP_SERIE_Z"
+  | "TABLETS"
+  | "WEA"
+  | "LAMINAS"
+  | "ACCESORIOS"
+  | "OTROS";
+
 export type SalesCatalogItem = {
   productId: string;
   sku: string;
   name: string;
   category: string | null;
+  primaryCategory: string | null;
   saleCategory: string | null;
+  family: string | null;
+  variant: string | null;
+  reportGroup: SalesProductGroup;
   price: number;
   available: number;
   serials: string[];
@@ -118,12 +132,17 @@ export type SaleItemInput = {
   precio_unitario: number;
 };
 
-export type SalePaymentMethod =
-  | "efectivo"
-  | "tarjeta"
-  | "yape"
-  | "plin"
-  | "transferencia";
+export type SalePaymentMethod = string;
+
+export type PaymentMethodOption = {
+  id: string;
+  code: string;
+  name: string;
+  active: boolean;
+  requiresReference: boolean;
+  sortOrder: number;
+  system: boolean;
+};
 
 export type SalePaymentInput = {
   metodo: SalePaymentMethod;
