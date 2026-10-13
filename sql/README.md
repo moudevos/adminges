@@ -10,6 +10,7 @@ Orden actual:
 003_inventario_multiubicacion.sql
 004_inventario_stock_filtros_series.sql
 005_registro_ventas_jornada.sql
+006_ventas_cuotas_equipo_diario.sql
 ```
 
 ## 001
@@ -75,3 +76,16 @@ Agrega el flujo operativo de Ventas:
 - cada venta genera una salida en `inventario_kardex`
 - `inventario_stock` conserva el físico del snapshot y descuenta ventas posteriores para disponibilidad operativa
 - la reconciliación evita duplicar como "salida pendiente" una venta ya registrada
+
+
+## 006
+
+Amplía la apertura diaria de Ventas:
+
+- Personal distingue `puede_vender`, `is_active` y `estado_laboral = activo/vacaciones`
+- agrega el puesto `Supervisor`
+- la jornada guarda cuota AMT, cuota Láminas y cuota SC+
+- la apertura selecciona el equipo disponible, si vende ese día y su hora programada
+- un supervisor puede estar disponible y decidirse por día si participa en ventas
+- el turno solo puede iniciarse para personal programado, activo y no de vacaciones
+- una venta solo puede asignarse a alguien habilitado para vender, marcado `vende_hoy` y con turno activo
