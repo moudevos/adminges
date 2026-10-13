@@ -13,6 +13,7 @@ Orden actual:
 006_ventas_cuotas_equipo_diario.sql
 007_cerrar_jornadas_pendientes.sql
 008_metodos_pago_configurables.sql
+009_ventas_historial_reversa_ultimo_precio.sql
 ```
 
 ## 001
@@ -109,3 +110,15 @@ Convierte los medios de pago en configuración persistente:
 - `venta_pagos.metodo` referencia el catálogo en vez de una lista fija
 - `register_sale` acepta únicamente métodos activos al confirmar una venta
 - mantiene los métodos iniciales: Efectivo, Tarjeta, Yape, Plin y Transferencia
+
+
+## 009
+
+Completa el núcleo auditable de Ventas:
+
+- `ultimo_precio_venta` conserva el último precio de una venta confirmada por producto
+- `ventas_historial_resumen` expone un resumen filtrable sin multiplicar detalles/pagos
+- `reverse_sale` anula una venta de forma transaccional y escribe la entrada correspondiente en Kardex
+- Kardex incorpora el tipo `anulacion_venta`
+- el stock operativo reincorpora reversas hechas después del último snapshot
+- una venta anulada deja de participar en stock vendido y en el último precio sugerido
