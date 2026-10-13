@@ -11,13 +11,15 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Modal } from "@/components/ui/modal";
 import { PaymentMethodsModal } from "@/features/ventas/components/payment-methods-modal";
+import { SalesDayCloseModal } from "@/features/ventas/components/sales-day-close-modal";
+import { SalesDayReportModal } from "@/features/ventas/components/sales-day-report-modal";
 import { SaleModal } from "@/features/ventas/components/sale-modal";
 import { SalesDayOpeningModal } from "@/features/ventas/components/sales-day-opening-modal";
 import { SalesDayOverview } from "@/features/ventas/components/sales-day-overview";
 import type {
   PaymentMethodOption,
+  SalesClosureReport,
   SalesDayData,
   SalesStaffMember,
 } from "@/features/ventas/domain/types";
@@ -57,6 +59,9 @@ export function SalesDayView({
   const router = useRouter();
   const [opening, setOpening] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [closedReport, setClosedReport] =
+    useState<SalesClosureReport | null>(null);
   const [paymentSettingsOpen, setPaymentSettingsOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<SalesStaffMember | null>(
     null,
@@ -144,16 +149,18 @@ export function SalesDayView({
               href={"/ventas/dias/" + data.blockingOpenDay.id}
               className="inline-flex h-9 items-center rounded-lg border border-amber-200 bg-white px-3 text-xs font-semibold text-amber-800"
             >
-              Ver día
+              {data.blockingOpenDay.configured ? "Completar cierre" : "Ver día"}
             </Link>
-            <button
-              type="button"
-              disabled={Boolean(busy)}
-              onClick={() => closeJourney(data.blockingOpenDay!.id)}
-              className="h-9 rounded-lg bg-amber-700 px-3 text-xs font-semibold text-white disabled:opacity-50"
-            >
-              Cerrar día anterior
-            </button>
+            {!data.blockingOpenDay.configured ? (
+              <button
+                type="button"
+                disabled={Boolean(busy)}
+                onClick={() => closeJourney(data.blockingOpenDay!.id)}
+                className="h-9 rounded-lg bg-amber-700 px-3 text-xs font-semibold text-white disabled:opacity-50"
+              >
+                Cerrar día anterior
+              </button>
+            ) : null}
           </div>
         </section>
       ) : null}
@@ -233,6 +240,14 @@ export function SalesDayView({
               <FontAwesomeIcon icon={faPowerOff} className="text-xs" />
               Cerrar día
             </button>
+          ) : data.closureReport ? (
+            <button
+              type="button"
+              onClick={() => setReportOpen(true)}
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700"
+            >
+              Ver reporte
+            </button>
           ) : null}
 
           <button
@@ -303,49 +318,26 @@ export function SalesDayView({
         onClose={() => setPaymentSettingsOpen(false)}
       />
 
-      <Modal
-        open={closeOpen}
-        title="Cerrar día de venta"
-        description={
-          formatDate(data.date) +
-          " · " +
-          data.totals.sales +
-          " ventas · " +
-          money(data.totals.amount)
-        }
-        onClose={() => setCloseOpen(false)}
-        maxWidthClassName="max-w-md"
-      >
-        {data.journey ? (
-          <div className="space-y-4">
-            <p className="text-sm leading-6 text-slate-600">
-              El día quedará disponible en Histórico de días y no admitirá
-              nuevas ventas.
-            </p>
+      {data.journey ? (
+        <SalesDayCloseModal
+          open={closeOpen}
+          journeyId={data.journey.id}
+          groupUnits={data.groupUnits}
+          onClose={() => setCloseOpen(false)}
+          onClosed={(report) => {
+            setCloseOpen(false);
+            setClosedReport(report);
+            setReportOpen(true);
+            router.refresh();
+          }}
+        />
+      ) : null}
 
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setCloseOpen(false)}
-                className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-600"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={Boolean(busy)}
-                onClick={async () => {
-                  await closeJourney(data.journey!.id);
-                  setCloseOpen(false);
-                }}
-                className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                Cerrar día
-              </button>
-            </div>
-          </div>
-        ) : null}
-      </Modal>
+      <SalesDayReportModal
+        open={reportOpen}
+        report={closedReport ?? data.closureReport}
+        onClose={() => setReportOpen(false)}
+      />
     </div>
   );
 }

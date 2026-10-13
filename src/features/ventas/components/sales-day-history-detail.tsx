@@ -10,7 +10,9 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { SalesDayCloseModal } from "@/features/ventas/components/sales-day-close-modal";
 import { SalesDayOverview } from "@/features/ventas/components/sales-day-overview";
+import { SalesDayReportContent } from "@/features/ventas/components/sales-day-report-content";
 import type { SalesDayData } from "@/features/ventas/domain/types";
 
 function money(value: number) {
@@ -32,6 +34,7 @@ export function SalesDayHistoryDetail({
 }) {
   const router = useRouter();
   const [closing, setClosing] = useState(false);
+  const [closeOpen, setCloseOpen] = useState(false);
   const [error, setError] = useState("");
 
   async function closeDay() {
@@ -126,7 +129,13 @@ export function SalesDayHistoryDetail({
             <button
               type="button"
               disabled={closing}
-              onClick={closeDay}
+              onClick={() => {
+                if (data.journey?.configured) {
+                  setCloseOpen(true);
+                } else {
+                  void closeDay();
+                }
+              }}
               className="inline-flex h-10 items-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
             >
               <FontAwesomeIcon icon={faPowerOff} className="text-xs" />
@@ -143,7 +152,34 @@ export function SalesDayHistoryDetail({
         </section>
       ) : null}
 
+      {closed && data.closureReport ? (
+        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-4">
+            <h2 className="text-sm font-semibold text-slate-900">
+              Reporte de cierre
+            </h2>
+            <p className="mt-1 text-xs text-slate-400">
+              Snapshot guardado al cerrar el Día de venta.
+            </p>
+          </div>
+          <SalesDayReportContent report={data.closureReport} />
+        </section>
+      ) : null}
+
       <SalesDayOverview data={data} />
+
+      {data.journey?.configured ? (
+        <SalesDayCloseModal
+          open={closeOpen}
+          journeyId={data.journey.id}
+          groupUnits={data.groupUnits}
+          onClose={() => setCloseOpen(false)}
+          onClosed={() => {
+            setCloseOpen(false);
+            router.refresh();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
