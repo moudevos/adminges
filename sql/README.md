@@ -12,6 +12,7 @@ Orden actual:
 005_registro_ventas_jornada.sql
 006_ventas_cuotas_equipo_diario.sql
 007_cerrar_jornadas_pendientes.sql
+008_metodos_pago_configurables.sql
 ```
 
 ## 001
@@ -97,3 +98,14 @@ Amplía la apertura diaria de Ventas:
 Permite cerrar desde la interfaz cualquier jornada que haya quedado abierta,
 incluidas jornadas creadas antes de SQL 006 y que no llegaron a configurarse
 con cuotas/equipo.
+
+
+## 008
+
+Convierte los medios de pago en configuración persistente:
+
+- crea `metodos_pago` con opciones activas/inactivas y orden
+- si un método ya tiene ventas, se conserva para mantener el histórico
+- `venta_pagos.metodo` referencia el catálogo en vez de una lista fija
+- `register_sale` acepta únicamente métodos activos al confirmar una venta
+- mantiene los métodos iniciales: Efectivo, Tarjeta, Yape, Plin y Transferencia
