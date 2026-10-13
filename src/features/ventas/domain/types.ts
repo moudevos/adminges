@@ -67,6 +67,32 @@ export type SalesProductGroup =
   | "ACCESORIOS"
   | "OTROS";
 
+export type SalesClosureGroup =
+  | "HHP_SERIE_S"
+  | "HHP_SERIE_A"
+  | "HHP_SERIE_Z"
+  | "TABLETS"
+  | "WEA"
+  | "LAMINAS";
+
+export type SalesClosureGroupUnits = Record<SalesClosureGroup, number>;
+
+export type SalesClosureBreakage = {
+  group: SalesClosureGroup;
+  units: number;
+  breakage: boolean;
+  detail: string | null;
+};
+
+export type SalesClosureReport = {
+  journeyId: string;
+  quotas: SalesQuotas;
+  sales: SalesQuotas;
+  comments: string | null;
+  closedAt: string;
+  breakages: SalesClosureBreakage[];
+};
+
 export type SalesCatalogItem = {
   productId: string;
   sku: string;
@@ -97,6 +123,8 @@ export type SalesDayData = {
   catalog: SalesCatalogItem[];
   sellerCount: number;
   teamProgress: SalesProgress;
+  groupUnits: SalesClosureGroupUnits;
+  closureReport: SalesClosureReport | null;
   totals: {
     sales: number;
     units: number;
