@@ -60,6 +60,11 @@ export const SHELL_NAVIGATION: NavigationSection[] = [
         children: [
           { key: "dia", label: "Día de venta", href: "/ventas/dia" },
           {
+            key: "historial",
+            label: "Histórico de ventas",
+            href: "/ventas/historial",
+          },
+          {
             key: "dias",
             label: "Histórico de días",
             href: "/ventas/dias",
@@ -178,9 +183,7 @@ export function getNavigationHref(module?: string, view?: string) {
   const normalizedView =
     module === "ventas" && view === "agregar"
       ? "dia"
-      : module === "ventas" && view === "historial"
-        ? "dias"
-        : view;
+      : view;
 
   for (const section of SHELL_NAVIGATION) {
     const item = section.items.find((candidate) => candidate.key === module);

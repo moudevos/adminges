@@ -38,6 +38,8 @@ type DraftItem = {
   quantity: number;
   available: number;
   price: string;
+  basePrice: number;
+  lastSalePrice: number | null;
 };
 
 type DraftPayment = {
@@ -202,6 +204,8 @@ export function SaleModal({
           quantity: 1,
           available: 1,
           price: serialProduct.price.toFixed(2),
+          basePrice: serialProduct.basePrice,
+          lastSalePrice: serialProduct.lastSalePrice,
         },
       ]);
       setSearch("");
@@ -230,6 +234,8 @@ export function SaleModal({
           quantity: 1,
           available: 1,
           price: product.price.toFixed(2),
+          basePrice: product.basePrice,
+          lastSalePrice: product.lastSalePrice,
         },
       ]);
     } else {
@@ -262,6 +268,8 @@ export function SaleModal({
             quantity: 1,
             available: product.available,
             price: product.price.toFixed(2),
+          basePrice: product.basePrice,
+          lastSalePrice: product.lastSalePrice,
           },
         ]);
       }
@@ -548,6 +556,15 @@ export function SaleModal({
                           }
                           className="control-input h-9 w-full pl-7 text-right text-sm tabular-nums"
                         />
+                        {item.lastSalePrice !== null ? (
+                          <p className="mt-1 text-right text-[9px] text-slate-400">
+                            Última venta: {money(item.lastSalePrice)}
+                          </p>
+                        ) : item.basePrice > 0 ? (
+                          <p className="mt-1 text-right text-[9px] text-slate-400">
+                            Precio base: {money(item.basePrice)}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
 
