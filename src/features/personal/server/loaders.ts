@@ -16,6 +16,8 @@ export type PersonaRow = {
   telefono: string | null;
   email: string | null;
   is_active: boolean;
+  puede_vender: boolean;
+  estado_laboral: "activo" | "vacaciones";
 };
 
 export async function loadPersonalData() {
@@ -30,7 +32,7 @@ export async function loadPersonalData() {
     supabase
       .from("personas")
       .select(
-        "id, puesto_id, nombres, apellidos, documento, telefono, email, is_active",
+        "id, puesto_id, nombres, apellidos, documento, telefono, email, is_active, puede_vender, estado_laboral",
       )
       .order("apellidos")
       .order("nombres"),
@@ -50,6 +52,9 @@ export async function loadPersonalData() {
     telefono: row.telefono,
     email: row.email,
     is_active: Boolean(row.is_active),
+    puede_vender: Boolean(row.puede_vender),
+    estado_laboral:
+      row.estado_laboral === "vacaciones" ? "vacaciones" : "activo",
   }));
 
   return { puestos, personas };

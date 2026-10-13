@@ -4,6 +4,7 @@ import { type FormEvent, useMemo, useState, useTransition } from "react";
 import {
   createPerson,
   type PersonActionState,
+  updatePersonOperationalState,
 } from "@/features/personal/server/actions";
 import { ActionMessage } from "@/components/ui/action-message";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,8 @@ type PersonaRow = {
   telefono: string | null;
   email: string | null;
   is_active: boolean;
+  puede_vender: boolean;
+  estado_laboral: "activo" | "vacaciones";
 };
 
 type Props = {
@@ -35,6 +38,7 @@ const initialState: PersonActionState = { ok: false, message: "" };
 
 export function PersonalManagement({ personas, puestos }: Props) {
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<PersonaRow | null>(null);
   const [state, setState] = useState<PersonActionState>(initialState);
   const [pending, startTransition] = useTransition();
 
@@ -56,6 +60,28 @@ export function PersonalManagement({ personas, puestos }: Props) {
         form.reset();
         setOpen(false);
       }
+    });
+  }
+
+  function submitOperationalState(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editing) return;
+
+    const formData = new FormData(event.currentTarget);
+
+    startTransition(async () => {
+      const result = await updatePersonOperationalState({
+        personId: editing.id,
+        puedeVender: formData.get("puede_vender") === "on",
+        estadoLaboral:
+          formData.get("estado_laboral") === "vacaciones"
+            ? "vacaciones"
+            : "activo",
+        isActive: formData.get("is_active") === "on",
+      });
+
+      setState(result);
+      if (result.ok) setEditing(null);
     });
   }
 
@@ -81,46 +107,84 @@ export function PersonalManagement({ personas, puestos }: Props) {
         </div>
 
         <div className="overflow-x-auto p-2">
-          <table className="w-full min-w-[850px] text-left text-sm">
+          <table className="w-full min-w-[980px] text-left text-sm">
             <thead className="text-xs font-semibold text-slate-500">
               <tr>
                 <th className="border-b border-slate-200 px-3 py-3">Persona</th>
-                <th className="border-b border-slate-200 px-3 py-3">Documento</th>
                 <th className="border-b border-slate-200 px-3 py-3">Puesto</th>
-                <th className="border-b border-slate-200 px-3 py-3">Teléfono</th>
-                <th className="border-b border-slate-200 px-3 py-3">Correo</th>
-                <th className="border-b border-slate-200 px-3 py-3">Estado</th>
+                <th className="border-b border-slate-200 px-3 py-3">Documento</th>
+                <th className="border-b border-slate-200 px-3 py-3">Venta</th>
+                <th className="border-b border-slate-200 px-3 py-3">Laboral</th>
+                <th className="border-b border-slate-200 px-3 py-3">Registro</th>
+                <th className="border-b border-slate-200 px-3 py-3 text-right">
+                  Acción
+                </th>
               </tr>
             </thead>
 
             <tbody>
               {personas.map((persona) => (
                 <tr key={persona.id} className="transition hover:bg-slate-50">
-                  <td className="border-b border-slate-100 px-3 py-3.5 font-medium text-slate-900">
-                    {persona.nombres} {persona.apellidos}
-                  </td>
-                  <td className="border-b border-slate-100 px-3 py-3.5 text-slate-600">
-                    {persona.documento || "—"}
+                  <td className="border-b border-slate-100 px-3 py-3.5">
+                    <p className="font-medium text-slate-900">
+                      {persona.nombres} {persona.apellidos}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-400">
+                      {persona.email || persona.telefono || "Sin contacto"}
+                    </p>
                   </td>
                   <td className="border-b border-slate-100 px-3 py-3.5 text-slate-600">
                     {puestosMap.get(persona.puesto_id) || "—"}
                   </td>
                   <td className="border-b border-slate-100 px-3 py-3.5 text-slate-600">
-                    {persona.telefono || "—"}
-                  </td>
-                  <td className="border-b border-slate-100 px-3 py-3.5 text-slate-600">
-                    {persona.email || "—"}
+                    {persona.documento || "—"}
                   </td>
                   <td className="border-b border-slate-100 px-3 py-3.5">
                     <span
-                      className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
-                        persona.is_active
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-slate-100 text-slate-500"
-                      }`}
+                      className={
+                        "rounded-full px-2.5 py-1 text-[11px] font-medium " +
+                        (persona.puede_vender
+                          ? "bg-indigo-50 text-indigo-700"
+                          : "bg-slate-100 text-slate-500")
+                      }
                     >
-                      {persona.is_active ? "Activo" : "Inactivo"}
+                      {persona.puede_vender ? "Puede vender" : "No vende"}
                     </span>
+                  </td>
+                  <td className="border-b border-slate-100 px-3 py-3.5">
+                    <span
+                      className={
+                        "rounded-full px-2.5 py-1 text-[11px] font-medium " +
+                        (persona.estado_laboral === "vacaciones"
+                          ? "bg-amber-50 text-amber-700"
+                          : "bg-emerald-50 text-emerald-700")
+                      }
+                    >
+                      {persona.estado_laboral === "vacaciones"
+                        ? "Vacaciones"
+                        : "Activo"}
+                    </span>
+                  </td>
+                  <td className="border-b border-slate-100 px-3 py-3.5">
+                    <span
+                      className={
+                        "rounded-full px-2.5 py-1 text-[11px] font-medium " +
+                        (persona.is_active
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-slate-100 text-slate-500")
+                      }
+                    >
+                      {persona.is_active ? "Habilitado" : "Inactivo"}
+                    </span>
+                  </td>
+                  <td className="border-b border-slate-100 px-3 py-3.5 text-right">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(persona)}
+                      className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      Estado
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -128,7 +192,7 @@ export function PersonalManagement({ personas, puestos }: Props) {
               {personas.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-5 py-10 text-center text-slate-400"
                   >
                     Todavía no hay personal registrado.
@@ -143,7 +207,7 @@ export function PersonalManagement({ personas, puestos }: Props) {
       <Modal
         open={open}
         title="Agregar persona"
-        description="El personal no crea usuarios de acceso. Las ventas se enlazarán a estas personas."
+        description="Define su puesto, disponibilidad laboral y si puede participar en ventas."
         onClose={() => {
           if (!pending) setOpen(false);
         }}
@@ -176,6 +240,29 @@ export function PersonalManagement({ personas, puestos }: Props) {
                 ))}
               </select>
             </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-slate-600">
+                Estado laboral
+              </span>
+              <select
+                name="estado_laboral"
+                defaultValue="activo"
+                className="control-input"
+              >
+                <option value="activo">Activo</option>
+                <option value="vacaciones">Vacaciones</option>
+              </select>
+            </label>
+
+            <label className="flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                name="puede_vender"
+                className="size-4 accent-indigo-600"
+              />
+              Puede registrar ventas
+            </label>
           </div>
 
           {!state.ok && state.message ? <ActionMessage state={state} /> : null}
@@ -193,6 +280,67 @@ export function PersonalManagement({ personas, puestos }: Props) {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(editing)}
+        title={editing ? editing.nombres + " " + editing.apellidos : "Estado"}
+        description="Estos estados determinan si puede ser programado en la apertura de Ventas."
+        onClose={() => {
+          if (!pending) setEditing(null);
+        }}
+        maxWidthClassName="max-w-md"
+      >
+        {editing ? (
+          <form onSubmit={submitOperationalState} className="space-y-4">
+            <label className="flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                name="puede_vender"
+                defaultChecked={editing.puede_vender}
+                className="size-4 accent-indigo-600"
+              />
+              Puede registrar ventas
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-slate-600">
+                Estado laboral
+              </span>
+              <select
+                name="estado_laboral"
+                defaultValue={editing.estado_laboral}
+                className="control-input"
+              >
+                <option value="activo">Activo</option>
+                <option value="vacaciones">Vacaciones</option>
+              </select>
+            </label>
+
+            <label className="flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                name="is_active"
+                defaultChecked={editing.is_active}
+                className="size-4 accent-indigo-600"
+              />
+              Registro activo
+            </label>
+
+            <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+              <Button
+                variant="secondary"
+                onClick={() => setEditing(null)}
+                disabled={pending}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={pending}>
+                {pending ? "Guardando..." : "Guardar estado"}
+              </Button>
+            </div>
+          </form>
+        ) : null}
       </Modal>
     </>
   );
