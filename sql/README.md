@@ -9,6 +9,7 @@ Orden actual:
 002_inventario_snapshots_kardex.sql
 003_inventario_multiubicacion.sql
 004_inventario_stock_filtros_series.sql
+005_registro_ventas_jornada.sql
 ```
 
 ## 001
@@ -60,3 +61,17 @@ order by version;
 
 No editar un SQL ya aplicado. Los siguientes cambios deben usar
 `005_...`, `006_...`, etc.
+
+
+## 005
+
+Agrega el flujo operativo de Ventas:
+
+- `jornadas_venta`: una jornada diaria abierta/cerrada
+- `jornada_personal`: personal disponible y turno activo
+- `venta_pagos`: pagos simples y mixtos
+- extiende `ventas` y `venta_detalles` para auditoría de SKU/serie/ubicación
+- RPC `open_sales_day`, `set_sales_shift`, `close_sales_day`, `register_sale`
+- cada venta genera una salida en `inventario_kardex`
+- `inventario_stock` conserva el físico del snapshot y descuenta ventas posteriores para disponibilidad operativa
+- la reconciliación evita duplicar como "salida pendiente" una venta ya registrada
