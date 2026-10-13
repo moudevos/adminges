@@ -21,6 +21,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useMemo, useRef, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import type {
+  PaymentMethodOption,
   SalePaymentMethod,
   SalesCatalogItem,
   SalesStaffMember,
@@ -46,27 +47,25 @@ type DraftPayment = {
   reference: string;
 };
 
-const paymentLabels: Record<SalePaymentMethod, string> = {
-  efectivo: "Efectivo",
-  tarjeta: "Tarjeta",
-  yape: "Yape",
-  plin: "Plin",
-  transferencia: "Transferencia",
-};
-
-const paymentMeta: Record<
-  SalePaymentMethod,
-  { icon: IconDefinition; tile: string }
-> = {
-  efectivo: { icon: faMoneyBillWave, tile: "bg-emerald-50 text-emerald-600" },
-  tarjeta: { icon: faCreditCard, tile: "bg-sky-50 text-sky-600" },
-  yape: { icon: faMobileScreenButton, tile: "bg-violet-50 text-violet-600" },
-  plin: { icon: faWallet, tile: "bg-cyan-50 text-cyan-600" },
-  transferencia: {
-    icon: faBuildingColumns,
-    tile: "bg-slate-100 text-slate-600",
-  },
-};
+function paymentMeta(code: string): {
+  icon: IconDefinition;
+  tile: string;
+} {
+  switch (code) {
+    case "efectivo":
+      return { icon: faMoneyBillWave, tile: "bg-emerald-50 text-emerald-600" };
+    case "tarjeta":
+      return { icon: faCreditCard, tile: "bg-sky-50 text-sky-600" };
+    case "yape":
+      return { icon: faMobileScreenButton, tile: "bg-violet-50 text-violet-600" };
+    case "plin":
+      return { icon: faWallet, tile: "bg-cyan-50 text-cyan-600" };
+    case "transferencia":
+      return { icon: faBuildingColumns, tile: "bg-slate-100 text-slate-600" };
+    default:
+      return { icon: faWallet, tile: "bg-indigo-50 text-indigo-600" };
+  }
+}
 
 function money(value: number) {
   return new Intl.NumberFormat("es-PE", {
@@ -122,6 +121,7 @@ export function SaleModal({
   journeyId,
   date,
   catalog,
+  paymentMethods,
   onClose,
   onSaved,
 }: {
@@ -129,6 +129,7 @@ export function SaleModal({
   journeyId: string;
   date: string;
   catalog: SalesCatalogItem[];
+  paymentMethods: PaymentMethodOption[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -281,6 +282,8 @@ export function SaleModal({
       quantity: Math.max(1, Math.min(next || 1, item.available)),
     });
   }
+
+  const activePaymentMethods = paymentMethods.filter((method) => method.active);
 
   function addPayment(method: SalePaymentMethod) {
     if (remainingCents <= 0) {
@@ -572,117 +575,158 @@ export function SaleModal({
           </section>
 
           <section>
-            <SectionTitle>Medios de pago</SectionTitle>
+            <SectionTitle
+              aside={
+                <span className="text-[11px] tabular-nums text-slate-400">
+                  Saldo: {money(Math.max(remainingCents, 0) / 100)}
+                </span>
+              }
+            >
+              Medios de pago
+            </SectionTitle>
 
             <div className="flex flex-wrap gap-2">
-              {(Object.keys(paymentLabels) as SalePaymentMethod[]).map((method) => (
-                <button
-                  key={method}
-                  type="button"
-                  onClick={() => addPayment(method)}
-                  className="inline-flex h-9 items-center gap-2 rounded-full border border-slate-200 bg-white pl-1.5 pr-3.5 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.97]"
-                >
-                  <span
-                    className={
-                      "grid size-6 place-items-center rounded-full " +
-                      paymentMeta[method].tile
-                    }
+              {activePaymentMethods.map((method) => {
+                const meta = paymentMeta(method.code);
+
+                return (
+                  <button
+                    key={method.id}
+                    type="button"
+                    onClick={() => addPayment(method.code)}
+                    className="inline-flex h-9 items-center gap-2 rounded-full border border-slate-200 bg-white pl-1.5 pr-3.5 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.97]"
                   >
-                    <FontAwesomeIcon
-                      icon={paymentMeta[method].icon}
-                      className="text-[10px]"
-                    />
-                  </span>
-                  {paymentLabels[method]}
-                </button>
-              ))}
+                    <span
+                      className={
+                        "grid size-6 place-items-center rounded-full " +
+                        meta.tile
+                      }
+                    >
+                      <FontAwesomeIcon
+                        icon={meta.icon}
+                        className="text-[10px]"
+                      />
+                    </span>
+                    {method.name}
+                  </button>
+                );
+              })}
+
+              {activePaymentMethods.length === 0 ? (
+                <p className="text-xs text-amber-600">
+                  No hay métodos de pago activos.
+                </p>
+              ) : null}
+            </div>
+
+            <div className="mt-2 text-[11px] leading-5 text-slate-400">
+              Si editas el primer pago a un monto parcial, al agregar otro método
+              se cargará automáticamente la diferencia. El monto siempre queda
+              editable.
             </div>
 
             <div className="mt-3 space-y-2">
-              {payments.map((payment) => (
-                <div
-                  key={payment.key}
-                  className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 sm:flex-nowrap"
-                >
-                  <span
-                    className={
-                      "grid size-9 shrink-0 place-items-center rounded-lg " +
-                      paymentMeta[payment.method].tile
-                    }
-                  >
-                    <FontAwesomeIcon
-                      icon={paymentMeta[payment.method].icon}
-                      className="text-xs"
-                    />
-                  </span>
+              {payments.map((payment) => {
+                const selected =
+                  activePaymentMethods.find(
+                    (method) => method.code === payment.method,
+                  ) ??
+                  paymentMethods.find(
+                    (method) => method.code === payment.method,
+                  );
+                const meta = paymentMeta(payment.method);
 
-                  <select
-                    value={payment.method}
-                    onChange={(event) =>
-                      updatePayment(payment.key, {
-                        method: event.target.value as SalePaymentMethod,
-                      })
-                    }
-                    className="control-input h-9 w-36 shrink-0 text-sm"
+                return (
+                  <div
+                    key={payment.key}
+                    className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 sm:flex-nowrap"
                   >
-                    {(Object.keys(paymentLabels) as SalePaymentMethod[]).map(
-                      (method) => (
-                        <option key={method} value={method}>
-                          {paymentLabels[method]}
-                        </option>
-                      ),
-                    )}
-                  </select>
-
-                  <div className="relative w-32 shrink-0">
-                    <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">
-                      S/
-                    </span>
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={payment.amount}
-                      onChange={(event) =>
-                        updatePayment(payment.key, { amount: event.target.value })
+                    <span
+                      className={
+                        "grid size-9 shrink-0 place-items-center rounded-lg " +
+                        meta.tile
                       }
-                      className="control-input h-9 w-full pl-7 text-right text-sm tabular-nums"
+                    >
+                      <FontAwesomeIcon
+                        icon={meta.icon}
+                        className="text-xs"
+                      />
+                    </span>
+
+                    <select
+                      value={payment.method}
+                      onChange={(event) =>
+                        updatePayment(payment.key, {
+                          method: event.target.value,
+                        })
+                      }
+                      className="control-input h-9 w-36 shrink-0 text-sm"
+                    >
+                      {activePaymentMethods.map((method) => (
+                        <option key={method.id} value={method.code}>
+                          {method.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="relative w-32 shrink-0">
+                      <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                        S/
+                      </span>
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={payment.amount}
+                        onChange={(event) =>
+                          updatePayment(payment.key, {
+                            amount: event.target.value,
+                          })
+                        }
+                        className="control-input h-9 w-full pl-7 text-right text-sm tabular-nums"
+                      />
+                    </div>
+
+                    <input
+                      value={payment.reference}
+                      onChange={(event) =>
+                        updatePayment(payment.key, {
+                          reference: event.target.value,
+                        })
+                      }
+                      placeholder={
+                        selected?.requiresReference
+                          ? "Referencia"
+                          : "Referencia (opcional)"
+                      }
+                      className="control-input h-9 min-w-0 flex-1 text-sm"
                     />
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentToRemaining(payment.key)}
+                      title="Completar con el saldo exacto"
+                      aria-label="Saldo exacto"
+                      className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600"
+                    >
+                      <FontAwesomeIcon icon={faBullseye} className="text-xs" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPayments((current) =>
+                          current.filter((row) => row.key !== payment.key),
+                        )
+                      }
+                      className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-300 transition hover:bg-rose-50 hover:text-rose-500"
+                      aria-label="Quitar pago"
+                    >
+                      <FontAwesomeIcon icon={faTrash} className="text-xs" />
+                    </button>
                   </div>
-
-                  <input
-                    value={payment.reference}
-                    onChange={(event) =>
-                      updatePayment(payment.key, { reference: event.target.value })
-                    }
-                    placeholder="Referencia (opcional)"
-                    className="control-input h-9 min-w-0 flex-1 text-sm"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentToRemaining(payment.key)}
-                    title="Completar con el saldo exacto"
-                    aria-label="Saldo exacto"
-                    className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600"
-                  >
-                    <FontAwesomeIcon icon={faBullseye} className="text-xs" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setPayments((current) =>
-                        current.filter((row) => row.key !== payment.key),
-                      )
-                    }
-                    className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-300 transition hover:bg-rose-50 hover:text-rose-500"
-                    aria-label="Quitar pago"
-                  >
-                    <FontAwesomeIcon icon={faTrash} className="text-xs" />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
 
               {payments.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-slate-200 px-4 py-5 text-center text-xs text-slate-400">

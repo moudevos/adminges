@@ -4,6 +4,7 @@ import {
   faCalendarDay,
   faLock,
   faPowerOff,
+  faSliders,
   faTriangleExclamation,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -11,10 +12,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Modal } from "@/components/ui/modal";
+import { PaymentMethodsModal } from "@/features/ventas/components/payment-methods-modal";
 import { SaleModal } from "@/features/ventas/components/sale-modal";
 import { SalesDayOpeningModal } from "@/features/ventas/components/sales-day-opening-modal";
 import { SalesDayOverview } from "@/features/ventas/components/sales-day-overview";
 import type {
+  PaymentMethodOption,
   SalesDayData,
   SalesStaffMember,
 } from "@/features/ventas/domain/types";
@@ -44,10 +47,17 @@ async function postJson(path: string, body: unknown) {
   }
 }
 
-export function SalesDayView({ data }: { data: SalesDayData }) {
+export function SalesDayView({
+  data,
+  paymentMethods,
+}: {
+  data: SalesDayData;
+  paymentMethods: PaymentMethodOption[];
+}) {
   const router = useRouter();
   const [opening, setOpening] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
+  const [paymentSettingsOpen, setPaymentSettingsOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<SalesStaffMember | null>(
     null,
   );
@@ -225,6 +235,15 @@ export function SalesDayView({ data }: { data: SalesDayData }) {
             </button>
           ) : null}
 
+          <button
+            type="button"
+            onClick={() => setPaymentSettingsOpen(true)}
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600"
+          >
+            <FontAwesomeIcon icon={faSliders} className="text-xs" />
+            Métodos de pago
+          </button>
+
           <Link
             href="/ventas/dias"
             className="inline-flex h-10 items-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600"
@@ -269,6 +288,7 @@ export function SalesDayView({ data }: { data: SalesDayData }) {
           journeyId={data.journey.id}
           date={data.date}
           catalog={data.catalog}
+          paymentMethods={paymentMethods.filter((method) => method.active)}
           onClose={() => setSelectedStaff(null)}
           onSaved={() => {
             setSelectedStaff(null);
@@ -276,6 +296,12 @@ export function SalesDayView({ data }: { data: SalesDayData }) {
           }}
         />
       ) : null}
+
+      <PaymentMethodsModal
+        open={paymentSettingsOpen}
+        methods={paymentMethods}
+        onClose={() => setPaymentSettingsOpen(false)}
+      />
 
       <Modal
         open={closeOpen}
