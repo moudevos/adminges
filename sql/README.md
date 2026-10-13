@@ -15,6 +15,7 @@ Orden actual:
 008_metodos_pago_configurables.sql
 009_ventas_historial_reversa_ultimo_precio.sql
 010_cierre_formal_reporte_dia_venta.sql
+011_cuota_diaria_tienda.sql
 ```
 
 ## 001
@@ -136,3 +137,16 @@ Formaliza el cierre de un Día de venta:
 - guarda cuota, venta y cumplimiento de AMT, Láminas y SC+
 - `close_sales_day_with_report` guarda reporte, cierra jornada y finaliza turnos en una única transacción
 - la clasificación SQL prioriza categoría principal para no confundir accesorios `CASE GALAXY A57` con celulares Serie A
+
+
+## 011
+
+Implementa la cuota diaria única de tienda:
+
+- crea `cuotas_tienda_diarias` con AMT, Láminas y SC+
+- una fecha tiene una sola cuota de tienda
+- la cuota puede editarse mientras el día no haya sido abierto/configurado
+- `save_daily_store_quota` valida y guarda la cuota manual
+- al abrir/configurar una jornada, un trigger sincroniza automáticamente la cuota central
+- realiza backfill de jornadas configuradas existentes
+- la jornada conserva su propio snapshot para que el histórico no cambie retroactivamente
