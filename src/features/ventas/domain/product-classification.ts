@@ -8,6 +8,12 @@ export type ProductClassificationInput = {
   saleCategory?: string | null;
   family?: string | null;
   variant?: string | null;
+  nombre?: string | null;
+  categoria?: string | null;
+  categoria_principal?: string | null;
+  categoria_venta?: string | null;
+  familia?: string | null;
+  variante?: string | null;
 };
 
 function normalize(value: string | null | undefined) {
@@ -52,11 +58,16 @@ export function classifySalesProduct(
   product: ProductClassificationInput,
 ): SalesProductGroup {
   const sku = normalize(product.sku);
-  const name = normalize(product.name);
-  const primary = normalize(product.primaryCategory ?? product.category);
-  const secondary = normalize(product.saleCategory);
-  const family = normalize(product.family);
-  const variant = normalize(product.variant);
+  const name = normalize(product.name ?? product.nombre);
+  const primary = normalize(
+    product.primaryCategory ??
+      product.categoria_principal ??
+      product.category ??
+      product.categoria,
+  );
+  const secondary = normalize(product.saleCategory ?? product.categoria_venta);
+  const family = normalize(product.family ?? product.familia);
+  const variant = normalize(product.variant ?? product.variante);
   const structured = [secondary, family, variant].join(" ");
 
   // Láminas se identifica por clasificación estructurada. "Case Galaxy A57"
@@ -134,12 +145,12 @@ export function isLaminaProduct(product: ProductClassificationInput) {
 
 export function isScPlusProduct(product: ProductClassificationInput) {
   const value = [
-    product.primaryCategory,
-    product.category,
-    product.saleCategory,
-    product.family,
-    product.variant,
-    product.name,
+    product.primaryCategory ?? product.categoria_principal,
+    product.category ?? product.categoria,
+    product.saleCategory ?? product.categoria_venta,
+    product.family ?? product.familia,
+    product.variant ?? product.variante,
+    product.name ?? product.nombre,
   ]
     .map(normalize)
     .join(" ");
