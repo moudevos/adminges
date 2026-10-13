@@ -11,6 +11,7 @@ Orden actual:
 004_inventario_stock_filtros_series.sql
 005_registro_ventas_jornada.sql
 006_ventas_cuotas_equipo_diario.sql
+007_cerrar_jornadas_pendientes.sql
 ```
 
 ## 001
@@ -89,3 +90,10 @@ Amplía la apertura diaria de Ventas:
 - un supervisor puede estar disponible y decidirse por día si participa en ventas
 - el turno solo puede iniciarse para personal programado, activo y no de vacaciones
 - una venta solo puede asignarse a alguien habilitado para vender, marcado `vende_hoy` y con turno activo
+
+
+## 007
+
+Permite cerrar desde la interfaz cualquier jornada que haya quedado abierta,
+incluidas jornadas creadas antes de SQL 006 y que no llegaron a configurarse
+con cuotas/equipo.
