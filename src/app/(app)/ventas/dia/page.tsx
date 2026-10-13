@@ -1,3 +1,4 @@
+import { loadDailyQuotaForDate } from "@/features/cuotas/server/loaders";
 import { SalesDayView } from "@/features/ventas/components/sales-day-view";
 import {
   loadCurrentSalesDay,
@@ -7,10 +8,17 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function SalesDayPage() {
-  const [data, paymentMethods] = await Promise.all([
-    loadCurrentSalesDay(),
+  const data = await loadCurrentSalesDay();
+  const [paymentMethods, dailyQuota] = await Promise.all([
     loadPaymentMethods(),
+    loadDailyQuotaForDate(data.date),
   ]);
 
-  return <SalesDayView data={data} paymentMethods={paymentMethods} />;
+  return (
+    <SalesDayView
+      data={data}
+      paymentMethods={paymentMethods}
+      dailyQuota={dailyQuota}
+    />
+  );
 }

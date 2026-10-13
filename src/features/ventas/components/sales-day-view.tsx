@@ -11,6 +11,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import type { DailyQuotaForDate } from "@/features/cuotas/domain/types";
 import { PaymentMethodsModal } from "@/features/ventas/components/payment-methods-modal";
 import { SalesDayCloseModal } from "@/features/ventas/components/sales-day-close-modal";
 import { SalesDayReportModal } from "@/features/ventas/components/sales-day-report-modal";
@@ -52,9 +53,11 @@ async function postJson(path: string, body: unknown) {
 export function SalesDayView({
   data,
   paymentMethods,
+  dailyQuota,
 }: {
   data: SalesDayData;
   paymentMethods: PaymentMethodOption[];
+  dailyQuota: DailyQuotaForDate;
 }) {
   const router = useRouter();
   const [opening, setOpening] = useState(false);
@@ -287,9 +290,16 @@ export function SalesDayView({
       )}
 
       <SalesDayOpeningModal
+        key={
+          data.date +
+          ":" +
+          (dailyQuota.quota?.updatedAt ?? "no-quota")
+        }
         open={opening}
         date={data.date}
         people={data.people}
+        initialQuota={dailyQuota.quota?.values ?? null}
+        suggestion={dailyQuota.suggestion}
         onClose={() => setOpening(false)}
         onSaved={() => {
           setOpening(false);

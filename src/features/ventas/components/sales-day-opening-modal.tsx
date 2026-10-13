@@ -1,7 +1,13 @@
 "use client";
 
+import { faLightbulb } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useMemo, useState } from "react";
 import { Modal } from "@/components/ui/modal";
+import type {
+  DailyQuotaSuggestion,
+  DailyQuotaValues,
+} from "@/features/cuotas/domain/types";
 import type { SalesPersonOption } from "@/features/ventas/domain/types";
 
 type TeamSelection = {
@@ -35,18 +41,28 @@ export function SalesDayOpeningModal({
   open,
   date,
   people,
+  initialQuota,
+  suggestion,
   onClose,
   onSaved,
 }: {
   open: boolean;
   date: string;
   people: SalesPersonOption[];
+  initialQuota: DailyQuotaValues | null;
+  suggestion: DailyQuotaSuggestion | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [quotaAmt, setQuotaAmt] = useState("");
-  const [quotaLaminas, setQuotaLaminas] = useState("");
-  const [quotaScPlus, setQuotaScPlus] = useState("");
+  const [quotaAmt, setQuotaAmt] = useState(
+    initialQuota ? String(initialQuota.amt) : "",
+  );
+  const [quotaLaminas, setQuotaLaminas] = useState(
+    initialQuota ? String(initialQuota.laminas) : "",
+  );
+  const [quotaScPlus, setQuotaScPlus] = useState(
+    initialQuota ? String(initialQuota.scPlus) : "",
+  );
   const [team, setTeam] = useState<Record<string, TeamSelection>>({});
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -166,6 +182,40 @@ export function SalesDayOpeningModal({
           <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-700">
             {error}
           </div>
+        ) : null}
+
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5">
+          <div>
+            <p className="text-xs font-semibold text-slate-700">
+              {initialQuota ? "Cuota diaria registrada" : "Sin cuota diaria registrada"}
+            </p>
+            <p className="mt-0.5 text-[11px] text-slate-400">
+              {initialQuota
+                ? "Los valores se precargaron desde Cuotas > Cuota diaria."
+                : "Puedes ingresar los valores manualmente o usar la sugerencia."}
+            </p>
+          </div>
+
+          {suggestion ? (
+            <button
+              type="button"
+              onClick={() => {
+                setQuotaAmt(String(suggestion.values.amt));
+                setQuotaLaminas(String(suggestion.values.laminas));
+                setQuotaScPlus(String(suggestion.values.scPlus));
+              }}
+              className="inline-flex h-9 items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 text-xs font-semibold text-indigo-700"
+            >
+              <FontAwesomeIcon icon={faLightbulb} className="text-[10px]" />
+              Usar sugerencia
+            </button>
+          ) : null}
+        </div>
+
+        {suggestion ? (
+          <p className="-mt-2 text-[10px] text-slate-400">
+            Sugerencia: {suggestion.label}. Solo rellena los campos; no guarda ni abre el día.
+          </p>
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-3">

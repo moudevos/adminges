@@ -1,6 +1,7 @@
 import "server-only";
 
 import type {
+  DailyQuotaForDate,
   DailyQuotaPageData,
   DailyQuotaProgress,
   DailyQuotaRecord,
@@ -228,7 +229,9 @@ export async function loadDailyQuotaPage(
   };
 }
 
-export async function loadDailyQuotaForDate(date: string) {
+export async function loadDailyQuotaForDate(
+  date: string,
+): Promise<DailyQuotaForDate> {
   const supabase = await createClient();
 
   const { data, error } = await supabase

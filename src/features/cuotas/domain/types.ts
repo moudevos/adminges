@@ -37,3 +37,9 @@ export type DailyQuotaPageData = {
   progress: DailyQuotaProgress;
   history: DailyQuotaRecord[];
 };
+
+
+export type DailyQuotaForDate = {
+  quota: DailyQuotaRecord | null;
+  suggestion: DailyQuotaSuggestion | null;
+};
