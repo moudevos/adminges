@@ -14,6 +14,7 @@ Orden actual:
 007_cerrar_jornadas_pendientes.sql
 008_metodos_pago_configurables.sql
 009_ventas_historial_reversa_ultimo_precio.sql
+010_cierre_formal_reporte_dia_venta.sql
 ```
 
 ## 001
@@ -122,3 +123,16 @@ Completa el núcleo auditable de Ventas:
 - Kardex incorpora el tipo `anulacion_venta`
 - el stock operativo reincorpora reversas hechas después del último snapshot
 - una venta anulada deja de participar en stock vendido y en el último precio sugerido
+
+
+## 010
+
+Formaliza el cierre de un Día de venta:
+
+- persiste un snapshot del reporte en `jornada_cierre_reportes`
+- persiste quiebres por HHP Serie S/A/Z, Tablets, WEA y Láminas
+- calcula automáticamente las unidades vendidas por grupo
+- registra comentarios/feedback del cierre
+- guarda cuota, venta y cumplimiento de AMT, Láminas y SC+
+- `close_sales_day_with_report` guarda reporte, cierra jornada y finaliza turnos en una única transacción
+- la clasificación SQL prioriza categoría principal para no confundir accesorios `CASE GALAXY A57` con celulares Serie A
