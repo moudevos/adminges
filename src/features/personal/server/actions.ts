@@ -96,7 +96,7 @@ export async function createPerson(
   }
 
   revalidatePath("/personal");
-  revalidatePath("/ventas/agregar");
+  revalidatePath("/ventas/dia");
   return { ok: true, message: "Persona agregada correctamente." };
 }
 
@@ -133,6 +133,6 @@ export async function updatePersonOperationalState(input: {
   }
 
   revalidatePath("/personal");
-  revalidatePath("/ventas/agregar");
+  revalidatePath("/ventas/dia");
   return { ok: true, message: "Estado actualizado correctamente." };
 }

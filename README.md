@@ -97,7 +97,7 @@ La aplicación usa rutas semánticas por módulo. Ejemplos:
 /inventario/stock
 /inventario/movimientos
 /inventario/cargar
-/ventas/historial
+/ventas/dias
 /cuotas/seguimiento-diario
 /personal
 /herramientas/specs
@@ -120,3 +120,17 @@ src/lib/supabase/ integración Supabase
 ```
 
 Las páginas de App Router son delgadas y delegan el trabajo a su feature. La API de inventario vive bajo `/api/inventario/*`.
+
+
+### Ventas
+
+```text
+/ventas/dia        Día de venta actual
+/ventas/dias       Histórico de días
+/ventas/dias/:id   Vista de un día específico
+/ventas/analisis   Análisis
+```
+
+Una jornada abierta anterior se muestra en Día de venta y puede cerrarse desde
+la propia interfaz. Los días cerrados permanecen consultables en modo solo
+lectura.

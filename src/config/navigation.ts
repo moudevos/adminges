@@ -58,8 +58,12 @@ export const SHELL_NAVIGATION: NavigationSection[] = [
         label: "Ventas",
         icon: faReceipt,
         children: [
-          { key: "agregar", label: "Registrar", href: "/ventas/agregar" },
-          { key: "historial", label: "Historial", href: "/ventas/historial" },
+          { key: "dia", label: "Día de venta", href: "/ventas/dia" },
+          {
+            key: "dias",
+            label: "Histórico de días",
+            href: "/ventas/dias",
+          },
           { key: "analisis", label: "Análisis", href: "/ventas/analisis" },
         ],
       },
@@ -128,7 +132,9 @@ export function resolveNavigationState(pathname: string): NavigationState {
   for (const section of SHELL_NAVIGATION) {
     for (const item of section.items) {
       const child = item.children.find(
-        (candidate) => candidate.href === currentPath,
+        (candidate) =>
+          candidate.href === currentPath ||
+          currentPath.startsWith(candidate.href + "/"),
       );
 
       if (child) {
@@ -169,12 +175,19 @@ export function resolveNavigationState(pathname: string): NavigationState {
 }
 
 export function getNavigationHref(module?: string, view?: string) {
+  const normalizedView =
+    module === "ventas" && view === "agregar"
+      ? "dia"
+      : module === "ventas" && view === "historial"
+        ? "dias"
+        : view;
+
   for (const section of SHELL_NAVIGATION) {
     const item = section.items.find((candidate) => candidate.key === module);
     if (!item) continue;
 
     const child =
-      item.children.find((candidate) => candidate.key === view) ??
+      item.children.find((candidate) => candidate.key === normalizedView) ??
       item.children[0];
 
     return child?.href ?? DEFAULT_APP_HREF;
