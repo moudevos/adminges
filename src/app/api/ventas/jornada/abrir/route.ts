@@ -5,7 +5,7 @@ import { openSalesDay } from "@/features/ventas/server/mutations";
 const schema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   quotaAmt: z.number().min(0),
-  quotaLaminas: z.number().int().min(0),
+  quotaLaminas: z.number().min(0),
   quotaScPlus: z.number().min(0),
   team: z
     .array(
