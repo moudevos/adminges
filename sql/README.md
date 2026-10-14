@@ -20,6 +20,7 @@ Orden actual:
 013_cuotas_ar_eco_pct_laminas_monto.sql
 014_inicio_automatico_equipo_jornada.sql
 015_trade_in_comisiones_metodos_pago.sql
+016_regalos_acc_wea_precio_cero.sql
 ```
 
 ## 001
@@ -196,3 +197,24 @@ El cierre de jornada sigue finalizando a todo el equipo.
   que contengan al menos un pago Trade-in positivo.
 - Tras ejecutar 015, configurar la meta Trade-in desde **Cuotas > Cuota mensual**.
 - Gestionar los métodos en **Configuraciones > Métodos de pago**.
+
+## 016
+
+Registra productos ACC y WEA con precio unitario **S/ 0.00** como
+entregas de regalo. Las unidades permanecen en las ventas confirmadas y
+generan la salida normal de stock en Kardex.
+
+- **Regalo junto a una venta pagada:** el regalo figura con subtotal cero
+  y los pagos deben igualar la suma de las líneas cobrables.
+- **Entrega solo de regalos:** total cero, `payments: []`; no se inserta
+  ningún pago ficticio.
+- **Otros productos (HHP, TABLETS, LÁMINAS, etc.):** deben tener precio
+  mayor a cero. El RPC consulta la categoría en `productos`, sin confiar
+  en la categoría que envía el navegador.
+- `ultimo_precio_venta` ignora los regalos para no sustituir la
+  sugerencia de precio anterior.
+- No se cambian ni eliminan ventas, métodos de pago o stock históricos.
+
+**Aplicación:** ejecutar manualmente el SQL 016 en Supabase SQL Editor
+después de haber aplicado 015. Es imprescindible para registrar ventas
+exclusivamente gratuitas.
