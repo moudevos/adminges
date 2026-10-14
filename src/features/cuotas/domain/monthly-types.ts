@@ -58,6 +58,7 @@ export type MonthlyCycleDetail = MonthlyCycleSummary & {
   sellers: MonthlySeller[];
   status: MonthlyCycleStatus;
   daysRemaining: number;
+  todayClosed: boolean;
   suggestedDaily: MonthlyQuotaTargets | null;
 };
 
