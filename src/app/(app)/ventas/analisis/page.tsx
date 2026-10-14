@@ -11,5 +11,5 @@ export default async function SalesAnalysisPage({
 }) {
   const params = await searchParams;
   const model: ForecastModel = params.modelo === "lineal" ? "lineal" : "plano";
-  return <CommercialSalesAnalysis data={await loadCommercialIntelligence(params.ciclo, model)} />;
+  return <CommercialSalesAnalysis data={await loadCommercialIntelligence(params.ciclo, model, true)} />;
 }
