@@ -109,7 +109,7 @@ export function SalesDayOpeningModal({
 
     if (
       !Number.isFinite(amt) ||
-      !Number.isInteger(laminas) ||
+      !Number.isFinite(laminas) ||
       !Number.isFinite(scPlus) ||
       amt < 0 ||
       laminas < 0 ||
@@ -242,11 +242,11 @@ export function SalesDayOpeningModal({
             <input
               type="number"
               min="0"
-              step="1"
+              step="0.01"
               required
               value={quotaLaminas}
               onChange={(event) => setQuotaLaminas(event.target.value)}
-              placeholder="0 unidades"
+              placeholder="S/ 0.00"
               className="control-input h-10"
             />
           </label>

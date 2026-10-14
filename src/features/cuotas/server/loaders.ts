@@ -109,11 +109,12 @@ async function loadSuggestion(
         Math.round(
           average(usable.map(({ report }) => Number(report.venta_amt))) * 100,
         ) / 100,
-      laminas: Math.round(
-        average(
-          usable.map(({ report }) => Number(report.venta_laminas)),
-        ),
-      ),
+      laminas:
+        Math.round(
+          average(
+            usable.map(({ report }) => Number(report.venta_laminas)),
+          ) * 100,
+        ) / 100,
       scPlus:
         Math.round(
           average(

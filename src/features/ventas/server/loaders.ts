@@ -374,8 +374,8 @@ async function buildDayData({
     }
 
     if (product && isLaminaProduct(product)) {
-      laminas += detail.cantidad;
-      current.laminas += detail.cantidad;
+      laminas += detail.subtotal;
+      current.laminas += detail.subtotal;
     }
 
     if (product && isScPlusProduct(product)) {

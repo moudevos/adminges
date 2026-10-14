@@ -124,7 +124,7 @@ export function SalesDayOverview({
             label="Láminas"
             icon={faLayerGroup}
             progress={data.teamProgress.laminas}
-            kind="units"
+            kind="money"
           />
           <SalesProgressBar
             label="SC+"
@@ -238,7 +238,7 @@ export function SalesDayOverview({
                       label="Láminas"
                       icon={faLayerGroup}
                       progress={person.progress.laminas}
-                      kind="units"
+                      kind="money"
                     />
                     <SalesProgressBar
                       compact

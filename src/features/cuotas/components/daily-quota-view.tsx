@@ -72,7 +72,7 @@ export function DailyQuotaView({ data }: { data: DailyQuotaPageData }) {
 
     if (
       !Number.isFinite(parsedAmt) ||
-      !Number.isInteger(parsedLaminas) ||
+      !Number.isFinite(parsedLaminas) ||
       !Number.isFinite(parsedScPlus) ||
       parsedAmt < 0 ||
       parsedLaminas < 0 ||
@@ -214,11 +214,11 @@ export function DailyQuotaView({ data }: { data: DailyQuotaPageData }) {
             <input
               type="number"
               min="0"
-              step="1"
+              step="0.01"
               disabled={locked}
               value={laminas}
               onChange={(event) => setLaminas(event.target.value)}
-              placeholder="0 unidades"
+              placeholder="S/ 0.00"
               className="control-input h-10 disabled:bg-slate-50 disabled:text-slate-400"
             />
           </label>
@@ -282,7 +282,7 @@ export function DailyQuotaView({ data }: { data: DailyQuotaPageData }) {
             <div className="text-xs text-slate-500">
               Láminas{" "}
               <b className="ml-1 text-slate-800">
-                {data.suggestion.values.laminas}
+                {money(data.suggestion.values.laminas)}
               </b>
             </div>
             <div className="text-xs text-slate-500">
@@ -317,7 +317,7 @@ export function DailyQuotaView({ data }: { data: DailyQuotaPageData }) {
             label="Láminas"
             icon={faLayerGroup}
             progress={data.progress.laminas}
-            kind="units"
+            kind="money"
           />
           <SalesProgressBar
             label="SC+"
@@ -366,7 +366,7 @@ export function DailyQuotaView({ data }: { data: DailyQuotaPageData }) {
                     {money(row.values.amt)}
                   </td>
                   <td className="border-b border-slate-100 px-4 py-3.5 text-right tabular-nums">
-                    {row.values.laminas}
+                    {money(row.values.laminas)}
                   </td>
                   <td className="border-b border-slate-100 px-4 py-3.5 text-right tabular-nums">
                     {money(row.values.scPlus)}

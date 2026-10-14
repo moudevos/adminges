@@ -43,8 +43,8 @@ export function SalesDayReportContent({
     },
     {
       label: "LÁMINAS",
-      quota: String(report.quotas.laminas),
-      sale: String(report.sales.laminas),
+      quota: money(report.quotas.laminas),
+      sale: money(report.sales.laminas),
       percent: percent(report.sales.laminas, report.quotas.laminas),
     },
   ];
