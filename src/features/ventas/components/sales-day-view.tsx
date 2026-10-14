@@ -96,20 +96,6 @@ export function SalesDayView({
     });
   }
 
-  async function toggleShift(person: SalesStaffMember) {
-    if (!data.journey) return;
-
-    await mutate(
-      person.onShift ? "Finalizando turno..." : "Iniciando turno...",
-      "/api/ventas/jornada/turno",
-      {
-        journeyId: data.journey.id,
-        personId: person.id,
-        onShift: !person.onShift,
-      },
-    );
-  }
-
   if (!data.schemaReady) {
     return (
       <section className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
@@ -280,7 +266,6 @@ export function SalesDayView({
           data={data}
           allowOperations={journeyOpen}
           busy={Boolean(busy)}
-          onToggleShift={toggleShift}
           onRegisterSale={setSelectedStaff}
         />
       ) : (
