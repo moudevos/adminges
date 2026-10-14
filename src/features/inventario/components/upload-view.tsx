@@ -8,12 +8,13 @@ import {
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import { type ChangeEvent, type DragEvent, useState } from "react";
 import { LoadingIndicator } from "@/components/ui/loading-indicator";
 import { Modal } from "@/components/ui/modal";
+import { ManualInventoryDialog } from "@/features/inventario/components/manual-inventory-dialog";
+import type { ManualInventoryLocation } from "@/features/inventario/server/manual-inventory";
 import type {
   InventoryValidationError,
   PreparedSnapshot,
@@ -72,10 +73,15 @@ function statusClass(status: string) {
 
 export function InventoryUploadView({
   history,
+  locations,
+  initialManualOpen = false,
 }: {
   history: SnapshotHistoryRow[];
+  locations: ManualInventoryLocation[];
+  initialManualOpen?: boolean;
 }) {
   const router = useRouter();
+  const [manualOpen, setManualOpen] = useState(initialManualOpen);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [fileError, setFileError] = useState("");
@@ -357,14 +363,14 @@ export function InventoryUploadView({
         ) : null}
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <Link
-            href="/inventario/manual"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          <button
+            type="button"
+            onClick={() => setManualOpen(true)}
+            disabled={locations.length === 0}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Generar inventario manual · A4
-          </Link>
+          </button>
           <button
             type="button"
             disabled={!selectedFile || processing}
@@ -375,8 +381,8 @@ export function InventoryUploadView({
           </button>
         </div>
         <p className="mt-2 text-xs text-slate-500">
-          El conteo manual se abre en otra pestaña con HHP, TAB, ACC y LÁMINAS
-          en una hoja A4 horizontal.
+          Selecciona el almacén y la orientación vertical u horizontal. El PDF
+          ocupa una sola hoja A4 con HHP, TAB, ACC y LÁMINAS.
         </p>
       </section>
 
@@ -447,6 +453,12 @@ export function InventoryUploadView({
           </table>
         </div>
       </section>
+
+      <ManualInventoryDialog
+        open={manualOpen}
+        options={locations}
+        onClose={() => setManualOpen(false)}
+      />
 
       <Modal
         open={Boolean(prepared)}

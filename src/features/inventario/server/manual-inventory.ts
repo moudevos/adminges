@@ -1,9 +1,15 @@
 import "server-only";
 
+import { classifySalesProduct } from "@/features/ventas/domain/product-classification";
 import { MAIN_WAREHOUSE } from "@/features/inventario/domain/types";
 import { createClient } from "@/lib/supabase/server";
 
 export type ManualInventoryCategory = "HHP" | "TAB" | "ACC" | "LAMINAS";
+export type ManualInventoryLocation = {
+  warehouse: string;
+  location: string;
+  label: string;
+};
 
 export type ManualInventoryItem = {
   sku: string;
@@ -15,6 +21,7 @@ export type ManualInventoryItem = {
 export type ManualInventoryData = {
   date: string;
   warehouse: string;
+  location: string;
   groups: Record<ManualInventoryCategory, ManualInventoryItem[]>;
   totalSkus: number;
   totalUnits: number;
@@ -27,31 +34,17 @@ type StockRow = {
   categoria_venta: string | null;
   categoria: string | null;
   familia: string | null;
+  variante: string | null;
   almacen: string | null;
   ubicacion: string | null;
   cantidad_disponible: number | string;
 };
 
-function normalize(value: string | null | undefined) {
-  return (value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toUpperCase();
-}
-
 function categoryFor(row: StockRow): ManualInventoryCategory {
-  const principal = normalize(row.categoria_principal ?? row.categoria);
-  const detail = [row.categoria_venta, row.familia, row.nombre]
-    .map(normalize)
-    .join(" ");
-
-  if (principal.includes("LAMINA") || detail.includes("LAMINA")) {
-    return "LAMINAS";
-  }
-  if (principal.includes("HHP")) return "HHP";
-  if (principal.includes("TAB")) return "TAB";
-  // WEA, accesorios de marcas propias y categorías residuales quedan en ACC.
+  const group = classifySalesProduct(row);
+  if (group === "LAMINAS") return "LAMINAS";
+  if (group === "TABLETS") return "TAB";
+  if (group.startsWith("HHP_")) return "HHP";
   return "ACC";
 }
 
@@ -67,22 +60,74 @@ function dateInPeru() {
   return [part("year"), part("month"), part("day")].join("-");
 }
 
-export async function loadManualInventory(): Promise<ManualInventoryData> {
+/** Opciones reales (almacén + ubicación), p. ej. Stock y Exhibición. */
+export async function loadManualInventoryLocations(): Promise<ManualInventoryLocation[]> {
+  const supabase = await createClient();
+  const options = new Map<string, ManualInventoryLocation>();
+  const pageSize = 1000;
+
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase
+      .from("inventario_stock")
+      .select("row_key, almacen, ubicacion")
+      .eq("is_active", true)
+      .gt("cantidad_disponible", 0)
+      .order("row_key")
+      .range(offset, offset + pageSize - 1);
+
+    if (error) throw new Error("No se pudieron consultar los almacenes.");
+
+    for (const row of data ?? []) {
+      const warehouse = String(row.almacen ?? "").trim();
+      const location = String(row.ubicacion ?? "").trim();
+      if (!warehouse || !location) continue;
+      options.set(JSON.stringify([warehouse, location]), {
+        warehouse,
+        location,
+        label: location,
+      });
+    }
+
+    if (!data || data.length < pageSize) break;
+  }
+
+  const values = [...options.values()];
+  const warehouses = new Set(values.map((option) => option.warehouse));
+  if (warehouses.size > 1) {
+    for (const option of values) {
+      option.label = option.location + " · " + option.warehouse;
+    }
+  }
+
+  values.sort((left, right) => {
+    const stockFirst = (value: string) => value.toLowerCase() === "stock" ? 0 : 1;
+    return stockFirst(left.location) - stockFirst(right.location)
+      || left.label.localeCompare(right.label, "es");
+  });
+  return values;
+}
+
+/** El origen del PDF es el stock disponible de la ubicación escogida. */
+export async function loadManualInventory(selection?: {
+  warehouse: string;
+  location: string;
+}): Promise<ManualInventoryData> {
+  const warehouse = selection?.warehouse ?? MAIN_WAREHOUSE;
+  const location = selection?.location ?? "Stock";
   const supabase = await createClient();
   const rows: StockRow[] = [];
   const pageSize = 1000;
 
-  // Evita el límite predeterminado de 1000 filas de la Data API.
   for (let offset = 0; ; offset += pageSize) {
     const { data, error } = await supabase
       .from("inventario_stock")
       .select(
-        "sku, nombre, categoria_principal, categoria_venta, categoria, familia, almacen, ubicacion, cantidad_disponible",
+        "row_key, sku, nombre, categoria_principal, categoria_venta, categoria, familia, variante, almacen, ubicacion, cantidad_disponible",
       )
       .eq("is_active", true)
-      .eq("almacen", MAIN_WAREHOUSE)
+      .eq("almacen", warehouse)
+      .eq("ubicacion", location)
       .gt("cantidad_disponible", 0)
-      .order("sku")
       .order("row_key")
       .range(offset, offset + pageSize - 1);
 
@@ -109,13 +154,13 @@ export async function loadManualInventory(): Promise<ManualInventoryData> {
 
     const key = category + "|" + sku;
     const current = aggregated.get(key);
-    const location = row.ubicacion?.trim() ?? "";
+    const rowLocation = row.ubicacion?.trim() ?? "";
     const quantity = Number(row.cantidad_disponible) || 0;
 
     if (current) {
       current.expected += quantity;
-      if (location && !current.locations.includes(location)) {
-        current.locations.push(location);
+      if (rowLocation && !current.locations.includes(rowLocation)) {
+        current.locations.push(rowLocation);
       }
     } else {
       aggregated.set(key, {
@@ -123,7 +168,7 @@ export async function loadManualInventory(): Promise<ManualInventoryData> {
         sku,
         name: String(row.nombre).trim() || sku,
         expected: quantity,
-        locations: location ? [location] : [],
+        locations: rowLocation ? [rowLocation] : [],
       });
     }
   }
@@ -140,7 +185,8 @@ export async function loadManualInventory(): Promise<ManualInventoryData> {
 
   return {
     date: dateInPeru(),
-    warehouse: MAIN_WAREHOUSE,
+    warehouse,
+    location,
     groups,
     totalSkus: aggregated.size,
     totalUnits: [...aggregated.values()].reduce(
