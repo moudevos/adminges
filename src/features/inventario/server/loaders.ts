@@ -5,6 +5,7 @@ import type {
   SnapshotHistoryRow,
 } from "@/features/inventario/domain/types";
 import { createClient } from "@/lib/supabase/server";
+import { MAIN_WAREHOUSE } from "@/features/inventario/domain/types";
 
 export type InventoryMovementRow = {
   id: number;
@@ -13,6 +14,10 @@ export type InventoryMovementRow = {
   direccion: string;
   cantidad: number;
   fecha: string;
+  almacen_origen: string | null;
+  ubicacion_origen: string | null;
+  almacen_destino: string | null;
+  ubicacion_destino: string | null;
 };
 
 function mapStockRows(
@@ -93,41 +98,66 @@ export async function loadInventorySnapshots(): Promise<SnapshotHistoryRow[]> {
   }));
 }
 
+/** Análisis del movimiento físico exclusivamente en la ubicación STOCK de KIO37. */
 export async function loadInventoryAnalysis() {
   const supabase = await createClient();
+  const pageSize = 1000;
 
-  const [stockResult, movementResult] = await Promise.all([
-    supabase
+  const stock: InventoryStockRow[] = [];
+  for (let start = 0; ; start += pageSize) {
+    const { data, error } = await supabase
       .from("inventario_stock")
       .select(
         "row_key, id, sku, nombre, marca, categoria, categoria_principal, categoria_venta, costo, precio, stock_minimo, is_active, cantidad_fisica, cantidad_disponible, stock_actual, valor_stock, series_count, serials, almacen, ubicacion",
       )
       .eq("is_active", true)
-      .order("nombre")
-      .order("almacen")
-      .order("ubicacion"),
-    supabase
-      .from("inventario_kardex")
-      .select("id, producto_id, tipo, direccion, cantidad, fecha")
-      .order("fecha", { ascending: false })
-      .order("id", { ascending: false })
-      .limit(200),
-  ]);
+      .eq("almacen", MAIN_WAREHOUSE)
+      .ilike("ubicacion", "stock")
+      .order("row_key")
+      .range(start, start + pageSize - 1);
 
-  const stock = mapStockRows(
-    (stockResult.data ?? []) as Array<Record<string, unknown>>,
-  );
+    if (error) throw new Error("No se pudo consultar el stock operativo.");
+    stock.push(...mapStockRows((data ?? []) as Array<Record<string, unknown>>));
+    if (!data || data.length < pageSize) break;
+  }
 
-  const movements: InventoryMovementRow[] = (movementResult.data ?? []).map(
-    (row) => ({
-      id: Number(row.id),
-      producto_id: row.producto_id,
-      tipo: row.tipo,
-      direccion: row.direccion,
-      cantidad: Number(row.cantidad),
-      fecha: row.fecha,
-    }),
-  );
+  type KardexRecord = InventoryMovementRow;
+  const movementsById = new Map<number, KardexRecord>();
+  // Ambos sentidos: una transferencia hacia Stock es entrada;
+  // desde Stock es salida. Los movimientos de otras ubicaciones no cuentan.
+  for (const side of ["origen", "destino"] as const) {
+    for (let start = 0; ; start += pageSize) {
+      const { data, error } = await supabase
+        .from("inventario_kardex")
+        .select(
+          "id, producto_id, tipo, direccion, cantidad, fecha, almacen_origen, ubicacion_origen, almacen_destino, ubicacion_destino",
+        )
+        .eq("almacen_" + side, MAIN_WAREHOUSE)
+        .ilike("ubicacion_" + side, "stock")
+        .order("id")
+        .range(start, start + pageSize - 1);
 
-  return { stock, movements };
+      if (error) throw new Error("No se pudo consultar el Kardex de Stock.");
+      for (const item of data ?? []) {
+        movementsById.set(Number(item.id), {
+          id: Number(item.id),
+          producto_id: item.producto_id,
+          tipo: item.tipo,
+          direccion: item.direccion,
+          cantidad: Number(item.cantidad),
+          fecha: item.fecha,
+          almacen_origen: item.almacen_origen,
+          ubicacion_origen: item.ubicacion_origen,
+          almacen_destino: item.almacen_destino,
+          ubicacion_destino: item.ubicacion_destino,
+        });
+      }
+      if (!data || data.length < pageSize) break;
+    }
+  }
+
+  return {
+    stock,
+    movements: [...movementsById.values()].sort((a, b) => b.id - a.id),
+  };
 }
