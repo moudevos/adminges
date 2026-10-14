@@ -115,6 +115,42 @@ export function CommissionsView({ data }: { data: CommercialIntelligence }) {
               </tbody>
             </table>
           </section>
+          <section className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-3 font-semibold text-slate-900">Comisiones por indicador y promotor</h2>
+            <div className="space-y-2">
+              {data.sellers.map((seller) => (
+                <details key={seller.id} className="rounded-lg border border-slate-200">
+                  <summary className="cursor-pointer bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900">
+                    {seller.name} · Ponderado conocido {pct(seller.commission.knownPoints)}
+                    {" · "}Simulado {pct(seller.projectedCommission.knownPoints)}
+                  </summary>
+                  <div className="overflow-x-auto p-3">
+                    <table className="w-full min-w-[480px] text-xs">
+                      <thead className="bg-slate-50 text-slate-500">
+                        <tr><th className="p-2 text-left">Caja</th><th className="p-2 text-right">Peso</th>
+                          <th className="p-2 text-right">Cumplimiento real</th>
+                          <th className="p-2 text-right">Puntos reales</th>
+                          <th className="p-2 text-right">Puntos simulados</th></tr>
+                      </thead>
+                      <tbody>
+                        {seller.commission.rows.map((row, index) => (
+                          <tr key={row.key} className="border-t border-slate-100">
+                            <th className="p-2 text-left font-semibold">{row.label}</th>
+                            <td className="p-2 text-right">{row.weight}%</td>
+                            <td className="p-2 text-right">{pct(row.raw)}</td>
+                            <td className="p-2 text-right">{pct(row.points)}</td>
+                            <td className="p-2 text-right">
+                              {pct(seller.projectedCommission.rows[index]?.points ?? null)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              ))}
+            </div>
+          </section>
           <p className="text-xs leading-5 text-slate-500">
             «Monto de caja» toma S/ 650 como BASE REFERENCIAL del cuadro compartido
             (35%, 27%, 5%, 13%, 5%, 5%, 10%). No equivale a pago ganado.
