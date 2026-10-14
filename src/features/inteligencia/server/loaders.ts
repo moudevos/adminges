@@ -343,8 +343,8 @@ export async function loadCommercialIntelligence(
     const sellers: SellerProjection[] = cycle.sellers
       .map((person) => {
         const status = statuses.get(person.id);
-        const active = Boolean(status?.is_active && status?.puede_vender &&
-          status.estado_laboral !== "vacaciones");
+        // Vacaciones no desactivan a quien sigue perteneciendo a la plantilla.
+        const active = Boolean(status?.is_active && status?.puede_vender);
         const personLines = lines.filter((line) => line.promotor_id === person.id);
         const forecast = makeProjection(
           personLines, person.targets, cycle.startDate, cycle.endDate, tracking.today, model,
