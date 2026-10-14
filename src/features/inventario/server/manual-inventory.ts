@@ -42,16 +42,16 @@ type StockRow = {
 
 function categoryFor(row: StockRow): ManualInventoryCategory {
   const principal = (row.categoria_principal ?? row.categoria ?? "")
-    .normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toUpperCase();
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
   const group = classifySalesProduct(row);
   const detail = [row.categoria_venta, row.familia, row.nombre]
     .filter(Boolean).join(" ")
-    .normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toUpperCase();
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
 
   // En el conteo físico HHP y TAB incluyen TODAS sus referencias;
   // no dependen de que el clasificador comercial reconozca un modelo S/A/Z.
   if (group === "LAMINAS" || principal.includes("LAMINA") ||
-    /\\bLAMINAS?\\b/.test(detail)) return "LAMINAS";
+    /\bLAMINAS?\b/.test(detail)) return "LAMINAS";
   if (principal.includes("HHP") || group.startsWith("HHP_")) return "HHP";
   if (principal.includes("TAB") || group === "TABLETS") return "TAB";
   return "ACC";
