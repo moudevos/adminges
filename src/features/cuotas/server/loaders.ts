@@ -9,6 +9,7 @@ import type {
   DailyQuotaValues,
 } from "@/features/cuotas/domain/types";
 import { loadSalesDayById } from "@/features/ventas/server/loaders";
+import { remainingCalendarDays, remainingDailyQuota } from "@/features/cuotas/domain/daily-suggestion";
 import { createClient } from "@/lib/supabase/server";
 
 function metric(actual: number, target: number) {
@@ -57,76 +58,82 @@ function mapQuota(
   };
 }
 
+/**
+ * La cuota diaria sugerida viene de las metas del ciclo comercial,
+ * NO del promedio de cierres anteriores (que puede desviarse de la cuota).
+ *
+ * Para una fecha determinada descontamos solo ventas anteriores a ese día:
+ * el número propuesto para una jornada no cambia al registrar ventas en ella.
+ */
 async function loadSuggestion(
   date: string,
 ): Promise<DailyQuotaSuggestion | null> {
   const supabase = await createClient();
-
-  const { data: reports, error } = await supabase
-    .from("jornada_cierre_reportes")
+  const { data: cycle, error: cycleError } = await supabase
+    .from("cuotas_ciclos_comerciales")
     .select(
-      "jornada_id, venta_amt, venta_laminas, venta_sc_plus, created_at",
+      "fecha_inicio, fecha_fin, cuota_amt, cuota_laminas, cuota_sc_plus",
     )
-    .order("created_at", { ascending: false })
-    .limit(30);
+    .lte("fecha_inicio", date)
+    .gte("fecha_fin", date)
+    .order("fecha_inicio", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  if (error || !reports?.length) return null;
+  // Sin cuota mensual para esa fecha, no sugerir importes históricos
+  // que podrían ser inferiores/superiores al saldo comercial real.
+  if (cycleError || !cycle) return null;
 
-  const ids = reports.map((report) => report.jornada_id);
-  const { data: journeys } = await supabase
-    .from("jornadas_venta")
-    .select("id, fecha")
-    .in("id", ids);
+  const remainingDays = remainingCalendarDays(date, cycle.fecha_fin);
+  if (remainingDays < 1) return null;
 
-  const dateByJourney = new Map(
-    (journeys ?? []).map((journey) => [journey.id, journey.fecha]),
+  const sold = { amt: 0, laminas: 0, scPlus: 0 };
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data: rows, error } = await supabase
+      .from("ventas_metricas_comerciales")
+      .select("fecha, venta_id, producto_id, subtotal, componente_amt, es_lamina, es_sc_plus")
+      .gte("fecha", cycle.fecha_inicio)
+      .lt("fecha", date)
+      .order("fecha")
+      .order("venta_id")
+      .order("producto_id")
+      .range(offset, offset + pageSize - 1);
+
+    // No presentar una propuesta parcial como si fuera correcta.
+    if (error) return null;
+
+    for (const row of rows ?? []) {
+      const amount = Number(row.subtotal);
+      if (!Number.isFinite(amount)) return null;
+
+      if (["HHP_FP", "HHP_MASS", "TABS", "ACC"].includes(row.componente_amt)) {
+        sold.amt += amount;
+      }
+      if (row.es_lamina) sold.laminas += amount;
+      if (row.es_sc_plus) sold.scPlus += amount;
+    }
+    if (!rows || rows.length < pageSize) break;
+  }
+
+  const values = remainingDailyQuota(
+    {
+      amt: Number(cycle.cuota_amt),
+      laminas: Number(cycle.cuota_laminas),
+      scPlus: Number(cycle.cuota_sc_plus),
+    },
+    sold,
+    remainingDays,
   );
 
-  const usable = reports
-    .map((report) => ({
-      report,
-      date: dateByJourney.get(report.jornada_id),
-    }))
-    .filter(
-      (
-        item,
-      ): item is {
-        report: (typeof reports)[number];
-        date: string;
-      } => Boolean(item.date) && item.date < date,
-    )
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 7);
-
-  if (usable.length === 0) return null;
-
-  const average = (values: number[]) =>
-    values.reduce((sum, value) => sum + value, 0) / values.length;
-
   return {
-    values: {
-      amt:
-        Math.round(
-          average(usable.map(({ report }) => Number(report.venta_amt))) * 100,
-        ) / 100,
-      laminas:
-        Math.round(
-          average(
-            usable.map(({ report }) => Number(report.venta_laminas)),
-          ) * 100,
-        ) / 100,
-      scPlus:
-        Math.round(
-          average(
-            usable.map(({ report }) => Number(report.venta_sc_plus)),
-          ) * 100,
-        ) / 100,
-    },
-    basedOnDays: usable.length,
+    values,
+    basedOnDays: remainingDays,
     label:
-      "Promedio de " +
-      usable.length +
-      (usable.length === 1 ? " cierre anterior" : " cierres anteriores"),
+      "Saldo del mes comercial dividido entre " +
+      remainingDays +
+      (remainingDays === 1 ? " día restante" : " días restantes") +
+      " (contando la fecha seleccionada; se descuentan ventas confirmadas anteriores)",
   };
 }
 
