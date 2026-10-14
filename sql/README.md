@@ -16,6 +16,7 @@ Orden actual:
 009_ventas_historial_reversa_ultimo_precio.sql
 010_cierre_formal_reporte_dia_venta.sql
 011_cuota_diaria_tienda.sql
+012_cuota_mensual_ciclo_comercial.sql
 ```
 
 ## 001
@@ -150,3 +151,8 @@ Implementa la cuota diaria única de tienda:
 - al abrir/configurar una jornada, un trigger sincroniza automáticamente la cuota central
 - realiza backfill de jornadas configuradas existentes
 - la jornada conserva su propio snapshot para que el histórico no cambie retroactivamente
+
+
+## 012
+
+Implementa la cuota mensual por ciclo comercial de 4 o 5 semanas. AMT se compone de HHP FP (Series S/Z), HHP MASS (Serie A), TABS y ACC. Guarda días planificados por vendedor, distribuye cuotas proporcionalmente y expone métricas confirmadas para Seguimiento mensual. AR = (unidades HHP + TABS) / ACC sin WEA. ECO = (unidades HHP + TABS) / WEA.
