@@ -83,7 +83,7 @@ export async function loadManualInventory(): Promise<ManualInventoryData> {
       .eq("almacen", MAIN_WAREHOUSE)
       .gt("cantidad_disponible", 0)
       .order("sku")
-      .order("ubicacion")
+      .order("row_key")
       .range(offset, offset + pageSize - 1);
 
     if (error) {
