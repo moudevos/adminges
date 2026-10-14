@@ -11,8 +11,8 @@ function percent(actual: number, target: number) {
   return target > 0 ? (actual / target) * 100 : 0;
 }
 
-function ratio(value: number | null) {
-  return value === null ? "—" : value.toFixed(2) + "x";
+function pct(value: number | null) {
+  return value === null ? "—" : value.toFixed(2) + "%";
 }
 
 export function MonthlySellerTracking({
@@ -62,18 +62,18 @@ export function MonthlySellerTracking({
                 <TargetActual target={seller.targets.tabs} actual={seller.actuals.tabs} />
                 <TargetActual target={seller.targets.acc} actual={seller.actuals.acc} />
                 <TargetActual target={seller.targets.scPlus} actual={seller.actuals.scPlus} />
-                <td className="px-4 py-3.5 text-right">
-                  <p className="font-medium tabular-nums text-slate-700">
-                    {seller.actuals.laminas} / {seller.targets.laminas}
-                  </p>
-                  <p className="mt-0.5 text-[10px] text-slate-400">
-                    {seller.targets.laminas > 0
-                      ? percent(seller.actuals.laminas, seller.targets.laminas).toFixed(1) + "%"
-                      : "—"}
-                  </p>
-                </td>
-                <td className="px-4 py-3.5 text-right font-medium tabular-nums text-slate-700">{ratio(seller.actuals.ar)}</td>
-                <td className="px-4 py-3.5 text-right font-medium tabular-nums text-slate-700">{ratio(seller.actuals.eco)}</td>
+                <TargetActual
+                  target={seller.targets.laminas}
+                  actual={seller.actuals.laminas}
+                />
+                <PercentTarget
+                  target={seller.targets.arPct}
+                  actual={seller.actuals.arPct}
+                />
+                <PercentTarget
+                  target={seller.targets.ecoPct}
+                  actual={seller.actuals.ecoPct}
+                />
               </tr>
             ))}
 
@@ -103,6 +103,24 @@ function TargetActual({
       <p className="font-medium tabular-nums text-slate-700">{money(actual)}</p>
       <p className="mt-0.5 text-[10px] tabular-nums text-slate-400">
         {money(target)} · {target > 0 ? percent(actual, target).toFixed(1) + "%" : "—"}
+      </p>
+    </td>
+  );
+}
+
+
+function PercentTarget({
+  target,
+  actual,
+}: {
+  target: number;
+  actual: number | null;
+}) {
+  return (
+    <td className="px-4 py-3.5 text-right">
+      <p className="font-medium tabular-nums text-slate-700">{pct(actual)}</p>
+      <p className="mt-0.5 text-[10px] tabular-nums text-slate-400">
+        Meta {target.toFixed(2)}%
       </p>
     </td>
   );
