@@ -74,12 +74,14 @@ function statusClass(status: string) {
 export function InventoryUploadView({
   history,
   locations,
+  initialManualOpen = false,
 }: {
   history: SnapshotHistoryRow[];
   locations: ManualInventoryLocation[];
+  initialManualOpen?: boolean;
 }) {
   const router = useRouter();
-  const [manualOpen, setManualOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(initialManualOpen);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [fileError, setFileError] = useState("");
