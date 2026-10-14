@@ -192,7 +192,9 @@ export function SalesDayOpeningModal({
             <p className="mt-0.5 text-[11px] text-slate-400">
               {initialQuota
                 ? "Los valores se precargaron desde Cuotas > Cuota diaria."
-                : "Puedes ingresar los valores manualmente o usar la sugerencia."}
+                : suggestion
+                  ? "La sugerencia distribuye el saldo pendiente del ciclo comercial entre sus días restantes."
+                  : "Ingresa las cuotas manualmente o configura la cuota mensual para recibir una sugerencia."}
             </p>
           </div>
 
@@ -214,7 +216,7 @@ export function SalesDayOpeningModal({
 
         {suggestion ? (
           <p className="-mt-2 text-[10px] text-slate-400">
-            Sugerencia: {suggestion.label}. Solo rellena los campos; no guarda ni abre el día.
+            Sugerencia del mes comercial: {suggestion.label}. Solo rellena los campos; no guarda ni abre el día.
           </p>
         ) : null}
 
