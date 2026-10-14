@@ -9,6 +9,7 @@ import { useForm } from "react-hook-form";
 import Swal from "sweetalert2";
 import { z } from "zod";
 import { loginWithPassword } from "@/features/auth/server/actions";
+import { DEFAULT_APP_HREF } from "@/config/navigation";
 
 const loginSchema = z.object({
   email: z.string().email("Ingresa un correo válido"),
@@ -48,7 +49,7 @@ export function LoginForm() {
     const destination =
       next?.startsWith("/") && !next.startsWith("//")
         ? next
-        : "/inventario/stock";
+        : DEFAULT_APP_HREF;
 
     router.replace(destination);
     router.refresh();
