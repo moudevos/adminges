@@ -92,24 +92,6 @@ export async function openSalesDay(input: {
   return { ok: true, id: data as string };
 }
 
-export async function setSalesShift(input: {
-  journeyId: string;
-  personId: string;
-  onShift: boolean;
-}): Promise<SalesMutationResult> {
-  const supabase = await authenticatedClient();
-  if (!supabase) return { ok: false, message: "La sesión expiró." };
-
-  const { error } = await supabase.rpc("set_sales_shift", {
-    p_jornada_id: input.journeyId,
-    p_persona_id: input.personId,
-    p_en_turno: input.onShift,
-  });
-
-  if (error) return { ok: false, message: friendlyError(error.message) };
-  return { ok: true };
-}
-
 export async function closeSalesDay(
   journeyId: string,
 ): Promise<SalesMutationResult> {
