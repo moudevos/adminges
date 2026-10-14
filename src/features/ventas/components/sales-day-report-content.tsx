@@ -9,7 +9,7 @@ const LABELS: Record<SalesClosureBreakage["group"], string> = {
   HHP_SERIE_Z: "HHP SERIE Z",
   TABLETS: "TABLETS",
   WEA: "WEA",
-  LAMINAS: "LÁMINAS",
+  LAMINAS: "LAMINAS",
 };
 
 function money(value: number) {
@@ -22,6 +22,10 @@ function money(value: number) {
 function percent(actual: number, target: number) {
   return target > 0 ? (actual / target) * 100 : 0;
 }
+
+const BORDER = "border border-[#c5d0e6]";
+const HEAD = `${BORDER} bg-[#eef2fa] px-4 py-2.5 text-xs font-bold uppercase text-[#2d3a5a]`;
+const CELL = `${BORDER} px-3 py-2 text-[13px] text-[#2d3a5a]`;
 
 export function SalesDayReportContent({
   report,
@@ -42,7 +46,7 @@ export function SalesDayReportContent({
       percent: percent(report.sales.scPlus, report.quotas.scPlus),
     },
     {
-      label: "LÁMINAS",
+      label: "LAMINAS",
       quota: money(report.quotas.laminas),
       sale: money(report.sales.laminas),
       percent: percent(report.sales.laminas, report.quotas.laminas),
@@ -51,29 +55,27 @@ export function SalesDayReportContent({
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto rounded-xl border border-slate-200">
-        <table className="w-full min-w-[620px] text-sm">
-          <thead className="bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[620px] table-fixed border-separate border-spacing-0 overflow-hidden rounded-sm bg-white">
+          <thead>
             <tr>
-              <th className="px-4 py-3 text-left" />
-              <th className="px-4 py-3 text-center">Cuota</th>
-              <th className="px-4 py-3 text-center">Venta</th>
-              <th className="px-4 py-3 text-center">% Cumplimiento</th>
+              <th className={`${HEAD} text-left`} />
+              <th className={`${HEAD} text-center`}>Cuota</th>
+              <th className={`${HEAD} text-center`}>Venta</th>
+              <th className={`${HEAD} text-center`}>% Cumplimiento</th>
             </tr>
           </thead>
           <tbody>
             {metrics.map((metric) => (
-              <tr key={metric.label} className="border-t border-slate-100">
-                <td className="px-4 py-3 font-semibold text-slate-700">
-                  {metric.label}
-                </td>
-                <td className="px-4 py-3 text-center tabular-nums text-slate-600">
+              <tr key={metric.label}>
+                <td className={`${CELL} font-semibold`}>{metric.label}</td>
+                <td className={`${CELL} text-center tabular-nums`}>
                   {metric.quota}
                 </td>
-                <td className="px-4 py-3 text-center tabular-nums text-slate-700">
+                <td className={`${CELL} text-center tabular-nums`}>
                   {metric.sale}
                 </td>
-                <td className="px-4 py-3 text-center font-semibold tabular-nums text-slate-800">
+                <td className={`${CELL} text-center tabular-nums`}>
                   {metric.percent.toFixed(2)}%
                 </td>
               </tr>
@@ -82,42 +84,40 @@ export function SalesDayReportContent({
         </table>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200">
-        <table className="w-full min-w-[620px] text-sm">
-          <thead className="bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[620px] table-fixed border-separate border-spacing-0 overflow-hidden rounded-sm bg-white">
+          <thead>
             <tr>
-              <th className="px-4 py-3 text-left" />
-              <th className="px-4 py-3 text-center">Venta unid.</th>
-              <th className="px-4 py-3 text-center">Quiebres</th>
-              <th className="px-4 py-3 text-left">Detalle / Nº Color</th>
+              <th className={`${HEAD} text-left`} />
+              <th className={`${HEAD} text-center`}>Venta unid</th>
+              <th className={`${HEAD} text-center`}>Quiebres</th>
+              <th className={`${HEAD} text-center`}>Detalle *No Color</th>
             </tr>
           </thead>
           <tbody>
             {report.breakages.map((item) => (
-              <tr key={item.group} className="border-t border-slate-100">
-                <td className="px-4 py-3 font-medium text-slate-700">
+              <tr key={item.group}>
+                <td className={`${CELL} font-semibold`}>
                   {LABELS[item.group]}
                 </td>
-                <td className="px-4 py-3 text-center tabular-nums">
+                <td className={`${CELL} text-center tabular-nums`}>
                   {item.units}
                 </td>
-                <td className="px-4 py-3 text-center font-semibold">
+                <td className={`${CELL} text-center`}>
                   {item.breakage ? "SÍ" : "NO"}
                 </td>
-                <td className="px-4 py-3 text-slate-600">
-                  {item.detail || "—"}
-                </td>
+                <td className={`${CELL} text-left`}>{item.detail}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <section className="rounded-xl border border-slate-200">
-        <div className="border-b border-slate-200 bg-slate-900 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-white">
+      <section className="overflow-hidden rounded-sm border border-[#c5d0e6] bg-white">
+        <div className="bg-[#1e3a8a] px-4 py-2.5 text-[13px] font-bold uppercase text-white">
           Comentarios - sugerencias
         </div>
-        <p className="min-h-20 px-4 py-3 text-sm leading-6 text-slate-600">
+        <p className="min-h-20 px-4 py-3 text-[13px] leading-6 text-[#4a5675]">
           {report.comments || "Sin comentarios registrados."}
         </p>
       </section>
