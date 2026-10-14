@@ -64,6 +64,12 @@ export function MonthlyCycleForm({
   const [laminas, setLaminas] = useState(
     selected ? String(selected.targets.laminas) : "",
   );
+  const [arPct, setArPct] = useState(
+    selected ? String(selected.targets.arPct) : "",
+  );
+  const [ecoPct, setEcoPct] = useState(
+    selected ? String(selected.targets.ecoPct) : "",
+  );
   const [days, setDays] = useState<Record<string, number>>(() =>
     Object.fromEntries(
       people.map((person) => [
@@ -91,9 +97,11 @@ export function MonthlyCycleForm({
       ...base,
       amt: monthlyAmt(base),
       scPlus: numeric(scPlus),
-      laminas: Math.round(numeric(laminas)),
+      laminas: numeric(laminas),
+      arPct: numeric(arPct),
+      ecoPct: numeric(ecoPct),
     };
-  }, [hhpFp, hhpMass, tabs, acc, scPlus, laminas]);
+  }, [hhpFp, hhpMass, tabs, acc, scPlus, laminas, arPct, ecoPct]);
 
   const weightedPeople = useMemo(
     () =>
@@ -119,6 +127,8 @@ export function MonthlyCycleForm({
           acc: targets.acc,
           scPlus: targets.scPlus,
           laminas: targets.laminas,
+          arPct: targets.arPct,
+          ecoPct: targets.ecoPct,
         },
         weightedPeople,
       ),
@@ -190,6 +200,8 @@ export function MonthlyCycleForm({
           acc: targets.acc,
           scPlus: targets.scPlus,
           laminas: targets.laminas,
+          arPct: targets.arPct,
+          ecoPct: targets.ecoPct,
           people: weightedPeople.map((person) => ({
             personId: person.id,
             days: person.days,
@@ -298,7 +310,7 @@ export function MonthlyCycleForm({
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <QuotaInput label="HHP FP · S/Z" value={hhpFp} onChange={setHhpFp} />
           <QuotaInput
             label="HHP MASS · A"
@@ -312,7 +324,18 @@ export function MonthlyCycleForm({
             label="Láminas"
             value={laminas}
             onChange={setLaminas}
-            integer
+          />
+          <QuotaInput
+            label="AR %"
+            value={arPct}
+            onChange={setArPct}
+            percent
+          />
+          <QuotaInput
+            label="ECO %"
+            value={ecoPct}
+            onChange={setEcoPct}
+            percent
           />
         </div>
       </section>
@@ -342,6 +365,8 @@ export function MonthlyCycleForm({
                 <th className="border-b border-slate-200 px-4 py-3 text-right">AMT</th>
                 <th className="border-b border-slate-200 px-4 py-3 text-right">SC+</th>
                 <th className="border-b border-slate-200 px-4 py-3 text-right">Láminas</th>
+                <th className="border-b border-slate-200 px-4 py-3 text-right">AR</th>
+                <th className="border-b border-slate-200 px-4 py-3 text-right">ECO</th>
               </tr>
             </thead>
             <tbody>
@@ -396,7 +421,13 @@ export function MonthlyCycleForm({
                       {money(allocation?.scPlus ?? 0)}
                     </td>
                     <td className="px-4 py-3.5 text-right tabular-nums text-slate-600">
-                      {allocation?.laminas ?? 0}
+                      {money(allocation?.laminas ?? 0)}
+                    </td>
+                    <td className="px-4 py-3.5 text-right font-medium tabular-nums text-slate-700">
+                      {(allocation?.arPct ?? targets.arPct).toFixed(2)}%
+                    </td>
+                    <td className="px-4 py-3.5 text-right font-medium tabular-nums text-slate-700">
+                      {(allocation?.ecoPct ?? targets.ecoPct).toFixed(2)}%
                     </td>
                   </tr>
                 );
@@ -404,7 +435,7 @@ export function MonthlyCycleForm({
 
               {people.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-400">
+                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-400">
                     No hay personal activo con capacidad de venta.
                   </td>
                 </tr>
@@ -436,12 +467,12 @@ function QuotaInput({
   label,
   value,
   onChange,
-  integer = false,
+  percent = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  integer?: boolean;
+  percent?: boolean;
 }) {
   return (
     <label>
@@ -451,10 +482,11 @@ function QuotaInput({
       <input
         type="number"
         min="0"
-        step={integer ? "1" : "0.01"}
+        max={percent ? "100" : undefined}
+        step="0.01"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={integer ? "0" : "S/ 0.00"}
+        placeholder={percent ? "0.00%" : "S/ 0.00"}
         className="control-input h-10"
       />
     </label>
