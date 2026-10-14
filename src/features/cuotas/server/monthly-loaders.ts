@@ -250,6 +250,34 @@ function suggestedDailyTargets(
   };
 }
 
+async function loadCycleMetrics(
+  supabase: SupabaseClient,
+  from: string,
+  to: string,
+): Promise<MetricRow[]> {
+  const metrics: MetricRow[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await supabase
+      .from("ventas_metricas_comerciales")
+      .select(
+        "fecha, venta_id, producto_id, promotor_id, cantidad, subtotal, grupo_reporte, componente_amt, es_sc_plus, es_lamina, es_hhp_tabs, es_acc_sin_wea, es_wea",
+      )
+      .gte("fecha", from)
+      .lte("fecha", to)
+      .order("fecha")
+      .order("venta_id")
+      .order("producto_id")
+      .range(offset, offset + 999);
+
+    if (error) {
+      throw new Error("No se pudo consultar el historial completo de ventas.");
+    }
+    metrics.push(...((data ?? []) as MetricRow[]));
+    if (!data || data.length < 1000) break;
+  }
+  return metrics;
+}
+
 async function loadCycleDetail(
   supabase: SupabaseClient,
   row: CycleRow,
@@ -265,13 +293,7 @@ async function loadCycleDetail(
       .from("cuotas_ciclo_personal")
       .select("persona_id, dias_planificados")
       .eq("ciclo_id", row.id),
-    supabase
-      .from("ventas_metricas_comerciales")
-      .select(
-        "venta_id, promotor_id, cantidad, subtotal, grupo_reporte, componente_amt, es_sc_plus, es_lamina, es_hhp_tabs, es_acc_sin_wea, es_wea",
-      )
-      .gte("fecha", row.fecha_inicio)
-      .lte("fecha", row.fecha_fin),
+    loadCycleMetrics(supabase, row.fecha_inicio, row.fecha_fin),
   ]);
 
   const participants = (participantsResult.data ?? []).map((item) => ({
@@ -299,10 +321,10 @@ async function loadCycleDetail(
     participants,
   );
 
-  if (participantsResult.error || metricsResult.error) {
+  if (participantsResult.error) {
     throw new Error("No se pudieron consultar las cuotas o ventas del ciclo.");
   }
-  const metrics = (metricsResult.data ?? []) as MetricRow[];
+  const metrics = metricsResult;
   const tradeInSaleIds = await loadTradeInSaleIds(supabase, metrics.map((metric) => metric.venta_id));
   const peopleMap = new Map(allPeople.map((person) => [person.id, person]));
 
