@@ -292,6 +292,11 @@ export function DailyQuotaView({ data }: { data: DailyQuotaPageData }) {
               </b>
             </div>
           </div>
+        ) : !locked ? (
+          <p className="mt-3 text-xs text-amber-700">
+            No existe una sugerencia para esta fecha. Verifica que esté dentro
+            de un mes comercial con su cuota mensual registrada.
+          </p>
         ) : null}
       </section>
 
