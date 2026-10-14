@@ -33,6 +33,8 @@ export function MonthlyCyclesTable({
               <th className="border-b border-slate-200 px-4 py-3 text-right">AMT</th>
               <th className="border-b border-slate-200 px-4 py-3 text-right">SC+</th>
               <th className="border-b border-slate-200 px-4 py-3 text-right">Láminas</th>
+              <th className="border-b border-slate-200 px-4 py-3 text-right">AR</th>
+              <th className="border-b border-slate-200 px-4 py-3 text-right">ECO</th>
               <th className="border-b border-slate-200 px-4 py-3 text-right">Jornadas-persona</th>
               <th className="border-b border-slate-200 px-4 py-3 text-right">Acciones</th>
             </tr>
@@ -58,7 +60,13 @@ export function MonthlyCyclesTable({
                   {money(cycle.targets.scPlus)}
                 </td>
                 <td className="px-4 py-3.5 text-right tabular-nums text-slate-600">
-                  {cycle.targets.laminas}
+                  {money(cycle.targets.laminas)}
+                </td>
+                <td className="px-4 py-3.5 text-right tabular-nums text-slate-600">
+                  {cycle.targets.arPct.toFixed(2)}%
+                </td>
+                <td className="px-4 py-3.5 text-right tabular-nums text-slate-600">
+                  {cycle.targets.ecoPct.toFixed(2)}%
                 </td>
                 <td className="px-4 py-3.5 text-right tabular-nums text-slate-600">
                   {cycle.totalPersonDays}
@@ -84,7 +92,7 @@ export function MonthlyCyclesTable({
 
             {cycles.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-400">
+                <td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-400">
                   Todavía no hay ciclos comerciales registrados.
                 </td>
               </tr>
