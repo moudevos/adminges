@@ -8,14 +8,16 @@ export type MonthlyQuotaTargets = {
   amt: number;
   scPlus: number;
   laminas: number;
+  arPct: number;
+  ecoPct: number;
 };
 
-export type MonthlyActuals = MonthlyQuotaTargets & {
+export type MonthlyActuals = Omit<MonthlyQuotaTargets, "arPct" | "ecoPct"> & {
   hhpTabsUnits: number;
   accNonWeaUnits: number;
   weaUnits: number;
-  ar: number | null;
-  eco: number | null;
+  arPct: number | null;
+  ecoPct: number | null;
 };
 
 export type MonthlySeller = {
@@ -47,8 +49,13 @@ export type MonthlyCycleSummary = {
   updatedAt: string;
 };
 
+export type MonthlyCycleStatus = "proximo" | "activo" | "finalizado";
+
 export type MonthlyCycleDetail = MonthlyCycleSummary & {
   sellers: MonthlySeller[];
+  status: MonthlyCycleStatus;
+  daysRemaining: number;
+  suggestedDaily: MonthlyQuotaTargets | null;
 };
 
 export type MonthlyQuotaPageData = {
