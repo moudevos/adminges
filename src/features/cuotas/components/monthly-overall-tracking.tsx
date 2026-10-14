@@ -80,10 +80,11 @@ export function MonthlyOverallTracking({
         </section>
       ) : null}
 
-      <section className="grid gap-4 lg:grid-cols-3">
+      <section className="grid gap-4 lg:grid-cols-4">
         <MetricCard label="AMT" target={cycle.targets.amt} actual={cycle.actuals.amt} moneyValue />
         <MetricCard label="SC+" target={cycle.targets.scPlus} actual={cycle.actuals.scPlus} moneyValue />
         <MetricCard label="Láminas" target={cycle.targets.laminas} actual={cycle.actuals.laminas} moneyValue />
+        <MetricCard label="Trade-in · und. HHP FP" target={cycle.targets.tradeInUnits} actual={cycle.actuals.tradeInUnits} />
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[1.4fr_0.6fr]">
@@ -103,6 +104,11 @@ export function MonthlyOverallTracking({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+            <p className="text-xs font-semibold text-slate-500">Penetración Trade-in</p>
+            <p className="mt-2 text-xl font-bold text-slate-900">{pct(cycle.actuals.tradeInRate)}</p>
+            <p className="mt-1 text-xs text-slate-500">{cycle.actuals.tradeInUnits} und. HHP FP con Trade-in / {cycle.actuals.hhpFpUnits} und. HHP FP totales</p>
+          </div>
           <RatioCard
             label="AR"
             value={cycle.actuals.arPct}
