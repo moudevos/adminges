@@ -10,6 +10,7 @@ export type MonthlyQuotaTargets = {
   laminas: number;
   arPct: number;
   ecoPct: number;
+  tradeInUnits: number;
 };
 
 export type MonthlyActuals = Omit<MonthlyQuotaTargets, "arPct" | "ecoPct"> & {
@@ -18,6 +19,8 @@ export type MonthlyActuals = Omit<MonthlyQuotaTargets, "arPct" | "ecoPct"> & {
   weaUnits: number;
   arPct: number | null;
   ecoPct: number | null;
+  hhpFpUnits: number;
+  tradeInRate: number | null;
 };
 
 export type MonthlySeller = {

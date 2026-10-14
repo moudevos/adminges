@@ -44,6 +44,7 @@ export function MonthlySellerTracking({
               <th className="border-b border-slate-200 px-4 py-3 text-right">Láminas</th>
               <th className="border-b border-slate-200 px-4 py-3 text-right">AR</th>
               <th className="border-b border-slate-200 px-4 py-3 text-right">ECO</th>
+              <th className="border-b border-slate-200 px-4 py-3 text-right">Trade-in und.</th>
             </tr>
           </thead>
           <tbody>
@@ -74,12 +75,13 @@ export function MonthlySellerTracking({
                   target={seller.targets.ecoPct}
                   actual={seller.actuals.ecoPct}
                 />
+                <TargetActual target={seller.targets.tradeInUnits} actual={seller.actuals.tradeInUnits} />
               </tr>
             ))}
 
             {cycle.sellers.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-4 py-12 text-center text-sm text-slate-400">
+                <td colSpan={12} className="px-4 py-12 text-center text-sm text-slate-400">
                   El ciclo no tiene vendedores distribuidos.
                 </td>
               </tr>

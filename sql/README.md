@@ -19,6 +19,7 @@ Orden actual:
 012_cuota_mensual_ciclo_comercial.sql
 013_cuotas_ar_eco_pct_laminas_monto.sql
 014_inicio_automatico_equipo_jornada.sql
+015_trade_in_comisiones_metodos_pago.sql
 ```
 
 ## 001
@@ -180,3 +181,18 @@ Regulariza jornadas que ya estuvieran abiertas y configuradas;
 las jornadas cerradas no se modifican.
 Se retiran los controles y el acceso RPC de inicio/fin individual.
 El cierre de jornada sigue finalizando a todo el equipo.
+
+## 015
+
+- Preserva los códigos de todos los medios de pago existentes.
+- Marca como Trade-in el método existente por código/nombre o lo crea si no existe.
+- Añade `es_trade_in` a `metodos_pago`; la opción se puede desactivar
+  pero sus pagos históricos continúan formando parte del indicador.
+- Añade a la cuota mensual `cuota_trade_in_unds` en unidades HHP FP y un
+  RPC transaccional que guarda todas las cuotas del mes y Trade-in juntos.
+- La participación Trade-in es `HHP FP con pago Trade-in / HHP FP total`.
+  La cuota está en unidades y su cumplimiento = unidades logradas / unidades meta.
+- Las transacciones de pago mixto cuentan la venta HHP FP **una vez**, siempre
+  que contengan al menos un pago Trade-in positivo.
+- Tras ejecutar 015, configurar la meta Trade-in desde **Cuotas > Cuota mensual**.
+- Gestionar los métodos en **Configuraciones > Métodos de pago**.

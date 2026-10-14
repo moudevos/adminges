@@ -5,6 +5,7 @@ import type { MonthlyCycleDetail } from "@/features/cuotas/domain/monthly-types"
 import {
   calculateCommission,
   makeProjection,
+  projectTradeInUnits,
   type CommercialLine,
   type ForecastModel,
   type ProjectedMoney,
@@ -12,6 +13,7 @@ import {
 } from "@/features/inteligencia/domain/projection";
 import { MAIN_WAREHOUSE } from "@/features/inventario/domain/types";
 import { createClient } from "@/lib/supabase/server";
+import { loadTradeInSaleIds } from "@/features/cuotas/server/trade-in";
 import { classifySalesProduct, isScPlusProduct } from "@/features/ventas/domain/product-classification";
 
 export type SellerProjection = {
@@ -59,7 +61,7 @@ export type CommercialIntelligence = {
   opportunities: CategoryOpportunity[];
   commission: CommissionResult | null;
   projectedCommission: CommissionResult | null;
-  // El indicador ECO se toma del seguimiento comercial existente; Trade-in carece de captura.
+  // Trade-in se identifica por método de pago en ventas confirmadas.
   ecoActual: number | null;
   diagnostics?: string;
 };
@@ -326,15 +328,21 @@ export async function loadCommercialIntelligence(
 
     // La tienda siempre considera TODAS las ventas históricas.
     // No se filtra por personal activo: una baja no altera logros ni cuotas generales.
+    const tradeInSaleIds = await loadTradeInSaleIds(supabase, lines.map((line) => line.venta_id));
+    const tradeIn = projectTradeInUnits(
+      lines, tradeInSaleIds, cycle.startDate, cycle.endDate, tracking.today, model,
+    );
     const general = makeProjection(
       lines, cycle.targets, cycle.startDate, cycle.endDate, tracking.today, model,
     );
     const ecoActual = calcEco(lines.filter((line) => line.fecha <= tracking.today));
     const commission = calculateCommission(
       general.actual, general.targets, ecoActual, cycle.targets.ecoPct,
+      tradeIn.actual, cycle.targets.tradeInUnits, tradeIn.penetrationPct,
     );
     const projectedCommission = calculateCommission(
       general.projected, general.targets, ecoActual, cycle.targets.ecoPct,
+      tradeIn.projected, cycle.targets.tradeInUnits, tradeIn.penetrationPct,
     );
 
     const statuses = new Map((statusResult.data ?? []).map((person) => [
@@ -350,11 +358,20 @@ export async function loadCommercialIntelligence(
           personLines, person.targets, cycle.startDate, cycle.endDate, tracking.today, model,
         );
         const eco = calcEco(personLines.filter((line) => line.fecha <= tracking.today));
+        const personTradeIn = projectTradeInUnits(
+          personLines, tradeInSaleIds, cycle.startDate, cycle.endDate, tracking.today, model,
+        );
         return {
           id: person.id, name: person.name, role: person.role, active,
           forecast,
-          commission: calculateCommission(forecast.actual, forecast.targets, eco, person.targets.ecoPct),
-          projectedCommission: calculateCommission(forecast.projected, forecast.targets, eco, person.targets.ecoPct),
+          commission: calculateCommission(
+            forecast.actual, forecast.targets, eco, person.targets.ecoPct,
+            personTradeIn.actual, person.targets.tradeInUnits, personTradeIn.penetrationPct,
+          ),
+          projectedCommission: calculateCommission(
+            forecast.projected, forecast.targets, eco, person.targets.ecoPct,
+            personTradeIn.projected, person.targets.tradeInUnits, personTradeIn.penetrationPct,
+          ),
         };
       })
       .filter((seller) => seller.active);
@@ -366,7 +383,7 @@ export async function loadCommercialIntelligence(
     return {
       ...common, schemaReady: true, cycle, general, sellers,
       products, opportunities, commission, projectedCommission, ecoActual,
-      diagnostics: "Ciclo original conservado. Predicciones informativas, no liquidaciones.",
+      diagnostics: "Ciclo original conservado. Trade-in en unidades HHP FP, pagos mixtos una vez.",
     };
   } catch (error) {
     return {

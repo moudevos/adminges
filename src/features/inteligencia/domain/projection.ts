@@ -199,6 +199,7 @@ export type CommissionResult = {
   knownPoints: number;
   incomplete: boolean;
   cashBase: number;
+  tradeIn: { actualUnits: number; targetUnits: number; penetrationPct: number | null };
 };
 
 export function calculateCommission(
@@ -206,12 +207,16 @@ export function calculateCommission(
   target: MoneyValues,
   ecoActual: number | null,
   ecoTarget: number,
+  tradeInActualUnits: number,
+  tradeInTargetUnits: number,
+  tradeInPenetration: number | null,
 ): CommissionResult {
   const cashBase = 650; // Referencia del cuadro SEP 2026, NO importe liquidable.
   const rows = COMMISSION_RULES.map((rule) => {
     let raw: number | null;
     if (rule.key === "tradeIn") {
-      raw = null; // No existe captura verificada de canjes en el esquema.
+      raw = tradeInTargetUnits > 0
+        ? (tradeInActualUnits / tradeInTargetUnits) * 100 : null;
     } else if (rule.key === "eco") {
       raw = ecoActual !== null && ecoTarget > 0
         ? (ecoActual / ecoTarget) * 100 : null;
@@ -232,5 +237,44 @@ export function calculateCommission(
     knownPoints: rows.reduce((sum, row) => sum + (row.points ?? 0), 0),
     incomplete: rows.some((row) => row.points === null),
     cashBase,
+    tradeIn: { actualUnits: tradeInActualUnits, targetUnits: tradeInTargetUnits, penetrationPct: tradeInPenetration },
+  };
+}
+
+/** Proyecta unidades enteras con el mismo criterio plano/lineal del AMT. */
+export function projectTradeInUnits(
+  lines: CommercialLine[],
+  tradeInSaleIds: Set<string>,
+  start: string,
+  end: string,
+  today: string,
+  model: ForecastModel,
+): { actual: number; projected: number; hhpFpActual: number; penetrationPct: number | null } {
+  const totalDays = Math.max(1, diffDays(start, end) + 1);
+  const elapsedDays = today < start ? 0 : Math.min(totalDays, diffDays(start, today) + 1);
+  const series = new Array<number>(elapsedDays).fill(0);
+  let hhpFpActual = 0;
+
+  for (const line of lines) {
+    if (line.componente_amt !== "HHP_FP") continue;
+    const day = diffDays(start, line.fecha);
+    if (day < 0 || day >= elapsedDays) continue;
+    const units = Number(line.cantidad) || 0;
+    hhpFpActual += units;
+    if (tradeInSaleIds.has(line.venta_id)) series[day] += units;
+  }
+
+  const actual = series.reduce((sum, value) => sum + value, 0);
+  const estimate = extrapolate(series, elapsedDays, model);
+  let future = 0;
+  for (let day = elapsedDays; day < totalDays; day++) {
+    future += typeof estimate === "function" ? estimate(day) : estimate;
+  }
+
+  return {
+    actual,
+    projected: Math.max(actual, Math.round(actual + future)),
+    hhpFpActual,
+    penetrationPct: hhpFpActual > 0 ? (actual / hhpFpActual) * 100 : null,
   };
 }

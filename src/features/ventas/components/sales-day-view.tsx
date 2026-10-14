@@ -4,7 +4,6 @@ import {
   faCalendarDay,
   faLock,
   faPowerOff,
-  faSliders,
   faTriangleExclamation,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -12,7 +11,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { DailyQuotaForDate } from "@/features/cuotas/domain/types";
-import { PaymentMethodsModal } from "@/features/ventas/components/payment-methods-modal";
 import { SalesDayCloseModal } from "@/features/ventas/components/sales-day-close-modal";
 import { SalesDayReportModal } from "@/features/ventas/components/sales-day-report-modal";
 import { SaleModal } from "@/features/ventas/components/sale-modal";
@@ -65,7 +63,6 @@ export function SalesDayView({
   const [reportOpen, setReportOpen] = useState(false);
   const [closedReport, setClosedReport] =
     useState<SalesClosureReport | null>(null);
-  const [paymentSettingsOpen, setPaymentSettingsOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<SalesStaffMember | null>(
     null,
   );
@@ -239,14 +236,12 @@ export function SalesDayView({
             </button>
           ) : null}
 
-          <button
-            type="button"
-            onClick={() => setPaymentSettingsOpen(true)}
+          <Link
+            href="/configuraciones/pagos"
             className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600"
           >
-            <FontAwesomeIcon icon={faSliders} className="text-xs" />
-            Métodos de pago
-          </button>
+            Configurar métodos de pago
+          </Link>
 
           <Link
             href="/ventas/dias"
@@ -306,12 +301,6 @@ export function SalesDayView({
           }}
         />
       ) : null}
-
-      <PaymentMethodsModal
-        open={paymentSettingsOpen}
-        methods={paymentMethods}
-        onClose={() => setPaymentSettingsOpen(false)}
-      />
 
       {data.journey ? (
         <SalesDayCloseModal

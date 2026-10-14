@@ -67,6 +67,9 @@ export function MonthlyCycleForm({
   const [arPct, setArPct] = useState(
     selected ? String(selected.targets.arPct) : "",
   );
+  const [tradeInUnits, setTradeInUnits] = useState(
+    selected ? String(selected.targets.tradeInUnits) : "0",
+  );
   const [ecoPct, setEcoPct] = useState(
     selected ? String(selected.targets.ecoPct) : "",
   );
@@ -100,8 +103,9 @@ export function MonthlyCycleForm({
       laminas: numeric(laminas),
       arPct: numeric(arPct),
       ecoPct: numeric(ecoPct),
+      tradeInUnits: numeric(tradeInUnits),
     };
-  }, [hhpFp, hhpMass, tabs, acc, scPlus, laminas, arPct, ecoPct]);
+  }, [hhpFp, hhpMass, tabs, acc, scPlus, laminas, arPct, ecoPct, tradeInUnits]);
 
   const weightedPeople = useMemo(
     () =>
@@ -129,6 +133,7 @@ export function MonthlyCycleForm({
           laminas: targets.laminas,
           arPct: targets.arPct,
           ecoPct: targets.ecoPct,
+          tradeInUnits: targets.tradeInUnits,
         },
         weightedPeople,
       ),
@@ -163,6 +168,11 @@ export function MonthlyCycleForm({
 
     if (people.length === 0) {
       setMessage("No hay personal activo habilitado para vender.");
+      return;
+    }
+
+    if (!Number.isInteger(targets.tradeInUnits) || targets.tradeInUnits < 0) {
+      setMessage("Trade-in debe ser una cuota entera de unidades HHP FP.");
       return;
     }
 
@@ -202,6 +212,7 @@ export function MonthlyCycleForm({
           laminas: targets.laminas,
           arPct: targets.arPct,
           ecoPct: targets.ecoPct,
+          tradeInUnits: targets.tradeInUnits,
           people: weightedPeople.map((person) => ({
             personId: person.id,
             days: person.days,
@@ -332,6 +343,12 @@ export function MonthlyCycleForm({
             percent
           />
           <QuotaInput
+            label="Trade-in · unidades HHP FP"
+            value={tradeInUnits}
+            onChange={setTradeInUnits}
+            units
+          />
+          <QuotaInput
             label="ECO %"
             value={ecoPct}
             onChange={setEcoPct}
@@ -367,6 +384,7 @@ export function MonthlyCycleForm({
                 <th className="border-b border-slate-200 px-4 py-3 text-right">Láminas</th>
                 <th className="border-b border-slate-200 px-4 py-3 text-right">AR</th>
                 <th className="border-b border-slate-200 px-4 py-3 text-right">ECO</th>
+                <th className="border-b border-slate-200 px-4 py-3 text-right">Trade-in und.</th>
               </tr>
             </thead>
             <tbody>
@@ -429,13 +447,16 @@ export function MonthlyCycleForm({
                     <td className="px-4 py-3.5 text-right font-medium tabular-nums text-slate-700">
                       {(allocation?.ecoPct ?? targets.ecoPct).toFixed(2)}%
                     </td>
+                    <td className="px-4 py-3.5 text-right font-medium tabular-nums text-slate-700">
+                      {allocation?.tradeInUnits ?? 0} und.
+                    </td>
                   </tr>
                 );
               })}
 
               {people.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-400">
+                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-400">
                     No hay personal activo con capacidad de venta.
                   </td>
                 </tr>
@@ -468,11 +489,13 @@ function QuotaInput({
   value,
   onChange,
   percent = false,
+  units = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   percent?: boolean;
+  units?: boolean;
 }) {
   return (
     <label>
@@ -483,10 +506,10 @@ function QuotaInput({
         type="number"
         min="0"
         max={percent ? "100" : undefined}
-        step="0.01"
+        step={units ? "1" : "0.01"}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={percent ? "0.00%" : "S/ 0.00"}
+        placeholder={units ? "0 und." : percent ? "0.00%" : "S/ 0.00"}
         className="control-input h-10"
       />
     </label>

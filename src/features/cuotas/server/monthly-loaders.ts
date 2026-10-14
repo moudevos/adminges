@@ -14,6 +14,7 @@ import type {
   MonthlyTrackingData,
 } from "@/features/cuotas/domain/monthly-types";
 import { createClient } from "@/lib/supabase/server";
+import { loadTradeInSaleIds } from "@/features/cuotas/server/trade-in";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -32,11 +33,14 @@ type CycleRow = {
   cuota_laminas: number | string;
   cuota_ar_pct: number | string;
   cuota_eco_pct: number | string;
+  cuota_trade_in_unds: number | string;
   updated_at: string;
 };
 
 type MetricRow = {
   promotor_id: string;
+  venta_id: string;
+  grupo_reporte: string;
   cantidad: number | string;
   subtotal: number | string;
   componente_amt: string;
@@ -70,6 +74,9 @@ function emptyActuals(): MonthlyActuals {
     weaUnits: 0,
     arPct: null,
     ecoPct: null,
+    tradeInUnits: 0,
+    hhpFpUnits: 0,
+    tradeInRate: null,
   };
 }
 
@@ -84,17 +91,22 @@ function targetsFromRow(row: CycleRow): MonthlyQuotaTargets {
     laminas: Number(row.cuota_laminas),
     arPct: Number(row.cuota_ar_pct),
     ecoPct: Number(row.cuota_eco_pct),
+    tradeInUnits: Number(row.cuota_trade_in_unds),
   };
 }
 
-function aggregateMetrics(rows: MetricRow[]): MonthlyActuals {
+function aggregateMetrics(rows: MetricRow[], tradeInSaleIds: Set<string>): MonthlyActuals {
   const result = emptyActuals();
 
   for (const row of rows) {
     const amount = Number(row.subtotal);
     const units = Number(row.cantidad);
 
-    if (row.componente_amt === "HHP_FP") result.hhpFp += amount;
+    if (row.componente_amt === "HHP_FP") {
+      result.hhpFp += amount;
+      result.hhpFpUnits += units;
+      if (tradeInSaleIds.has(row.venta_id)) result.tradeInUnits += units;
+    }
     if (row.componente_amt === "HHP_MASS") result.hhpMass += amount;
     if (row.componente_amt === "TABS") result.tabs += amount;
     if (row.componente_amt === "ACC") result.acc += amount;
@@ -110,6 +122,9 @@ function aggregateMetrics(rows: MetricRow[]): MonthlyActuals {
   result.tabs = Math.round(result.tabs * 100) / 100;
   result.acc = Math.round(result.acc * 100) / 100;
   result.amt = monthlyAmt(result);
+  result.tradeInRate = result.hhpFpUnits > 0
+    ? Math.round((result.tradeInUnits / result.hhpFpUnits) * 10000) / 100
+    : null;
   result.scPlus = Math.round(result.scPlus * 100) / 100;
   result.laminas = Math.round(result.laminas * 100) / 100;
   // Attach rate: accesorios / equipos; Ecosistema: wearables / equipos.
@@ -176,7 +191,7 @@ async function loadCycleRows(supabase: SupabaseClient) {
   return supabase
     .from("cuotas_ciclos_comerciales")
     .select(
-      "id, fecha_inicio, fecha_fin, semanas, dias_comerciales, cuota_hhp_fp, cuota_hhp_mass, cuota_tabs, cuota_acc, cuota_amt, cuota_sc_plus, cuota_laminas, cuota_ar_pct, cuota_eco_pct, updated_at",
+      "id, fecha_inicio, fecha_fin, semanas, dias_comerciales, cuota_hhp_fp, cuota_hhp_mass, cuota_tabs, cuota_acc, cuota_amt, cuota_sc_plus, cuota_laminas, cuota_ar_pct, cuota_eco_pct, cuota_trade_in_unds, updated_at",
     )
     .order("fecha_inicio", { ascending: false })
     .limit(36);
@@ -231,7 +246,36 @@ function suggestedDailyTargets(
     laminas: daily(targets.laminas, actuals.laminas),
     arPct: targets.arPct,
     ecoPct: targets.ecoPct,
+    tradeInUnits: Math.ceil(Math.max(targets.tradeInUnits - actuals.tradeInUnits, 0) / daysRemaining),
   };
+}
+
+async function loadCycleMetrics(
+  supabase: SupabaseClient,
+  from: string,
+  to: string,
+): Promise<MetricRow[]> {
+  const metrics: MetricRow[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await supabase
+      .from("ventas_metricas_comerciales")
+      .select(
+        "fecha, venta_id, producto_id, promotor_id, cantidad, subtotal, grupo_reporte, componente_amt, es_sc_plus, es_lamina, es_hhp_tabs, es_acc_sin_wea, es_wea",
+      )
+      .gte("fecha", from)
+      .lte("fecha", to)
+      .order("fecha")
+      .order("venta_id")
+      .order("producto_id")
+      .range(offset, offset + 999);
+
+    if (error) {
+      throw new Error("No se pudo consultar el historial completo de ventas.");
+    }
+    metrics.push(...((data ?? []) as MetricRow[]));
+    if (!data || data.length < 1000) break;
+  }
+  return metrics;
 }
 
 async function loadCycleDetail(
@@ -249,13 +293,7 @@ async function loadCycleDetail(
       .from("cuotas_ciclo_personal")
       .select("persona_id, dias_planificados")
       .eq("ciclo_id", row.id),
-    supabase
-      .from("ventas_metricas_comerciales")
-      .select(
-        "promotor_id, cantidad, subtotal, componente_amt, es_sc_plus, es_lamina, es_hhp_tabs, es_acc_sin_wea, es_wea",
-      )
-      .gte("fecha", row.fecha_inicio)
-      .lte("fecha", row.fecha_fin),
+    loadCycleMetrics(supabase, row.fecha_inicio, row.fecha_fin),
   ]);
 
   const participants = (participantsResult.data ?? []).map((item) => ({
@@ -278,17 +316,23 @@ async function loadCycleDetail(
       laminas: targets.laminas,
       arPct: targets.arPct,
       ecoPct: targets.ecoPct,
+      tradeInUnits: targets.tradeInUnits,
     },
     participants,
   );
 
-  const metrics = (metricsResult.data ?? []) as MetricRow[];
+  if (participantsResult.error) {
+    throw new Error("No se pudieron consultar las cuotas o ventas del ciclo.");
+  }
+  const metrics = metricsResult;
+  const tradeInSaleIds = await loadTradeInSaleIds(supabase, metrics.map((metric) => metric.venta_id));
   const peopleMap = new Map(allPeople.map((person) => [person.id, person]));
 
   const sellers = participants.map((participant) => {
     const person = peopleMap.get(participant.id);
     const actuals = aggregateMetrics(
       metrics.filter((metric) => metric.promotor_id === participant.id),
+      tradeInSaleIds,
     );
 
     return {
@@ -311,12 +355,13 @@ async function loadCycleDetail(
           laminas: 0,
           arPct: targets.arPct,
           ecoPct: targets.ecoPct,
+          tradeInUnits: 0,
         },
       actuals,
     };
   });
 
-  const actuals = aggregateMetrics(metrics);
+  const actuals = aggregateMetrics(metrics, tradeInSaleIds);
   const status =
     today < row.fecha_inicio
       ? "proximo"
@@ -352,7 +397,7 @@ export async function loadMonthlyQuotaPage(
     return {
       schemaReady: false,
       schemaMessage:
-        "Cuota mensual requiere ejecutar sql/013_cuotas_ar_eco_pct_laminas_monto.sql.",
+        "Cuota mensual requiere ejecutar sql/015_trade_in_comisiones_metodos_pago.sql.",
       today,
       eligiblePeople: [],
       cycles: [],
@@ -413,7 +458,7 @@ export async function loadMonthlyTracking(
     return {
       schemaReady: false,
       schemaMessage:
-        "Seguimiento mensual requiere ejecutar sql/013_cuotas_ar_eco_pct_laminas_monto.sql.",
+        "Seguimiento mensual requiere ejecutar sql/015_trade_in_comisiones_metodos_pago.sql.",
       today,
       cycles: [],
       selectedCycle: null,

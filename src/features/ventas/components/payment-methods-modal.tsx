@@ -4,7 +4,6 @@ import { faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Modal } from "@/components/ui/modal";
 import type { PaymentMethodOption } from "@/features/ventas/domain/types";
 
 async function request(
@@ -28,14 +27,10 @@ async function request(
   return payload;
 }
 
-export function PaymentMethodsModal({
-  open,
+export function PaymentMethodsManager({
   methods,
-  onClose,
 }: {
-  open: boolean;
   methods: PaymentMethodOption[];
-  onClose: () => void;
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -79,13 +74,9 @@ export function PaymentMethodsModal({
   }
 
   return (
-    <Modal
-      open={open}
-      title="Métodos de pago"
-      description="Define qué opciones estarán disponibles al registrar una venta."
-      onClose={onClose}
-      maxWidthClassName="max-w-xl"
-    >
+    <section className="max-w-3xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 className="mb-1 text-base font-semibold text-slate-900">Métodos de pago disponibles</h2>
+      <p className="mb-5 text-sm text-slate-500">Puedes añadir, activar o retirar medios de pago; las transacciones anteriores se conservan.</p>
       <div className="space-y-4">
         {message ? (
           <div className="rounded-lg bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
@@ -167,6 +158,8 @@ export function PaymentMethodsModal({
                 <p className="mt-0.5 text-[10px] text-slate-400">
                   {method.active ? "Disponible en ventas" : "Oculto en ventas"}
                   {method.requiresReference ? " · referencia habilitada" : ""}
+                  {method.code === "trade_in" || /trade[\s_-]*in/i.test(method.name)
+                    ? " · Trade-in: indicador HHP FP en unidades" : ""}
                 </p>
               </div>
 
@@ -203,6 +196,6 @@ export function PaymentMethodsModal({
           de borrarlo para conservar el histórico.
         </p>
       </div>
-    </Modal>
+    </section>
   );
 }

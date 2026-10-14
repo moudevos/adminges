@@ -95,7 +95,7 @@ export async function removePaymentMethod(
 
   const { data: method, error: methodError } = await supabase
     .from("metodos_pago")
-    .select("codigo, is_system")
+    .select("codigo, is_system, es_trade_in")
     .eq("id", id)
     .maybeSingle();
 
@@ -108,7 +108,7 @@ export async function removePaymentMethod(
     .select("id", { count: "exact", head: true })
     .eq("metodo", method.codigo);
 
-  if (method.is_system || (count ?? 0) > 0) {
+  if (method.is_system || method.es_trade_in || (count ?? 0) > 0) {
     const { error } = await supabase
       .from("metodos_pago")
       .update({ is_active: false })

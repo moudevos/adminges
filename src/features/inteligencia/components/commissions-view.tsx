@@ -48,8 +48,8 @@ function CommissionTable({
       </table>
       {result.incomplete ? (
         <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
-          Resultado incompleto: Trade-in no tiene registro verificable y ECO puede carecer
-          de denominador. No se calcula la comisión final ni el pago individual.
+          Resultado incompleto: falta una cuota válida o el denominador de algún indicador.
+          No se calcula la comisión final ni el pago individual.
         </p>
       ) : null}
     </section>
@@ -71,13 +71,15 @@ export function CommissionsView({ data }: { data: CommercialIntelligence }) {
         <Unavailable data={data} />
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard label="Avance general AMT" value={pct(data.general.targets.amt > 0
               ? data.general.actual.amt / data.general.targets.amt * 100 : null)} />
             <MetricCard label="Ponderación conocida · actual" value={pct(data.commission.knownPoints)}
               caption="Parcial: no representa comisión liquidable" />
-            <MetricCard label="Ponderación conocida · simulación" value={pct(data.projectedCommission.knownPoints)}
-              caption="Cierre esperado, pendiente Trade-in" />
+            <MetricCard label="Ponderación · simulación" value={pct(data.projectedCommission.knownPoints)}
+              caption="Pronóstico de cierre · puede quedar incompleto" />
+            <MetricCard label="Trade-in HHP FP" value={data.commission.tradeIn.actualUnits + " / " + data.commission.tradeIn.targetUnits + " und."}
+              caption={"Penetración sobre HHP FP: " + pct(data.commission.tradeIn.penetrationPct)} />
           </div>
           <CommissionTable
             result={data.commission}
@@ -88,7 +90,7 @@ export function CommissionsView({ data }: { data: CommercialIntelligence }) {
             result={data.projectedCommission}
             title="Simulador automático · cierre estimado"
             description={"Aplica el modelo " + (data.model === "lineal" ? "lineal" : "plano") +
-              " a las ventas monetarias y mantiene ECO observado hasta contar con un modelo de ratios."}
+              " a importes y a unidades Trade-in; ECO permanece observado hasta contar con un modelo de ratios."}
           />
           <section className="overflow-x-auto rounded-xl border border-slate-200 bg-white p-5">
             <h2 className="mb-1 font-semibold text-slate-900">Personal activo · avance por caja</h2>
@@ -152,7 +154,7 @@ export function CommissionsView({ data }: { data: CommercialIntelligence }) {
             </div>
           </section>
           <p className="text-xs leading-5 text-slate-500">
-            «Monto de caja» toma S/ 650 como BASE REFERENCIAL del cuadro compartido
+            Trade-in: cuota en unidades HHP FP; se cuenta si la venta incluye el método de pago Trade-in, incluso en pagos mixtos. Penetración = HHP FP con Trade-in / todos los HHP FP vendidos. Cumplimiento de caja = unidades con Trade-in / cuota en unidades. «Monto de caja» toma S/ 650 como BASE REFERENCIAL del cuadro compartido
             (35%, 27%, 5%, 13%, 5%, 5%, 10%). No equivale a pago ganado.
             Fórmula de liquidación monetaria y registro de Trade-in pendientes de validación.
           </p>

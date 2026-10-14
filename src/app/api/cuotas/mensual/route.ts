@@ -14,6 +14,7 @@ const schema = z.object({
   laminas: z.number().min(0),
   arPct: z.number().min(0).max(100),
   ecoPct: z.number().min(0).max(100),
+  tradeInUnits: z.number().int().min(0),
   people: z
     .array(
       z.object({

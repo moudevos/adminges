@@ -68,6 +68,7 @@ export function distributeMonthlyTargets(
   const acc = allocateMoney(targets.acc, people);
   const scPlus = allocateMoney(targets.scPlus, people);
   const laminas = allocateMoney(targets.laminas, people);
+  const tradeIn = allocateInteger(targets.tradeInUnits, people);
 
   return Object.fromEntries(
     people.map((person) => {
@@ -95,6 +96,7 @@ export function distributeMonthlyTargets(
           laminas: laminas[person.id] ?? 0,
           arPct: targets.arPct,
           ecoPct: targets.ecoPct,
+          tradeInUnits: tradeIn[person.id] ?? 0,
         },
       ];
     }),
