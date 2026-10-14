@@ -30,6 +30,8 @@ type CycleRow = {
   cuota_amt: number | string;
   cuota_sc_plus: number | string;
   cuota_laminas: number | string;
+  cuota_ar_pct: number | string;
+  cuota_eco_pct: number | string;
   updated_at: string;
 };
 
@@ -66,8 +68,8 @@ function emptyActuals(): MonthlyActuals {
     hhpTabsUnits: 0,
     accNonWeaUnits: 0,
     weaUnits: 0,
-    ar: null,
-    eco: null,
+    arPct: null,
+    ecoPct: null,
   };
 }
 
@@ -80,6 +82,8 @@ function targetsFromRow(row: CycleRow): MonthlyQuotaTargets {
     amt: Number(row.cuota_amt),
     scPlus: Number(row.cuota_sc_plus),
     laminas: Number(row.cuota_laminas),
+    arPct: Number(row.cuota_ar_pct),
+    ecoPct: Number(row.cuota_eco_pct),
   };
 }
 
@@ -95,7 +99,7 @@ function aggregateMetrics(rows: MetricRow[]): MonthlyActuals {
     if (row.componente_amt === "TABS") result.tabs += amount;
     if (row.componente_amt === "ACC") result.acc += amount;
     if (row.es_sc_plus) result.scPlus += amount;
-    if (row.es_lamina) result.laminas += units;
+    if (row.es_lamina) result.laminas += amount;
     if (row.es_hhp_tabs) result.hhpTabsUnits += units;
     if (row.es_acc_sin_wea) result.accNonWeaUnits += units;
     if (row.es_wea) result.weaUnits += units;
@@ -107,13 +111,16 @@ function aggregateMetrics(rows: MetricRow[]): MonthlyActuals {
   result.acc = Math.round(result.acc * 100) / 100;
   result.amt = monthlyAmt(result);
   result.scPlus = Math.round(result.scPlus * 100) / 100;
-  result.ar =
+  result.laminas = Math.round(result.laminas * 100) / 100;
+  result.arPct =
     result.accNonWeaUnits > 0
-      ? Math.round((result.hhpTabsUnits / result.accNonWeaUnits) * 100) / 100
+      ? Math.round(
+          (result.hhpTabsUnits / result.accNonWeaUnits) * 10000,
+        ) / 100
       : null;
-  result.eco =
+  result.ecoPct =
     result.weaUnits > 0
-      ? Math.round((result.hhpTabsUnits / result.weaUnits) * 100) / 100
+      ? Math.round((result.hhpTabsUnits / result.weaUnits) * 10000) / 100
       : null;
 
   return result;
@@ -167,7 +174,7 @@ async function loadCycleRows(supabase: SupabaseClient) {
   return supabase
     .from("cuotas_ciclos_comerciales")
     .select(
-      "id, fecha_inicio, fecha_fin, semanas, dias_comerciales, cuota_hhp_fp, cuota_hhp_mass, cuota_tabs, cuota_acc, cuota_amt, cuota_sc_plus, cuota_laminas, updated_at",
+      "id, fecha_inicio, fecha_fin, semanas, dias_comerciales, cuota_hhp_fp, cuota_hhp_mass, cuota_tabs, cuota_acc, cuota_amt, cuota_sc_plus, cuota_laminas, cuota_ar_pct, cuota_eco_pct, updated_at",
     )
     .order("fecha_inicio", { ascending: false })
     .limit(36);
@@ -191,6 +198,40 @@ function summaryFromRow(
   };
 }
 
+function dateDiffInclusive(from: string, to: string) {
+  const start = Date.parse(from + "T00:00:00Z");
+  const end = Date.parse(to + "T00:00:00Z");
+  return Math.floor((end - start) / 86_400_000) + 1;
+}
+
+function suggestedDailyTargets(
+  targets: MonthlyQuotaTargets,
+  actuals: MonthlyActuals,
+  daysRemaining: number,
+): MonthlyQuotaTargets | null {
+  if (daysRemaining <= 0) return null;
+
+  const daily = (target: number, actual: number) =>
+    Math.round((Math.max(target - actual, 0) / daysRemaining) * 100) / 100;
+
+  const hhpFp = daily(targets.hhpFp, actuals.hhpFp);
+  const hhpMass = daily(targets.hhpMass, actuals.hhpMass);
+  const tabs = daily(targets.tabs, actuals.tabs);
+  const acc = daily(targets.acc, actuals.acc);
+
+  return {
+    hhpFp,
+    hhpMass,
+    tabs,
+    acc,
+    amt: monthlyAmt({ hhpFp, hhpMass, tabs, acc }),
+    scPlus: daily(targets.scPlus, actuals.scPlus),
+    laminas: daily(targets.laminas, actuals.laminas),
+    arPct: targets.arPct,
+    ecoPct: targets.ecoPct,
+  };
+}
+
 async function loadCycleDetail(
   supabase: SupabaseClient,
   row: CycleRow,
@@ -199,6 +240,7 @@ async function loadCycleDetail(
     name: string;
     role: string;
   }>,
+  today: string,
 ): Promise<MonthlyCycleDetail> {
   const [participantsResult, metricsResult] = await Promise.all([
     supabase
@@ -232,6 +274,8 @@ async function loadCycleDetail(
       acc: targets.acc,
       scPlus: targets.scPlus,
       laminas: targets.laminas,
+      arPct: targets.arPct,
+      ecoPct: targets.ecoPct,
     },
     participants,
   );
@@ -263,14 +307,32 @@ async function loadCycleDetail(
           amt: 0,
           scPlus: 0,
           laminas: 0,
+          arPct: targets.arPct,
+          ecoPct: targets.ecoPct,
         },
       actuals,
     };
   });
 
+  const actuals = aggregateMetrics(metrics);
+  const status =
+    today < row.fecha_inicio
+      ? "proximo"
+      : today > row.fecha_fin
+        ? "finalizado"
+        : "activo";
+  const daysRemaining =
+    status === "activo" ? dateDiffInclusive(today, row.fecha_fin) : 0;
+
   return {
-    ...summaryFromRow(row, totalPersonDays, aggregateMetrics(metrics)),
+    ...summaryFromRow(row, totalPersonDays, actuals),
     sellers,
+    status,
+    daysRemaining,
+    suggestedDaily:
+      status === "activo"
+        ? suggestedDailyTargets(targets, actuals, daysRemaining)
+        : null,
   };
 }
 
@@ -288,7 +350,7 @@ export async function loadMonthlyQuotaPage(
     return {
       schemaReady: false,
       schemaMessage:
-        "Cuota mensual requiere ejecutar sql/012_cuota_mensual_ciclo_comercial.sql.",
+        "Cuota mensual requiere ejecutar sql/013_cuotas_ar_eco_pct_laminas_monto.sql.",
       today,
       eligiblePeople: [],
       cycles: [],
@@ -323,7 +385,7 @@ export async function loadMonthlyQuotaPage(
     ? rows.find((row) => row.id === selectedCycleId)
     : undefined;
   const selectedCycle = selectedRow
-    ? await loadCycleDetail(supabase, selectedRow, people.allPeople)
+    ? await loadCycleDetail(supabase, selectedRow, people.allPeople, today)
     : null;
 
   return {
@@ -349,7 +411,7 @@ export async function loadMonthlyTracking(
     return {
       schemaReady: false,
       schemaMessage:
-        "Seguimiento mensual requiere ejecutar sql/012_cuota_mensual_ciclo_comercial.sql.",
+        "Seguimiento mensual requiere ejecutar sql/013_cuotas_ar_eco_pct_laminas_monto.sql.",
       today,
       cycles: [],
       selectedCycle: null,
@@ -391,7 +453,12 @@ export async function loadMonthlyTracking(
     today,
     cycles,
     selectedCycle: selectedRow
-      ? await loadCycleDetail(supabase, selectedRow, people.allPeople)
+      ? await loadCycleDetail(
+          supabase,
+          selectedRow,
+          people.allPeople,
+          today,
+        )
       : null,
   };
 }
