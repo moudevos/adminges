@@ -295,6 +295,7 @@ async function buildInsights(
 export async function loadCommercialIntelligence(
   cycleId?: string,
   model: ForecastModel = "plano",
+  includeProducts = false,
 ): Promise<CommercialIntelligence> {
   const tracking = await loadMonthlyTracking(cycleId);
   const common = {
@@ -358,9 +359,9 @@ export async function loadCommercialIntelligence(
       })
       .filter((seller) => seller.active);
 
-    const { products, opportunities } = await buildInsights(
-      supabase, lines, cycle, general,
-    );
+    const { products, opportunities } = includeProducts
+      ? await buildInsights(supabase, lines, cycle, general)
+      : { products: [], opportunities: [] };
 
     return {
       ...common, schemaReady: true, cycle, general, sellers,
