@@ -13,11 +13,16 @@ export function InventoryAnalysisView({
   const products = new Set(stock.map((item) => item.sku)).size;
   const totalUnits = stock.reduce((sum, item) => sum + item.stockActual, 0);
   const totalValue = stock.reduce((sum, item) => sum + item.valorStock, 0);
+  const belongsToStock = (warehouse: string | null, location: string | null) =>
+    warehouse?.trim().toUpperCase() === "KIOSKO MALL IQUITOS - KIO37" &&
+    location?.trim().toLowerCase() === "stock";
   const entrances = movements
-    .filter((movement) => movement.direccion === "entrada")
+    .filter((movement) =>
+      belongsToStock(movement.almacen_destino, movement.ubicacion_destino))
     .reduce((sum, movement) => sum + movement.cantidad, 0);
   const exits = movements
-    .filter((movement) => movement.direccion === "salida")
+    .filter((movement) =>
+      belongsToStock(movement.almacen_origen, movement.ubicacion_origen))
     .reduce((sum, movement) => sum + movement.cantidad, 0);
 
   const productTotals = new Map<
@@ -47,11 +52,12 @@ export function InventoryAnalysisView({
 
   return (
     <div className="space-y-4">
+      <p className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">Solo ubicación <strong>Stock · KIO37</strong>. Se excluyen otras ubicaciones. Las transferencias hacia Stock son entradas y desde Stock son salidas; el Kardex es histórico.</p>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric label="Productos" value={String(products)} />
         <Metric label="Unidades operativas" value={String(totalUnits)} />
-        <Metric label="Entradas Kardex" value={String(entrances)} />
-        <Metric label="Salidas Kardex" value={String(exits)} />
+        <Metric label="Entradas a Stock" value={String(entrances)} />
+        <Metric label="Salidas de Stock" value={String(exits)} />
       </div>
 
       <section className="grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
@@ -93,7 +99,7 @@ export function InventoryAnalysisView({
             {money(totalValue)}
           </p>
           <p className="mt-1 text-sm text-slate-500">
-            El Kardex conserva {movements.length} movimientos recientes.
+            El análisis considera {movements.length} movimientos históricos asociados a Stock.
           </p>
         </div>
       </section>
