@@ -1,4 +1,4 @@
-import { PeriodFilter, MetricCard, pen, pct, Unavailable } from "./period-filter";
+import { PeriodFilter, MetricCard, pen, penPrice, pct, Unavailable } from "./period-filter";
 import type { CommercialIntelligence } from "@/features/inteligencia/server/loaders";
 
 const GROUP_NAMES: Record<string, string> = {
@@ -56,7 +56,7 @@ export function CommercialSalesAnalysis({ data }: { data: CommercialIntelligence
                     <td className="p-3 text-right tabular-nums">{pen(entry.actual)}</td>
                     <td className="p-3 text-right tabular-nums">{pen(entry.shortfall)}</td>
                     <td className="p-3 text-right tabular-nums">{entry.meanSuggestedPrice !== null
-                      ? pen(entry.meanSuggestedPrice) : "Sin precio"}</td>
+                      ? penPrice(entry.meanSuggestedPrice) : "Sin precio"}</td>
                     <td className="p-3 text-right font-semibold tabular-nums">{entry.estimatedUnits ?? "—"}</td>
                     <td className="p-3 text-right tabular-nums">{entry.stockUnits}</td>
                   </tr>
@@ -90,7 +90,7 @@ export function CommercialSalesAnalysis({ data }: { data: CommercialIntelligence
                     <td className="p-3 text-right tabular-nums">{pen(product.amountSold)}</td>
                     <td className="p-3 text-right">{product.remainingStock}</td>
                     <td className="p-3 text-right">{product.referencePrice !== null
-                      ? pen(product.referencePrice) : "—"}</td>
+                      ? penPrice(product.referencePrice) : "—"}</td>
                   </tr>
                 ))}
               </tbody>
