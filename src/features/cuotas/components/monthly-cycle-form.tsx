@@ -103,7 +103,7 @@ export function MonthlyCycleForm({
       laminas: numeric(laminas),
       arPct: numeric(arPct),
       ecoPct: numeric(ecoPct),
-      tradeInUnits: Math.floor(numeric(tradeInUnits)),
+      tradeInUnits: numeric(tradeInUnits),
     };
   }, [hhpFp, hhpMass, tabs, acc, scPlus, laminas, arPct, ecoPct, tradeInUnits]);
 
@@ -168,6 +168,11 @@ export function MonthlyCycleForm({
 
     if (people.length === 0) {
       setMessage("No hay personal activo habilitado para vender.");
+      return;
+    }
+
+    if (!Number.isInteger(targets.tradeInUnits) || targets.tradeInUnits < 0) {
+      setMessage("Trade-in debe ser una cuota entera de unidades HHP FP.");
       return;
     }
 
