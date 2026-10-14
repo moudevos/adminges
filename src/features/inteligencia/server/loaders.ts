@@ -73,7 +73,7 @@ function calcEco(lines: CommercialLine[]) {
     (sum, line) => sum + (line.es_hhp_tabs ? line.cantidad : 0), 0);
   const wea = lines.reduce(
     (sum, line) => sum + (line.es_wea ? line.cantidad : 0), 0);
-  return wea > 0 ? (hhpTabs / wea) * 100 : null;
+  return hhpTabs > 0 ? (wea / hhpTabs) * 100 : null;
 }
 
 async function pagedMetrics(
