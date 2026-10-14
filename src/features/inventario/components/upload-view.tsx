@@ -8,7 +8,9 @@ import {
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
 import { type ChangeEvent, type DragEvent, useState } from "react";
 import { LoadingIndicator } from "@/components/ui/loading-indicator";
 import { Modal } from "@/components/ui/modal";
@@ -18,9 +20,24 @@ import type {
   SnapshotHistoryRow,
 } from "@/features/inventario/domain/types";
 
-type CountMode = "digital" | "manual";
-
 const acceptedExtensions = [".xlsx", ".xls", ".csv"];
+
+function todayInPeru() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Lima",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const part = (type: string) =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return [part("year"), part("month"), part("day")].join("-");
+}
+
+function friendlyDate(value: string) {
+  const [year, month, day] = value.split("-");
+  return [day, month, year].join("/");
+}
 
 function isAcceptedFile(file: File) {
   const lowerName = file.name.toLowerCase();
@@ -59,14 +76,12 @@ export function InventoryUploadView({
   history: SnapshotHistoryRow[];
 }) {
   const router = useRouter();
-  const [snapshotDate, setSnapshotDate] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [fileError, setFileError] = useState("");
   const [validationErrors, setValidationErrors] = useState<
     InventoryValidationError[]
   >([]);
-  const [countMode, setCountMode] = useState<CountMode>("digital");
   const [prepared, setPrepared] = useState<PreparedSnapshot | null>(null);
   const [processing, setProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState(
@@ -110,10 +125,18 @@ export function InventoryUploadView({
   async function prepareSnapshot() {
     if (!selectedFile) return;
 
-    if (!snapshotDate) {
-      setFileError("Selecciona la fecha del snapshot.");
-      return;
-    }
+    const noticeDate = todayInPeru();
+    const confirmation = await Swal.fire({
+      icon: "warning",
+      title: "Fecha del snapshot",
+      text: "El archivo se registrará automáticamente con fecha de hoy en Perú: " +
+        friendlyDate(noticeDate) + ". ¿Deseas continuar?",
+      showCancelButton: true,
+      confirmButtonText: "Sí, validar archivo",
+      cancelButtonText: "Cancelar",
+      reverseButtons: true,
+    });
+    if (!confirmation.isConfirmed) return;
 
     setProcessing(true);
     setProcessingMessage("Leyendo, validando y comparando snapshots...");
@@ -123,7 +146,6 @@ export function InventoryUploadView({
 
     const formData = new FormData();
     formData.set("file", selectedFile);
-    formData.set("snapshotDate", snapshotDate);
 
     try {
       const response = await fetch("/api/inventario/snapshots/prepare", {
@@ -214,17 +236,15 @@ export function InventoryUploadView({
             </p>
           </div>
 
-          <label className="w-full lg:w-48">
-            <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-              Fecha del snap
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 lg:min-w-48">
+            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-indigo-500">
+              Fecha automática (Perú)
             </span>
-            <input
-              type="date"
-              value={snapshotDate}
-              onChange={(event) => setSnapshotDate(event.target.value)}
-              className="control-input"
-            />
-          </label>
+            <p className="text-base font-semibold tabular-nums text-indigo-900">
+              {friendlyDate(todayInPeru())}
+            </p>
+            <p className="text-[10px] text-indigo-600">Se confirmará antes de subir.</p>
+          </div>
         </div>
 
         <div
@@ -336,42 +356,28 @@ export function InventoryUploadView({
           </div>
         ) : null}
 
-        <div className="mt-5 grid gap-2 md:grid-cols-3">
-          <button
-            type="button"
-            onClick={() => setCountMode("digital")}
-            className={
-              "min-h-11 rounded-xl border px-4 text-sm font-semibold transition " +
-              (countMode === "digital"
-                ? "border-indigo-600 bg-indigo-600 text-white shadow-sm shadow-indigo-200"
-                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
-            }
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <Link
+            href="/inventario/manual"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           >
-            Generar conteo digital
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setCountMode("manual")}
-            className={
-              "min-h-11 rounded-xl border px-4 text-sm font-semibold transition " +
-              (countMode === "manual"
-                ? "border-indigo-600 bg-indigo-600 text-white shadow-sm shadow-indigo-200"
-                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
-            }
-          >
-            Generar conteo manual
-          </button>
-
+            Generar inventario manual · A4
+          </Link>
           <button
             type="button"
             disabled={!selectedFile || processing}
             onClick={prepareSnapshot}
             className="min-h-11 rounded-xl border border-indigo-600 bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
           >
-            Actualizar datos
+            Validar y subir snapshot
           </button>
         </div>
+        <p className="mt-2 text-xs text-slate-500">
+          El conteo manual se abre en otra pestaña con HHP, TAB, ACC y LÁMINAS
+          en una hoja A4 horizontal.
+        </p>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
@@ -451,6 +457,12 @@ export function InventoryUploadView({
       >
         {prepared ? (
           <div className="space-y-5">
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-900">
+              <strong>Fecha asignada al snapshot:</strong>{" "}
+              {friendlyDate(prepared.snapshotDate)} (hora de Perú).
+              Al confirmar se aplicará con esta fecha.
+            </div>
+
             {prepared.warningLargeDifference ? (
               <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                 <FontAwesomeIcon

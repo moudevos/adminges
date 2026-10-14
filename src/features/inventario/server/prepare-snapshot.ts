@@ -25,11 +25,16 @@ function safeFileName(value: string) {
     .slice(0, 180);
 }
 
-function validDate(value: string) {
-  return (
-    /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-    !Number.isNaN(Date.parse(value + "T00:00:00Z"))
-  );
+function snapshotDateInPeru() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Lima",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const part = (type: string) =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return [part("year"), part("month"), part("day")].join("-");
 }
 
 async function fetchCurrentRows(
@@ -164,18 +169,12 @@ export async function prepareInventorySnapshot(request: Request) {
 
   const formData = await request.formData();
   const fileValue = formData.get("file");
-  const snapshotDate = String(formData.get("snapshotDate") ?? "");
+  // La fecha es siempre la del servidor en Perú, nunca del archivo/cliente.
+  const snapshotDate = snapshotDateInPeru();
 
   if (!(fileValue instanceof File)) {
     return NextResponse.json(
       { message: "Adjunta un archivo de inventario." },
-      { status: 400 },
-    );
-  }
-
-  if (!validDate(snapshotDate)) {
-    return NextResponse.json(
-      { message: "Selecciona una fecha válida para el snapshot." },
       { status: 400 },
     );
   }
