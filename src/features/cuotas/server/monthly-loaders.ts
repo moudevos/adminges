@@ -112,15 +112,17 @@ function aggregateMetrics(rows: MetricRow[]): MonthlyActuals {
   result.amt = monthlyAmt(result);
   result.scPlus = Math.round(result.scPlus * 100) / 100;
   result.laminas = Math.round(result.laminas * 100) / 100;
+  // Attach rate: accesorios / equipos; Ecosistema: wearables / equipos.
+  // No invertir el denominador: las metas AR/ECO son porcentajes de penetración.
   result.arPct =
-    result.accNonWeaUnits > 0
+    result.hhpTabsUnits > 0
       ? Math.round(
-          (result.hhpTabsUnits / result.accNonWeaUnits) * 10000,
+          (result.accNonWeaUnits / result.hhpTabsUnits) * 10000,
         ) / 100
       : null;
   result.ecoPct =
-    result.weaUnits > 0
-      ? Math.round((result.hhpTabsUnits / result.weaUnits) * 10000) / 100
+    result.hhpTabsUnits > 0
+      ? Math.round((result.weaUnits / result.hhpTabsUnits) * 10000) / 100
       : null;
 
   return result;
