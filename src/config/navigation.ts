@@ -32,7 +32,7 @@ export type NavigationState = {
   viewLabel?: string;
 };
 
-export const DEFAULT_APP_HREF = "/inventario/stock";
+export const DEFAULT_APP_HREF = "/inicio";
 
 export const SHELL_NAVIGATION: NavigationSection[] = [
   {
@@ -133,6 +133,13 @@ function normalizedPath(pathname: string) {
 
 export function resolveNavigationState(pathname: string): NavigationState {
   const currentPath = normalizedPath(pathname);
+
+  if (currentPath === DEFAULT_APP_HREF) {
+    return {
+      activeModule: "inicio",
+      moduleLabel: "Dashboard",
+    };
+  }
 
   for (const section of SHELL_NAVIGATION) {
     for (const item of section.items) {
