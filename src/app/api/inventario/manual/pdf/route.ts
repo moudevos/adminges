@@ -62,7 +62,10 @@ export async function GET(request: Request) {
       orientation as ManualPdfOrientation,
     );
 
-    return new Response(pdf.bytes, {
+    const buffer = new ArrayBuffer(pdf.bytes.byteLength);
+    new Uint8Array(buffer).set(pdf.bytes);
+
+    return new Response(buffer, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
