@@ -6,12 +6,12 @@ const itemSchema = z.object({
   producto_id: z.string().uuid(),
   serial: z.string().trim().max(120).nullable().optional(),
   cantidad: z.number().int().positive(),
-  precio_unitario: z.number().min(0),
+  precio_unitario: z.number().finite().min(0),
 });
 
 const paymentSchema = z.object({
-  metodo: z.enum(["efectivo", "tarjeta", "yape", "plin", "transferencia"]),
-  monto: z.number().positive(),
+  metodo: z.string().trim().min(1).max(80),
+  monto: z.number().finite().positive(),
   referencia: z.string().trim().max(120).nullable().optional(),
 });
 
@@ -19,7 +19,7 @@ const schema = z.object({
   journeyId: z.string().uuid(),
   personId: z.string().uuid(),
   items: z.array(itemSchema).min(1),
-  payments: z.array(paymentSchema).min(1),
+  payments: z.array(paymentSchema),
   observation: z.string().trim().max(500).optional(),
 });
 
