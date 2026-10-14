@@ -80,3 +80,8 @@ export const pct = (value: number | null) =>
     ? "—" : value.toLocaleString("es-PE", {
       minimumFractionDigits: 1, maximumFractionDigits: 1,
     }) + "%";
+
+export const penPrice = (value: number) => new Intl.NumberFormat("es-PE", {
+  style: "currency", currency: "PEN",
+  minimumFractionDigits: 2, maximumFractionDigits: 2,
+}).format(value);
