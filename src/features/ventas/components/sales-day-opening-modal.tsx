@@ -173,7 +173,7 @@ export function SalesDayOpeningModal({
     <Modal
       open={open}
       title="Apertura del día"
-      description="Define cuotas, equipo disponible, participación en ventas y hora programada."
+      description="Define cuotas y personal disponible. Al abrir el día, todo el equipo seleccionado inicia automáticamente su jornada."
       onClose={onClose}
       maxWidthClassName="max-w-4xl"
     >
@@ -347,7 +347,7 @@ export function SalesDayOpeningModal({
                     <div className="mt-3 grid gap-2 border-t border-indigo-100 pt-3 sm:grid-cols-2">
                       <label>
                         <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">
-                          Hora ingreso
+                          Hora programada
                         </span>
                         <select
                           value={selection.scheduledTime}

@@ -1,6 +1,6 @@
 "use client";
 
-import { faCalendarDay } from "@fortawesome/free-solid-svg-icons";
+import { faHouse } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import {
@@ -57,17 +57,21 @@ export function ShellSidebar({
       >
         <div className="mb-5">
           <ShellLink
-            href="/ventas/dia"
-            title="Día de venta"
+            href={DEFAULT_APP_HREF}
+            title="Dashboard"
+            aria-current={activeModule === "inicio" ? "page" : undefined}
             className={
-              "flex h-10 items-center rounded-[9px] bg-slate-900 text-white transition hover:bg-slate-800 " +
+              "flex h-10 items-center rounded-[9px] transition " +
+              (activeModule === "inicio"
+                ? "bg-slate-900 text-white hover:bg-slate-800 "
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200 ") +
               (collapsed ? "justify-center px-0" : "gap-3 px-3")
             }
           >
-            <FontAwesomeIcon icon={faCalendarDay} className="w-4 shrink-0 text-xs" />
+            <FontAwesomeIcon icon={faHouse} className="w-4 shrink-0 text-xs" />
             {!collapsed ? (
               <span className="whitespace-nowrap text-sm font-semibold">
-                Día de venta
+                Dashboard
               </span>
             ) : null}
           </ShellLink>
