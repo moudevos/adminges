@@ -52,6 +52,8 @@ export async function saveMonthlyCommercialCycle(input: {
   acc: number;
   scPlus: number;
   laminas: number;
+  arPct: number;
+  ecoPct: number;
   people: Array<{ personId: string; days: number }>;
 }): Promise<MonthlyQuotaMutationResult> {
   const supabase = await createClient();
@@ -73,6 +75,8 @@ export async function saveMonthlyCommercialCycle(input: {
       p_cuota_acc: input.acc,
       p_cuota_sc_plus: input.scPlus,
       p_cuota_laminas: input.laminas,
+      p_cuota_ar_pct: input.arPct,
+      p_cuota_eco_pct: input.ecoPct,
       p_personal: input.people.map((person) => ({
         persona_id: person.personId,
         dias: person.days,
