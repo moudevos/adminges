@@ -229,7 +229,7 @@ function suggestedDailyTargets(
   if (daysRemaining <= 0) return null;
 
   const daily = (target: number, actual: number) =>
-    Math.round((Math.max(target - actual, 0) / daysRemaining) * 100) / 100;
+    Math.ceil(Math.max(Math.round(target * 100) - Math.round(actual * 100), 0) / daysRemaining) / 100;
 
   const hhpFp = daily(targets.hhpFp, actuals.hhpFp);
   const hhpMass = daily(targets.hhpMass, actuals.hhpMass);
@@ -288,12 +288,16 @@ async function loadCycleDetail(
   }>,
   today: string,
 ): Promise<MonthlyCycleDetail> {
-  const [participantsResult, metricsResult] = await Promise.all([
+  const [participantsResult, metricsResult, currentDayResult] = await Promise.all([
     supabase
       .from("cuotas_ciclo_personal")
       .select("persona_id, dias_planificados")
       .eq("ciclo_id", row.id),
     loadCycleMetrics(supabase, row.fecha_inicio, row.fecha_fin),
+    supabase.from("jornadas_venta")
+      .select("estado")
+      .eq("fecha", today)
+      .maybeSingle(),
   ]);
 
   const participants = (participantsResult.data ?? []).map((item) => ({
@@ -321,8 +325,8 @@ async function loadCycleDetail(
     participants,
   );
 
-  if (participantsResult.error) {
-    throw new Error("No se pudieron consultar las cuotas o ventas del ciclo.");
+  if (participantsResult.error || currentDayResult.error) {
+    throw new Error("No se pudieron consultar las cuotas o la jornada actual.");
   }
   const metrics = metricsResult;
   const tradeInSaleIds = await loadTradeInSaleIds(supabase, metrics.map((metric) => metric.venta_id));
@@ -368,14 +372,20 @@ async function loadCycleDetail(
       : today > row.fecha_fin
         ? "finalizado"
         : "activo";
+  // Cuando la jornada de hoy ya cerró, mañana es el primer día útil
+  // para proponer cuota. No dividir el saldo por un día ya concluido.
+  const todayClosed = currentDayResult.data?.estado === "cerrada";
   const daysRemaining =
-    status === "activo" ? dateDiffInclusive(today, row.fecha_fin) : 0;
+    status === "activo"
+      ? Math.max(0, dateDiffInclusive(today, row.fecha_fin) - (todayClosed ? 1 : 0))
+      : 0;
 
   return {
     ...summaryFromRow(row, totalPersonDays, actuals),
     sellers,
     status,
     daysRemaining,
+    todayClosed,
     suggestedDaily:
       status === "activo"
         ? suggestedDailyTargets(targets, actuals, daysRemaining)
