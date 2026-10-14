@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type {
   SalesClosureBreakage,
   SalesClosureGroup,
@@ -100,7 +101,7 @@ export function SalesDayReportTableHeader() {
 export function SalesDayReportComments({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section className="overflow-hidden border border-[#c7d2e1] bg-white">
