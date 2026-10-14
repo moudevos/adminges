@@ -18,6 +18,7 @@ Orden actual:
 011_cuota_diaria_tienda.sql
 012_cuota_mensual_ciclo_comercial.sql
 013_cuotas_ar_eco_pct_laminas_monto.sql
+014_inicio_automatico_equipo_jornada.sql
 ```
 
 ## 001
@@ -168,3 +169,14 @@ Corrige la unidad y las metas comerciales:
 - AR/ECO no se prorratean por días: cada vendedor recibe el mismo porcentaje objetivo del ciclo
 - el cierre diario calcula venta de Láminas por subtotal vendido
 - las firmas RPC de apertura, cuota diaria y cuota mensual se actualizan para aceptar valores monetarios de Láminas
+
+## 014
+
+Inicia automaticamente a todo el equipo disponible al abrir/configurar
+una jornada. El inicio se registra en la misma transaccion que la apertura
+y se habilita la venta sin tener que iniciar turnos individuales.
+La hora programada se conserva como dato de planificacion.
+Regulariza jornadas que ya estuvieran abiertas y configuradas;
+las jornadas cerradas no se modifican.
+Se retiran los controles y el acceso RPC de inicio/fin individual.
+El cierre de jornada sigue finalizando a todo el equipo.
