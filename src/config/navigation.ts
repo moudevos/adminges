@@ -5,6 +5,8 @@ import {
   faPeopleGroup,
   faReceipt,
   faWrench,
+  faChartLine,
+  faCoins,
 } from "@fortawesome/free-solid-svg-icons";
 
 export type NavigationChild = {
@@ -73,6 +75,14 @@ export const SHELL_NAVIGATION: NavigationSection[] = [
         ],
       },
       {
+        key: "prediccion",
+        label: "Predicción",
+        icon: faChartLine,
+        children: [
+          { key: "general", label: "Proyección comercial", href: "/prediccion" },
+        ],
+      },
+      {
         key: "cuotas",
         label: "Cuotas",
         icon: faBullseye,
@@ -96,6 +106,14 @@ export const SHELL_NAVIGATION: NavigationSection[] = [
   {
     label: "Gestión",
     items: [
+      {
+        key: "comisiones",
+        label: "Comisiones",
+        icon: faCoins,
+        children: [
+          { key: "general", label: "Cuadro y simulador", href: "/comisiones" },
+        ],
+      },
       {
         key: "personal",
         label: "Personal",
