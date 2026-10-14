@@ -7,6 +7,7 @@ import {
   faWrench,
   faChartLine,
   faCoins,
+  faGear,
 } from "@fortawesome/free-solid-svg-icons";
 
 export type NavigationChild = {
@@ -106,6 +107,14 @@ export const SHELL_NAVIGATION: NavigationSection[] = [
   {
     label: "Gestión",
     items: [
+      {
+        key: "configuraciones",
+        label: "Configuraciones",
+        icon: faGear,
+        children: [
+          { key: "pagos", label: "Métodos de pago", href: "/configuraciones/pagos" },
+        ],
+      },
       {
         key: "comisiones",
         label: "Comisiones",
