@@ -5,6 +5,7 @@ import type {
   SalePaymentInput,
 } from "@/features/ventas/domain/types";
 import { createClient } from "@/lib/supabase/server";
+import { classifySalesProduct } from "@/features/ventas/domain/product-classification";
 
 export type SalesMutationResult =
   | { ok: true; id?: string }
@@ -42,6 +43,10 @@ function friendlyError(message: string) {
     ["PAYMENT_TOTAL_MISMATCH", "Los pagos deben sumar exactamente el total de la venta."],
     ["INVALID_PAYMENT_METHOD", "Uno de los métodos de pago no es válido."],
     ["INVALID_PAYMENT_AMOUNT", "Uno de los montos de pago no es válido."],
+    ["INVALID_PAYMENT_DATA", "La lista de pagos no tiene un formato válido."],
+    ["INVALID_PRICE", "Revisa los precios de los productos."],
+    ["ZERO_PRICE_RESTRICTED", "Solo accesorios (ACC) y wearables (WEA) pueden tener precio S/ 0.00."],
+    ["FREE_SALE_NO_PAYMENT", "Una entrega gratuita no debe incluir medios de pago."],
     ["SALE_NOT_FOUND", "La venta no existe."],
     ["SALE_ALREADY_REVERSED", "La venta ya fue anulada."],
     ["SALE_NOT_REVERSIBLE", "La venta no se puede anular en su estado actual."],
@@ -115,6 +120,49 @@ export async function registerSale(input: {
 }): Promise<SalesMutationResult> {
   const supabase = await authenticatedClient();
   if (!supabase) return { ok: false, message: "La sesión expiró." };
+
+  const zeroPriceIds = [...new Set(
+    input.items
+      .filter((item) => item.precio_unitario === 0)
+      .map((item) => item.producto_id),
+  )];
+
+  // Validación adicional en servidor: no aceptar el grupo indicado por el
+  // cliente. El RPC SQL vuelve a verificar antes de descontar inventario.
+  if (zeroPriceIds.length > 0) {
+    const { data: products, error: productError } = await supabase
+      .from("productos")
+      .select("id, sku, nombre, categoria, categoria_principal, categoria_venta, familia, variante")
+      .in("id", zeroPriceIds)
+      .eq("is_active", true);
+
+    if (productError || !products || products.length !== zeroPriceIds.length) {
+      return { ok: false, message: "No se pudieron validar los productos de regalo." };
+    }
+
+    const invalid = products.some((product) => {
+      const category = classifySalesProduct(product);
+      return category !== "ACCESORIOS" && category !== "WEA";
+    });
+
+    if (invalid) {
+      return {
+        ok: false,
+        message: "Solo accesorios (ACC) y wearables (WEA) pueden tener precio S/ 0.00.",
+      };
+    }
+  }
+
+  const totalCents = input.items.reduce(
+    (sum, item) => sum + item.cantidad * Math.round(item.precio_unitario * 100),
+    0,
+  );
+  if (totalCents === 0 && input.payments.length > 0) {
+    return { ok: false, message: "Una entrega gratuita no debe incluir medios de pago." };
+  }
+  if (totalCents > 0 && input.payments.length === 0) {
+    return { ok: false, message: "Agrega un medio de pago para la venta." };
+  }
 
   const { data, error } = await supabase.rpc("register_sale", {
     p_jornada_id: input.journeyId,
