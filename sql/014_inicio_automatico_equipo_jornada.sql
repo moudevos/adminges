@@ -45,6 +45,10 @@ begin
 end;
 $function$;
 
+-- La funcion de trigger no se expone a acceso anonimo.
+revoke all on function public.activate_sales_day_team() from public;
+grant execute on function public.activate_sales_day_team() to authenticated;
+
 drop trigger if exists jornadas_venta_activate_team
   on public.jornadas_venta;
 
