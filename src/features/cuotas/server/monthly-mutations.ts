@@ -16,6 +16,7 @@ function friendlyError(message: string) {
       "INVALID_COMMERCIAL_CYCLE",
       "Selecciona una fecha válida y un ciclo de 4 o 5 semanas.",
     ],
+    ["INVALID_TRADE_IN_TARGET", "La cuota Trade-in debe ser un entero no negativo."],
     ["INVALID_MONTHLY_TARGETS", "Revisa los valores de la cuota mensual."],
     [
       "MONTHLY_TEAM_REQUIRED",
@@ -54,6 +55,7 @@ export async function saveMonthlyCommercialCycle(input: {
   laminas: number;
   arPct: number;
   ecoPct: number;
+  tradeInUnits: number;
   people: Array<{ personId: string; days: number }>;
 }): Promise<MonthlyQuotaMutationResult> {
   const supabase = await createClient();
@@ -64,7 +66,7 @@ export async function saveMonthlyCommercialCycle(input: {
   }
 
   const { data, error } = await supabase.rpc(
-    "save_monthly_commercial_cycle",
+    "save_monthly_commercial_cycle_with_trade_in",
     {
       p_ciclo_id: input.cycleId ?? null,
       p_fecha_inicio: input.startDate,
@@ -77,6 +79,7 @@ export async function saveMonthlyCommercialCycle(input: {
       p_cuota_laminas: input.laminas,
       p_cuota_ar_pct: input.arPct,
       p_cuota_eco_pct: input.ecoPct,
+      p_cuota_trade_in_unds: input.tradeInUnits,
       p_personal: input.people.map((person) => ({
         persona_id: person.personId,
         dias: person.days,
