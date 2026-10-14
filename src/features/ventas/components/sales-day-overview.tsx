@@ -1,15 +1,12 @@
 "use client";
 
 import {
-  faBolt,
   faClock,
   faCoins,
   faLayerGroup,
-  faPlay,
   faReceipt,
   faShieldHalved,
   faSquarePlus,
-  faStop,
   faTrophy,
   faUsers,
 } from "@fortawesome/free-solid-svg-icons";
@@ -56,13 +53,11 @@ export function SalesDayOverview({
   data,
   allowOperations = false,
   busy = false,
-  onToggleShift,
   onRegisterSale,
 }: {
   data: SalesDayData;
   allowOperations?: boolean;
   busy?: boolean;
-  onToggleShift?: (person: SalesStaffMember) => void;
   onRegisterSale?: (person: SalesStaffMember) => void;
 }) {
   if (!data.journey?.configured) {
@@ -178,7 +173,7 @@ export function SalesDayOverview({
                         "absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-white " +
                         (person.onShift ? "bg-emerald-500" : "bg-slate-300")
                       }
-                      title={person.onShift ? "En turno" : "Fuera de turno"}
+                      title={person.onShift ? "Jornada iniciada" : "Jornada finalizada"}
                     />
                   </div>
 
@@ -209,8 +204,7 @@ export function SalesDayOverview({
                     {person.scheduledTime ?? "—"}
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <FontAwesomeIcon icon={faBolt} className="text-[9px]" />
-                    {person.onShift ? "En turno" : "Fuera de turno"}
+                    {person.onShift ? "Jornada iniciada" : data.journey?.status === "cerrada" ? "Jornada cerrada" : "Pendiente"}
                   </span>
                 </div>
 
@@ -255,35 +249,19 @@ export function SalesDayOverview({
                 )}
 
                 {allowOperations ? (
-                  <div className="mt-auto grid grid-cols-2 gap-2 pt-4">
-                    <button
-                      type="button"
-                      disabled={
-                        data.journey?.status !== "abierta" ||
-                        !person.active ||
-                        person.employmentState !== "activo" ||
-                        busy
-                      }
-                      onClick={() => onToggleShift?.(person)}
-                      className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98] disabled:opacity-40"
-                    >
-                      <FontAwesomeIcon
-                        icon={person.onShift ? faStop : faPlay}
-                        className="text-[10px]"
-                      />
-                      {person.onShift ? "Finalizar turno" : "Iniciar turno"}
-                    </button>
-
+                  <div className="mt-auto pt-4">
                     <button
                       type="button"
                       disabled={
                         data.journey?.status !== "abierta" ||
                         !person.sellsToday ||
+                        !person.active ||
+                        person.employmentState !== "activo" ||
                         !person.onShift ||
                         busy
                       }
                       onClick={() => onRegisterSale?.(person)}
-                      className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white transition hover:bg-slate-800 active:scale-[0.98] disabled:bg-slate-100 disabled:text-slate-400"
+                      className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white transition hover:bg-slate-800 active:scale-[0.98] disabled:bg-slate-100 disabled:text-slate-400"
                     >
                       <FontAwesomeIcon
                         icon={faSquarePlus}
