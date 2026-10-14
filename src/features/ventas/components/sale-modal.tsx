@@ -40,6 +40,7 @@ type DraftItem = {
   price: string;
   basePrice: number;
   lastSalePrice: number | null;
+  giftEligible: boolean;
 };
 
 type DraftPayment = {
@@ -155,8 +156,16 @@ export function SaleModal({
   );
   const remainingCents = totalCents - paidCents;
   const coverage =
-    totalCents > 0 ? Math.max(0, Math.min((paidCents / totalCents) * 100, 100)) : 0;
-  const balanced = totalCents > 0 && remainingCents === 0;
+    totalCents > 0 ? Math.max(0, Math.min((paidCents / totalCents) * 100, 100)) : items.length > 0 ? 100 : 0;
+  const hasInvalidPrices = items.some((item) => {
+    const raw = item.price.trim();
+    const price = Number(raw);
+    return !raw || !Number.isFinite(price) || price < 0 ||
+      (price === 0 && !item.giftEligible) ||
+      (price > 0 && cents(price) <= 0);
+  });
+  const balanced = items.length > 0 && !hasInvalidPrices &&
+    remainingCents === 0 && (totalCents > 0 || payments.length === 0);
   const over = remainingCents < 0;
   const unitCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -206,6 +215,7 @@ export function SaleModal({
           price: serialProduct.price.toFixed(2),
           basePrice: serialProduct.basePrice,
           lastSalePrice: serialProduct.lastSalePrice,
+          giftEligible: ["ACCESORIOS", "WEA"].includes(serialProduct.reportGroup),
         },
       ]);
       setSearch("");
@@ -236,6 +246,7 @@ export function SaleModal({
           price: product.price.toFixed(2),
           basePrice: product.basePrice,
           lastSalePrice: product.lastSalePrice,
+          giftEligible: ["ACCESORIOS", "WEA"].includes(product.reportGroup),
         },
       ]);
     } else {
@@ -270,6 +281,7 @@ export function SaleModal({
             price: product.price.toFixed(2),
           basePrice: product.basePrice,
           lastSalePrice: product.lastSalePrice,
+          giftEligible: ["ACCESORIOS", "WEA"].includes(product.reportGroup),
           },
         ]);
       }
@@ -341,8 +353,12 @@ export function SaleModal({
       setError("Selecciona la serie/IMEI de todos los productos serializados.");
       return;
     }
-    if (totalCents <= 0) {
-      setError("La venta debe tener un importe mayor a cero.");
+    if (hasInvalidPrices) {
+      setError("Solo ACC y WEA pueden registrarse a S/ 0.00. Revisa todos los precios.");
+      return;
+    }
+    if (totalCents === 0 && payments.length > 0) {
+      setError("Un registro gratuito no requiere medios de pago.");
       return;
     }
     if (remainingCents !== 0) {
@@ -556,6 +572,11 @@ export function SaleModal({
                           }
                           className="control-input h-9 w-full pl-7 text-right text-sm tabular-nums"
                         />
+                        {item.giftEligible && cents(item.price) === 0 && item.price.trim() !== "" ? (
+                          <p className="mt-1 text-right text-[10px] font-medium text-emerald-700">
+                            Regalo · sin cobro
+                          </p>
+                        ) : null}
                         {item.lastSalePrice !== null ? (
                           <p className="mt-1 text-right text-[9px] text-slate-400">
                             Última venta: {money(item.lastSalePrice)}
@@ -834,13 +855,21 @@ export function SaleModal({
               </div>
             ) : null}
 
+            {items.length > 0 && totalCents === 0 && !hasInvalidPrices ? (
+              <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                Entrega de regalos ACC / WEA: total S/ 0.00. Se registran las
+                unidades y se descuenta Stock, sin método de pago.
+              </p>
+            ) : null}
+
             <div className="space-y-2 pt-1">
               <button
                 type="button"
                 disabled={
                   saving ||
                   items.length === 0 ||
-                  totalCents <= 0 ||
+                  hasInvalidPrices ||
+                  (totalCents === 0 && payments.length > 0) ||
                   remainingCents !== 0
                 }
                 onClick={saveSale}
