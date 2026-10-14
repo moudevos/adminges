@@ -1,9 +1,7 @@
-import { ManualInventorySheet } from "@/features/inventario/components/manual-inventory-sheet";
-import { loadManualInventory } from "@/features/inventario/server/manual-inventory";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default async function ManualInventoryPage() {
-  const data = await loadManualInventory();
-  return <ManualInventorySheet data={data} />;
+// Compatibilidad con enlaces anteriores: el conteo ahora usa PDF con
+// selector de almacén y orientación dentro de Inventario > Cargar.
+export default function ManualInventoryPage() {
+  redirect("/inventario/cargar?conteo=manual");
 }
