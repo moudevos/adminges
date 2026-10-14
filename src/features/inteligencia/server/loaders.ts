@@ -12,6 +12,7 @@ import {
 } from "@/features/inteligencia/domain/projection";
 import { MAIN_WAREHOUSE } from "@/features/inventario/domain/types";
 import { createClient } from "@/lib/supabase/server";
+import { classifySalesProduct, isScPlusProduct } from "@/features/ventas/domain/product-classification";
 
 export type SellerProjection = {
   id: string;
@@ -111,6 +112,11 @@ type StockRow = {
   nombre: string;
   precio: number | string | null;
   stock_actual: number | string;
+  categoria: string | null;
+  categoria_principal: string | null;
+  categoria_venta: string | null;
+  familia: string | null;
+  variante: string | null;
 };
 
 async function pagedStock(
@@ -121,7 +127,7 @@ async function pagedStock(
   for (let offset = 0; ; offset += pageSize) {
     const { data, error } = await supabase
       .from("inventario_stock")
-      .select("row_key, id, sku, nombre, precio, stock_actual")
+      .select("row_key, id, sku, nombre, precio, stock_actual, categoria, categoria_principal, categoria_venta, familia, variante")
       .eq("is_active", true)
       .eq("almacen", MAIN_WAREHOUSE)
       .ilike("ubicacion", "stock")
@@ -164,6 +170,27 @@ async function buildInsights(
   const stock = await pagedStock(supabase);
   const index = new Map<string, ProductInsight>();
   const groupFor = (line: CommercialLine) => line.componente_amt;
+  const classifyStock = (row: StockRow): string => {
+    const group = classifySalesProduct({
+      sku: row.sku,
+      name: row.nombre,
+      primaryCategory: row.categoria_principal ?? row.categoria,
+      saleCategory: row.categoria_venta,
+      family: row.familia,
+      variant: row.variante,
+    });
+    if (group === "HHP_SERIE_S" || group === "HHP_SERIE_Z") return "HHP_FP";
+    if (group === "HHP_SERIE_A") return "HHP_MASS";
+    if (group === "TABLETS") return "TABS";
+    if (group === "LAMINAS") return "LAMINAS";
+    if (isScPlusProduct({
+      name: row.nombre, primaryCategory: row.categoria_principal,
+      category: row.categoria, saleCategory: row.categoria_venta,
+      family: row.familia, variant: row.variante,
+    })) return "SC+";
+    if (group === "WEA" || group === "ACCESORIOS") return "ACC";
+    return "OTROS";
+  };
   const stockByProduct = new Map<string, StockRow & { totalStock: number }>();
 
   for (const item of stock) {
@@ -177,7 +204,7 @@ async function buildInsights(
   for (const item of stockByProduct.values()) {
     index.set(item.id, {
       id: item.id, sku: item.sku, name: item.nombre,
-      group: "OTROS", unitsSold: 0, amountSold: 0,
+      group: classifyStock(item), unitsSold: 0, amountSold: 0,
       remainingStock: item.totalStock,
       referencePrice: prices.get(item.id) ?? (Number(item.precio) > 0 ? Number(item.precio) : null),
     });
