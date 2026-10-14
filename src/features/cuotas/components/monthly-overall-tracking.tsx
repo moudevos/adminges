@@ -37,7 +37,7 @@ export function MonthlyOverallTracking({
                 Ritmo sugerido para completar el ciclo
               </p>
               <p className="mt-1 text-xs text-indigo-600">
-                Quedan {cycle.daysRemaining} {cycle.daysRemaining === 1 ? "día" : "días"}, contando hoy.
+                Quedan {cycle.daysRemaining} {cycle.daysRemaining === 1 ? "día" : "días"}, {cycle.todayClosed ? "desde mañana" : "contando hoy"}.
               </p>
             </div>
             <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-700">
