@@ -74,6 +74,9 @@ function emptyActuals(): MonthlyActuals {
     weaUnits: 0,
     arPct: null,
     ecoPct: null,
+    tradeInUnits: 0,
+    hhpFpUnits: 0,
+    tradeInRate: null,
   };
 }
 
@@ -243,7 +246,7 @@ function suggestedDailyTargets(
     laminas: daily(targets.laminas, actuals.laminas),
     arPct: targets.arPct,
     ecoPct: targets.ecoPct,
-    tradeInUnits: daily(targets.tradeInUnits, actuals.tradeInUnits),
+    tradeInUnits: Math.ceil(Math.max(targets.tradeInUnits - actuals.tradeInUnits, 0) / daysRemaining),
   };
 }
 
@@ -291,7 +294,7 @@ async function loadCycleDetail(
       laminas: targets.laminas,
       arPct: targets.arPct,
       ecoPct: targets.ecoPct,
-      tradeInUnits: 0,
+      tradeInUnits: targets.tradeInUnits,
     },
     participants,
   );
@@ -330,6 +333,7 @@ async function loadCycleDetail(
           laminas: 0,
           arPct: targets.arPct,
           ecoPct: targets.ecoPct,
+          tradeInUnits: 0,
         },
       actuals,
     };
@@ -371,7 +375,7 @@ export async function loadMonthlyQuotaPage(
     return {
       schemaReady: false,
       schemaMessage:
-        "Cuota mensual requiere ejecutar sql/013_cuotas_ar_eco_pct_laminas_monto.sql.",
+        "Cuota mensual requiere ejecutar sql/015_trade_in_comisiones_metodos_pago.sql.",
       today,
       eligiblePeople: [],
       cycles: [],
@@ -432,7 +436,7 @@ export async function loadMonthlyTracking(
     return {
       schemaReady: false,
       schemaMessage:
-        "Seguimiento mensual requiere ejecutar sql/013_cuotas_ar_eco_pct_laminas_monto.sql.",
+        "Seguimiento mensual requiere ejecutar sql/015_trade_in_comisiones_metodos_pago.sql.",
       today,
       cycles: [],
       selectedCycle: null,
