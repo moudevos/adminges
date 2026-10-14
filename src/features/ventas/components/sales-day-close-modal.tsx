@@ -2,50 +2,67 @@
 
 import { useState } from "react";
 import { Modal } from "@/components/ui/modal";
+import {
+  CLOSURE_REPORT_GROUPS,
+  CLOSURE_TABLE_CELL,
+  SalesDayReportComments,
+  SalesDayReportMetrics,
+  SalesDayReportTableHeader,
+} from "@/features/ventas/components/sales-day-report-content";
 import type {
   SalesClosureGroup,
   SalesClosureGroupUnits,
   SalesClosureReport,
+  SalesQuotas,
 } from "@/features/ventas/domain/types";
 
-const GROUPS: Array<{ key: SalesClosureGroup; label: string }> = [
-  { key: "HHP_SERIE_S", label: "HHP SERIE S" },
-  { key: "HHP_SERIE_A", label: "HHP SERIE A" },
-  { key: "HHP_SERIE_Z", label: "HHP SERIE Z" },
-  { key: "TABLETS", label: "TABLETS" },
-  { key: "WEA", label: "WEA" },
-  { key: "LAMINAS", label: "LÁMINAS" },
-];
+const EMPTY_BREAKAGES: Record<
+  SalesClosureGroup,
+  { breakage: boolean; detail: string }
+> = {
+  HHP_SERIE_S: { breakage: false, detail: "" },
+  HHP_SERIE_A: { breakage: false, detail: "" },
+  HHP_SERIE_Z: { breakage: false, detail: "" },
+  TABLETS: { breakage: false, detail: "" },
+  LAMINAS: { breakage: false, detail: "" },
+  WEA: { breakage: false, detail: "" },
+};
 
 export function SalesDayCloseModal({
   open,
   journeyId,
+  quotas,
+  sales,
   groupUnits,
   onClose,
   onClosed,
 }: {
   open: boolean;
   journeyId: string;
+  quotas: SalesQuotas;
+  sales: SalesQuotas;
   groupUnits: SalesClosureGroupUnits;
   onClose: () => void;
   onClosed: (report: SalesClosureReport) => void;
 }) {
-  const [breakages, setBreakages] = useState<
-    Record<SalesClosureGroup, { breakage: boolean; detail: string }>
-  >({
-    HHP_SERIE_S: { breakage: false, detail: "" },
-    HHP_SERIE_A: { breakage: false, detail: "" },
-    HHP_SERIE_Z: { breakage: false, detail: "" },
-    TABLETS: { breakage: false, detail: "" },
-    WEA: { breakage: false, detail: "" },
-    LAMINAS: { breakage: false, detail: "" },
-  });
+  const [breakages, setBreakages] = useState(EMPTY_BREAKAGES);
+  const [showWea, setShowWea] = useState(false);
   const [comments, setComments] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const includeWea =
+    groupUnits.WEA > 0 ||
+    showWea ||
+    breakages.WEA.breakage ||
+    Boolean(breakages.WEA.detail.trim());
+
+  const groups = CLOSURE_REPORT_GROUPS.filter(
+    ({ key }) => key !== "WEA" || includeWea,
+  );
+
   async function save() {
-    const invalid = GROUPS.find(
+    const invalid = CLOSURE_REPORT_GROUPS.find(
       ({ key }) => breakages[key].breakage && !breakages[key].detail.trim(),
     );
 
@@ -64,7 +81,8 @@ export function SalesDayCloseModal({
         body: JSON.stringify({
           journeyId,
           comments,
-          breakages: GROUPS.map(({ key }) => ({
+          // Conservar WEA en el contrato SQL aun cuando no tenga ventas.
+          breakages: CLOSURE_REPORT_GROUPS.map(({ key }) => ({
             group: key,
             breakage: breakages[key].breakage,
             detail: breakages[key].detail,
@@ -97,6 +115,7 @@ export function SalesDayCloseModal({
         throw new Error(payload.message ?? "No se pudo cerrar el día.");
       }
 
+      // El reporte devuelto por SQL es el snapshot definitivo, no la vista previa.
       onClosed({
         journeyId: payload.report.jornada_id,
         quotas: {
@@ -132,42 +151,39 @@ export function SalesDayCloseModal({
   return (
     <Modal
       open={open}
-      title="Feedback y Quiebres"
-      description="Revisa las unidades vendidas, registra quiebres y deja el feedback del día."
+      title="KIOSKO MALL IQUITOS"
+      variant="report"
       onClose={() => {
         if (!saving) onClose();
       }}
-      maxWidthClassName="max-w-4xl"
+      maxWidthClassName="max-w-5xl"
     >
       <div className="space-y-4">
         {error ? (
-          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-700">
+          <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-700">
             {error}
           </div>
         ) : null}
 
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead className="bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-3 text-left">Grupo</th>
-                <th className="px-4 py-3 text-center">Venta unid.</th>
-                <th className="px-4 py-3 text-center">Quiebre</th>
-                <th className="px-4 py-3 text-left">Detalle / Nº Color</th>
-              </tr>
-            </thead>
+        <SalesDayReportMetrics quotas={quotas} sales={sales} />
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px] table-fixed border-collapse bg-white" aria-label="Ventas y quiebres al cerrar">
+            <SalesDayReportTableHeader />
             <tbody>
-              {GROUPS.map(({ key, label }) => (
-                <tr key={key} className="border-t border-slate-100">
-                  <td className="px-4 py-3 font-medium text-slate-700">
+              {groups.map(({ key, label }) => (
+                <tr key={key}>
+                  <th scope="row" className={CLOSURE_TABLE_CELL + " text-left font-medium"}>
                     {label}
-                  </td>
-                  <td className="px-4 py-3 text-center font-semibold tabular-nums">
+                  </th>
+                  <td className={CLOSURE_TABLE_CELL + " text-center tabular-nums"}>
                     {groupUnits[key]}
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className={CLOSURE_TABLE_CELL + " p-1 text-center"}>
                     <select
+                      aria-label={"Quiebres " + label}
                       value={breakages[key].breakage ? "si" : "no"}
+                      disabled={saving}
                       onChange={(event) =>
                         setBreakages((current) => ({
                           ...current,
@@ -177,15 +193,18 @@ export function SalesDayCloseModal({
                           },
                         }))
                       }
-                      className="control-input mx-auto h-9 w-24 text-xs"
+                      className="w-full min-w-0 rounded bg-white px-2 py-1.5 text-center text-[13px] text-[#45546e] outline-offset-2 focus-visible:outline-2 focus-visible:outline-indigo-600"
                     >
                       <option value="no">NO</option>
                       <option value="si">SÍ</option>
                     </select>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className={CLOSURE_TABLE_CELL + " p-1"}>
                     <input
+                      aria-label={"Detalle *No Color " + label}
                       value={breakages[key].detail}
+                      disabled={saving}
+                      maxLength={300}
                       onChange={(event) =>
                         setBreakages((current) => ({
                           ...current,
@@ -195,12 +214,8 @@ export function SalesDayCloseModal({
                           },
                         }))
                       }
-                      placeholder={
-                        breakages[key].breakage
-                          ? "Detalle requerido"
-                          : "Detalle opcional"
-                      }
-                      className="control-input h-9 text-sm"
+                      placeholder={breakages[key].breakage ? "Detalle requerido" : ""}
+                      className="w-full min-w-0 rounded border border-transparent bg-transparent px-2 py-1.5 text-[13px] text-[#45546e] outline-none placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:ring-2 focus:ring-indigo-100 disabled:opacity-50"
                     />
                   </td>
                 </tr>
@@ -209,26 +224,41 @@ export function SalesDayCloseModal({
           </table>
         </div>
 
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Comentarios - sugerencias
-          </span>
+        {!includeWea ? (
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => setShowWea(true)}
+            className="-mt-2 text-xs font-medium text-indigo-700 underline-offset-2 hover:underline"
+          >
+            Añadir quiebre WEA
+          </button>
+        ) : null}
+
+        <SalesDayReportComments>
           <textarea
+            aria-label="Comentarios - sugerencias"
             value={comments}
             onChange={(event) => setComments(event.target.value)}
-            rows={5}
+            rows={3}
             maxLength={2000}
-            placeholder="Describe el feedback del día..."
-            className="control-input min-h-32 resize-none py-3 text-sm"
+            disabled={saving}
+            placeholder="Describe el movimiento del día y las sugerencias..."
+            className="block min-h-24 w-full resize-y bg-white px-3.5 py-3 text-[13px] leading-5 text-[#4a5675] outline-offset-[-3px] focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-50"
           />
-        </label>
+        </SalesDayReportComments>
 
-        <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+        <p className="text-[11px] text-slate-500">
+          Vista previa: al confirmar, el sistema recalcula las ventas y unidades
+          y guarda los resultados definitivos del día.
+        </p>
+
+        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">
           <button
             type="button"
             disabled={saving}
             onClick={onClose}
-            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-600"
+            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-600 disabled:opacity-50"
           >
             Cancelar
           </button>
@@ -236,9 +266,9 @@ export function SalesDayCloseModal({
             type="button"
             disabled={saving}
             onClick={save}
-            className="h-10 rounded-lg bg-indigo-600 px-5 text-sm font-semibold text-white disabled:opacity-50"
+            className="h-10 rounded-lg bg-[#203c87] px-5 text-sm font-semibold text-white transition hover:bg-[#172f70] disabled:opacity-50"
           >
-            {saving ? "Guardando..." : "Guardar y cerrar"}
+            {saving ? "Guardando..." : "Guardar y cerrar jornada"}
           </button>
         </div>
       </div>

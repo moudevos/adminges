@@ -333,6 +333,12 @@ export function SalesDayView({
           open={closeOpen}
           journeyId={data.journey.id}
           groupUnits={data.groupUnits}
+          quotas={data.journey.quotas}
+          sales={{
+            amt: data.teamProgress.amt.actual,
+            laminas: data.teamProgress.laminas.actual,
+            scPlus: data.teamProgress.scPlus.actual,
+          }}
           onClose={() => setCloseOpen(false)}
           onClosed={(report) => {
             setCloseOpen(false);

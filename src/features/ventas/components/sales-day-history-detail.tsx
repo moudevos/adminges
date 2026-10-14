@@ -153,16 +153,13 @@ export function SalesDayHistoryDetail({
       ) : null}
 
       {closed && data.closureReport ? (
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-4">
-            <h2 className="text-sm font-semibold text-slate-900">
-              Reporte de cierre
-            </h2>
-            <p className="mt-1 text-xs text-slate-400">
-              Snapshot guardado al cerrar el Día de venta.
-            </p>
+        <section className="overflow-hidden rounded-xl border border-[#c7d2e1] bg-white shadow-sm">
+          <h2 className="bg-[#203c87] px-4 py-3 text-lg font-bold text-white">
+            KIOSKO MALL IQUITOS
+          </h2>
+          <div className="p-4">
+            <SalesDayReportContent report={data.closureReport} />
           </div>
-          <SalesDayReportContent report={data.closureReport} />
         </section>
       ) : null}
 
@@ -173,6 +170,12 @@ export function SalesDayHistoryDetail({
           open={closeOpen}
           journeyId={data.journey.id}
           groupUnits={data.groupUnits}
+          quotas={data.journey.quotas}
+          sales={{
+            amt: data.teamProgress.amt.actual,
+            laminas: data.teamProgress.laminas.actual,
+            scPlus: data.teamProgress.scPlus.actual,
+          }}
           onClose={() => setCloseOpen(false)}
           onClosed={() => {
             setCloseOpen(false);

@@ -17,7 +17,7 @@ export function SalesDayReportModal({
     <Modal
       open={open && Boolean(report)}
       title="KIOSKO MALL IQUITOS"
-      description="Reporte de cierre del Día de venta"
+      variant="report"
       onClose={onClose}
       maxWidthClassName="max-w-5xl"
     >
