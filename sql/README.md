@@ -17,6 +17,7 @@ Orden actual:
 010_cierre_formal_reporte_dia_venta.sql
 011_cuota_diaria_tienda.sql
 012_cuota_mensual_ciclo_comercial.sql
+013_cuotas_ar_eco_pct_laminas_monto.sql
 ```
 
 ## 001
@@ -156,3 +157,14 @@ Implementa la cuota diaria única de tienda:
 ## 012
 
 Implementa la cuota mensual por ciclo comercial de 4 o 5 semanas. AMT se compone de HHP FP (Series S/Z), HHP MASS (Serie A), TABS y ACC. Guarda días planificados por vendedor, distribuye cuotas proporcionalmente y expone métricas confirmadas para Seguimiento mensual. AR = (unidades HHP + TABS) / ACC sin WEA. ECO = (unidades HHP + TABS) / WEA.
+
+
+## 013
+
+Corrige la unidad y las metas comerciales:
+
+- Láminas pasa a manejarse como monto en soles en cuota diaria, jornada, cierre y cuota mensual
+- AR y ECO se guardan como metas porcentuales de 0 a 100
+- AR/ECO no se prorratean por días: cada vendedor recibe el mismo porcentaje objetivo del ciclo
+- el cierre diario calcula venta de Láminas por subtotal vendido
+- las firmas RPC de apertura, cuota diaria y cuota mensual se actualizan para aceptar valores monetarios de Láminas
