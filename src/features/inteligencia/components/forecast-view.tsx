@@ -120,6 +120,38 @@ export function ForecastView({ data }: { data: CommercialIntelligence }) {
               </tbody>
             </table>
           </section>
+          <section className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-3 font-semibold text-slate-900">Detalle de cuotas y proyección por promotor</h2>
+            <div className="space-y-2">
+              {data.sellers.map((seller) => (
+                <details key={seller.id} className="rounded-lg border border-slate-200 bg-slate-50/50">
+                  <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-800">
+                    {seller.name} · Real {pen(seller.forecast.actual.amt)} · Proyectado {pen(seller.forecast.projected.amt)}
+                  </summary>
+                  <div className="overflow-x-auto bg-white p-3">
+                    <table className="w-full min-w-[520px] text-xs">
+                      <thead className="bg-slate-50 text-slate-500">
+                        <tr><th className="p-2 text-left">Indicador</th><th className="p-2 text-right">Cuota</th>
+                          <th className="p-2 text-right">Real</th><th className="p-2 text-right">Proyectado</th>
+                          <th className="p-2 text-right">Falta hoy</th></tr>
+                      </thead>
+                      <tbody>
+                        {MONEY_KEYS.map((key) => (
+                          <tr key={key} className="border-t border-slate-100">
+                            <th className="p-2 text-left font-medium">{MONEY_LABELS[key]}</th>
+                            <td className="p-2 text-right">{pen(seller.forecast.targets[key])}</td>
+                            <td className="p-2 text-right">{pen(seller.forecast.actual[key])}</td>
+                            <td className="p-2 text-right">{pen(seller.forecast.projected[key])}</td>
+                            <td className="p-2 text-right">{pen(seller.forecast.remaining[key])}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              ))}
+            </div>
+          </section>
           <p className="text-xs leading-5 text-slate-500">
             Modelo plano: venta diaria media × días futuros. Modelo lineal: tendencia por mínimos
             cuadrados sobre venta diaria, incluyendo días sin ventas (pronóstico no negativo).
