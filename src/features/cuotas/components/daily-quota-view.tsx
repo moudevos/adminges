@@ -267,7 +267,7 @@ export function DailyQuotaView({ data }: { data: DailyQuotaPageData }) {
           <div className="mt-4 grid gap-3 rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center">
             <div>
               <p className="text-xs font-semibold text-indigo-800">
-                Sugerencia
+                Cuota sugerida · mes comercial
               </p>
               <p className="mt-0.5 text-[11px] text-indigo-500">
                 {data.suggestion.label}. No se aplica automáticamente.
