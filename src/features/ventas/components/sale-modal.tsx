@@ -142,6 +142,7 @@ export function SaleModal({
   const itemKey = useRef(1);
   const paymentKey = useRef(1);
   const [search, setSearch] = useState("");
+  const [scPlusOpen, setScPlusOpen] = useState(false);
   const [items, setItems] = useState<DraftItem[]>([]);
   const [payments, setPayments] = useState<DraftPayment[]>([]);
   const [observation, setObservation] = useState("");
@@ -310,7 +311,7 @@ export function SaleModal({
     setError("");
   }
 
-  function addScPlus(plan: SalesCatalogItem, labelPrice: number, deviceId: string | null) {
+  function addScPlus(plan: SalesCatalogItem, labelPrice: number, deviceId: string | null, salePrice: number) {
     if (!plan.scPlusPlan) return;
     setItems((current) => [...current, {
       key: itemKey.current++,
@@ -322,7 +323,7 @@ export function SaleModal({
       serialOptions: [],
       quantity: 1,
       available: 1,
-      price: "",
+      price: salePrice.toFixed(2),
       basePrice: 0,
       lastSalePrice: plan.lastSalePrice,
       giftEligible: false,
@@ -330,6 +331,7 @@ export function SaleModal({
       scPlusDeviceId: deviceId,
     }]);
     setError("");
+    setScPlusOpen(false);
   }
 
   function updateItem(key: number, patch: Partial<DraftItem>) {
@@ -446,6 +448,7 @@ export function SaleModal({
   const fieldLabel = "mb-1 block text-[11px] font-medium text-slate-400";
 
   return (
+    <>
     <Modal
       open
       title="Nueva venta"
@@ -467,8 +470,8 @@ export function SaleModal({
               Productos
             </SectionTitle>
 
-            <div className="flex gap-2">
-              <label className="relative min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="relative w-full min-w-0 sm:w-56 sm:flex-none lg:w-60">
                 <FontAwesomeIcon
                   icon={faQrcode}
                   className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400"
@@ -494,6 +497,15 @@ export function SaleModal({
               >
                 <FontAwesomeIcon icon={faPlus} className="text-[10px]" />
                 Agregar
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => setScPlusOpen(true)}
+                className="inline-flex h-11 items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <FontAwesomeIcon icon={faPlus} className="text-[10px]" />
+                Vender SC+
               </button>
             </div>
 
@@ -669,18 +681,6 @@ export function SaleModal({
               ) : null}
             </div>
           </section>
-
-          <ScPlusPicker
-            catalog={catalog}
-            devices={items.filter((item) =>
-              catalog.some((product) =>
-                product.productId === item.productId &&
-                (product.reportGroup.startsWith("HHP_") || product.reportGroup === "TABLETS"),
-              ),
-            ).map((item) => ({ productId: item.productId, name: item.name, sku: item.sku }))}
-            disabled={saving}
-            onAdd={addScPlus}
-          />
 
           <section>
             <SectionTitle
@@ -961,5 +961,26 @@ export function SaleModal({
         </aside>
       </div>
     </Modal>
+    <Modal
+      open={scPlusOpen}
+      title="Agregar Samsung Care+"
+      description="Elige cobertura, vigencia y escala. SC+ se añadirá como un producto intangible a la venta."
+      onClose={() => setScPlusOpen(false)}
+      maxWidthClassName="max-w-xl"
+    >
+      <ScPlusPicker
+        catalog={catalog}
+        devices={items.filter((item) =>
+          catalog.some((product) =>
+            product.productId === item.productId &&
+            (product.reportGroup.startsWith("HHP_") || product.reportGroup === "TABLETS"),
+          ),
+        ).map((item) => ({ productId: item.productId, name: item.name, sku: item.sku }))}
+        disabled={saving}
+        onAdd={addScPlus}
+        onCancel={() => setScPlusOpen(false)}
+      />
+    </Modal>
+    </>
   );
 }
