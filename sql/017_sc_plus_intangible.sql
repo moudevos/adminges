@@ -849,7 +849,7 @@ as $function$
 declare
   v_jornada public.jornadas_venta%rowtype;
   v_venta_amt numeric(12,2) := 0;
-  v_venta_laminas integer := 0;
+  v_venta_laminas numeric(12,2) := 0;
   v_venta_sc_plus numeric(12,2) := 0;
   v_item jsonb;
   v_group text;
@@ -902,7 +902,7 @@ begin
     raise exception 'BREAKAGE_DATA_REQUIRED';
   end if;
 
-  -- AMT debe reflejar solo HHP, Tablets y ACC, no SC+ ni Láminas.
+  -- Cuota AMT: sin servicios SC+ ni Láminas.
   select coalesce(sum(vd.subtotal), 0)::numeric(12,2)
   into v_venta_amt
   from public.ventas v
@@ -911,13 +911,12 @@ begin
   where v.jornada_id = p_jornada_id
     and v.estado = 'confirmada'
     and public.sales_report_group(
-      p.sku, p.nombre,
-      coalesce(p.categoria_principal, p.categoria),
-      p.categoria_venta, p.familia, p.variante
+      p.sku,p.nombre,coalesce(p.categoria_principal,p.categoria),
+      p.categoria_venta,p.familia,p.variante
     ) in ('HHP_SERIE_S','HHP_SERIE_A','HHP_SERIE_Z','TABLETS','ACCESORIOS','WEA');
 
   select
-    coalesce(sum(vd.cantidad) filter (
+    coalesce(sum(vd.subtotal) filter (
       where public.sales_report_group(
         p.sku,
         p.nombre,
@@ -926,7 +925,7 @@ begin
         p.familia,
         p.variante
       ) = 'LAMINAS'
-    ), 0)::integer,
+    ), 0)::numeric(12,2),
     coalesce(sum(vd.subtotal) filter (
       where upper(
         concat_ws(
