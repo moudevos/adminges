@@ -156,16 +156,27 @@ export function SaleModal({
   );
   const remainingCents = totalCents - paidCents;
   const coverage =
-    totalCents > 0 ? Math.max(0, Math.min((paidCents / totalCents) * 100, 100)) : items.length > 0 ? 100 : 0;
+    totalCents > 0
+      ? Math.max(0, Math.min((paidCents / totalCents) * 100, 100))
+      : items.length > 0
+        ? 100
+        : 0;
   const hasInvalidPrices = items.some((item) => {
     const raw = item.price.trim();
     const price = Number(raw);
-    return !raw || !Number.isFinite(price) || price < 0 ||
+    return (
+      !raw ||
+      !Number.isFinite(price) ||
+      price < 0 ||
       (price === 0 && !item.giftEligible) ||
-      (price > 0 && cents(price) <= 0);
+      (price > 0 && cents(price) <= 0)
+    );
   });
-  const balanced = items.length > 0 && !hasInvalidPrices &&
-    remainingCents === 0 && (totalCents > 0 || payments.length === 0);
+  const balanced =
+    items.length > 0 &&
+    !hasInvalidPrices &&
+    remainingCents === 0 &&
+    (totalCents > 0 || payments.length === 0);
   const over = remainingCents < 0;
   const unitCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -279,9 +290,9 @@ export function SaleModal({
             quantity: 1,
             available: product.available,
             price: product.price.toFixed(2),
-          basePrice: product.basePrice,
-          lastSalePrice: product.lastSalePrice,
-          giftEligible: ["ACCESORIOS", "WEA"].includes(product.reportGroup),
+            basePrice: product.basePrice,
+            lastSalePrice: product.lastSalePrice,
+            giftEligible: ["ACCESORIOS", "WEA"].includes(product.reportGroup),
           },
         ]);
       }
@@ -438,7 +449,8 @@ export function SaleModal({
                     }
                   }}
                   placeholder="Buscar SKU o escanear IMEI"
-                  className="control-input h-11 pl-10 text-sm"
+                  className="control-input h-11 w-full text-sm"
+                  style={{ paddingLeft: 40 }}
                 />
               </label>
               <button
@@ -480,7 +492,7 @@ export function SaleModal({
                     </button>
                   </div>
 
-                  <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1.3fr)_auto_110px_auto] sm:items-end">
+                  <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1.3fr)_auto_110px_auto] sm:items-start">
                     <div>
                       <span className={fieldLabel}>Serie / IMEI</span>
                       {item.serialized ? (
@@ -558,6 +570,8 @@ export function SaleModal({
 
                     <div>
                       <span className={fieldLabel}>Precio</span>
+                      {/* El prefijo S/ vive en su propio contenedor para que
+                          quede centrado respecto al input y no a las notas */}
                       <div className="relative">
                         <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">
                           S/
@@ -570,23 +584,26 @@ export function SaleModal({
                           onChange={(event) =>
                             updateItem(item.key, { price: event.target.value })
                           }
-                          className="control-input h-9 w-full pl-7 text-right text-sm tabular-nums"
+                          className="control-input h-9 w-full text-right text-sm tabular-nums"
+                          style={{ paddingLeft: 28 }}
                         />
-                        {item.giftEligible && cents(item.price) === 0 && item.price.trim() !== "" ? (
-                          <p className="mt-1 text-right text-[10px] font-medium text-emerald-700">
-                            Regalo · sin cobro
-                          </p>
-                        ) : null}
-                        {item.lastSalePrice !== null ? (
-                          <p className="mt-1 text-right text-[9px] text-slate-400">
-                            Última venta: {money(item.lastSalePrice)}
-                          </p>
-                        ) : item.basePrice > 0 ? (
-                          <p className="mt-1 text-right text-[9px] text-slate-400">
-                            Precio base: {money(item.basePrice)}
-                          </p>
-                        ) : null}
                       </div>
+                      {item.giftEligible &&
+                      cents(item.price) === 0 &&
+                      item.price.trim() !== "" ? (
+                        <p className="mt-1 text-right text-[10px] font-medium text-emerald-700">
+                          Regalo · sin cobro
+                        </p>
+                      ) : null}
+                      {item.lastSalePrice !== null ? (
+                        <p className="mt-1 text-right text-[10px] text-slate-400">
+                          Última venta: {money(item.lastSalePrice)}
+                        </p>
+                      ) : item.basePrice > 0 ? (
+                        <p className="mt-1 text-right text-[10px] text-slate-400">
+                          Precio base: {money(item.basePrice)}
+                        </p>
+                      ) : null}
                     </div>
 
                     <div className="text-right sm:min-w-24">
@@ -677,18 +694,15 @@ export function SaleModal({
                 return (
                   <div
                     key={payment.key}
-                    className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 sm:flex-nowrap"
+                    className="grid grid-cols-[36px_minmax(0,1fr)_36px_36px] items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 sm:grid-cols-[36px_minmax(0,9rem)_minmax(0,8rem)_minmax(0,1fr)_36px_36px]"
                   >
                     <span
                       className={
-                        "grid size-9 shrink-0 place-items-center rounded-lg " +
+                        "grid size-9 place-items-center rounded-lg " +
                         meta.tile
                       }
                     >
-                      <FontAwesomeIcon
-                        icon={meta.icon}
-                        className="text-xs"
-                      />
+                      <FontAwesomeIcon icon={meta.icon} className="text-xs" />
                     </span>
 
                     <select
@@ -698,7 +712,7 @@ export function SaleModal({
                           method: event.target.value,
                         })
                       }
-                      className="control-input h-9 w-36 shrink-0 text-sm"
+                      className="control-input col-span-3 h-9 min-w-0 text-sm sm:col-span-1"
                     >
                       {activePaymentMethods.map((method) => (
                         <option key={method.id} value={method.code}>
@@ -707,7 +721,7 @@ export function SaleModal({
                       ))}
                     </select>
 
-                    <div className="relative w-32 shrink-0">
+                    <div className="relative col-span-4 min-w-0 sm:col-span-1">
                       <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">
                         S/
                       </span>
@@ -721,7 +735,8 @@ export function SaleModal({
                             amount: event.target.value,
                           })
                         }
-                        className="control-input h-9 w-full pl-7 text-right text-sm tabular-nums"
+                        className="control-input h-9 w-full text-right text-sm tabular-nums"
+                        style={{ paddingLeft: 28 }}
                       />
                     </div>
 
@@ -737,7 +752,7 @@ export function SaleModal({
                           ? "Referencia"
                           : "Referencia (opcional)"
                       }
-                      className="control-input h-9 min-w-0 flex-1 text-sm"
+                      className="control-input col-span-4 h-9 min-w-0 text-sm sm:col-span-1"
                     />
 
                     <button
@@ -745,7 +760,7 @@ export function SaleModal({
                       onClick={() => setPaymentToRemaining(payment.key)}
                       title="Completar con el saldo exacto"
                       aria-label="Saldo exacto"
-                      className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600"
+                      className="col-start-3 grid size-9 place-items-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 sm:col-start-auto"
                     >
                       <FontAwesomeIcon icon={faBullseye} className="text-xs" />
                     </button>
@@ -757,7 +772,7 @@ export function SaleModal({
                           current.filter((row) => row.key !== payment.key),
                         )
                       }
-                      className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-300 transition hover:bg-rose-50 hover:text-rose-500"
+                      className="col-start-4 grid size-9 place-items-center rounded-lg text-slate-300 transition hover:bg-rose-50 hover:text-rose-500 sm:col-start-auto"
                       aria-label="Quitar pago"
                     >
                       <FontAwesomeIcon icon={faTrash} className="text-xs" />
@@ -776,7 +791,7 @@ export function SaleModal({
         </div>
 
         {/* ───────── Resumen lateral ───────── */}
-        <aside className="lg:sticky lg:top-0 lg:self-start">
+        <aside className="relative z-10 min-w-0 lg:sticky lg:top-0 lg:self-start">
           <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
             <div>
               <p className="text-xs text-slate-400">Total de la venta</p>

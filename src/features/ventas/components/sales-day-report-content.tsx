@@ -11,18 +11,18 @@ export const CLOSURE_REPORT_GROUPS: ReadonlyArray<{
   key: SalesClosureGroup;
   label: string;
 }> = [
-  { key: "HHP_SERIE_S", label: "HHP SERIE S" },
-  { key: "HHP_SERIE_A", label: "HHP SERIE A" },
-  { key: "HHP_SERIE_Z", label: "HHP SERIE Z" },
-  { key: "TABLETS", label: "TABLETS" },
-  { key: "LAMINAS", label: "LAMINAS" },
-  { key: "WEA", label: "WEA" },
-];
+    { key: "HHP_SERIE_S", label: "HHP SERIE S" },
+    { key: "HHP_SERIE_A", label: "HHP SERIE A" },
+    { key: "HHP_SERIE_Z", label: "HHP SERIE Z" },
+    { key: "TABLETS", label: "TABLETS" },
+    { key: "LAMINAS", label: "LAMINAS" },
+    { key: "WEA", label: "WEA" },
+  ];
 
 export const CLOSURE_TABLE_HEAD =
-  "border border-[#c7d2e1] bg-[#edf2f7] px-3 py-2 text-center text-xs font-bold uppercase text-[#354761]";
+  "border border-[#bcc9dc] bg-[#e8eef7] px-3 py-3 text-center text-[13px] font-extrabold uppercase tracking-wide text-[#1b2a47]";
 export const CLOSURE_TABLE_CELL =
-  "border border-[#c7d2e1] px-3 py-2 text-[13px] text-[#45546e]";
+  "border border-[#bcc9dc] px-3 py-2.5 text-sm font-medium leading-5 text-[#1f2d47]";
 
 export function closureMoney(value: number) {
   return new Intl.NumberFormat("es-PE", {
@@ -53,7 +53,10 @@ export function SalesDayReportMetrics({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[600px] table-fixed border-collapse bg-white" aria-label="Resumen de cuotas y ventas">
+      <table
+        className="w-full min-w-[600px] table-fixed border-collapse bg-white"
+        aria-label="Resumen de cuotas y ventas"
+      >
         <thead>
           <tr>
             <th scope="col" className={CLOSURE_TABLE_HEAD} />
@@ -65,7 +68,10 @@ export function SalesDayReportMetrics({
         <tbody>
           {metrics.map((metric) => (
             <tr key={metric.label}>
-              <th scope="row" className={CLOSURE_TABLE_CELL + " text-left font-semibold"}>
+              <th
+                scope="row"
+                className={CLOSURE_TABLE_CELL + " text-left font-bold text-[#14213d]"}
+              >
                 {metric.label}
               </th>
               <td className={CLOSURE_TABLE_CELL + " text-center tabular-nums"}>
@@ -74,7 +80,9 @@ export function SalesDayReportMetrics({
               <td className={CLOSURE_TABLE_CELL + " text-center tabular-nums"}>
                 {closureMoney(metric.sale)}
               </td>
-              <td className={CLOSURE_TABLE_CELL + " text-center tabular-nums"}>
+              <td
+                className={CLOSURE_TABLE_CELL + " text-center font-bold tabular-nums text-[#14213d]"}
+              >
                 {compliance(metric.sale, metric.quota)}
               </td>
             </tr>
@@ -104,8 +112,8 @@ export function SalesDayReportComments({
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden border border-[#c7d2e1] bg-white">
-      <h3 className="bg-[#203c87] px-3.5 py-2 text-[13px] font-bold uppercase text-white">
+    <section className="overflow-hidden border border-[#bcc9dc] bg-white">
+      <h3 className="bg-[#203c87] px-4 py-2.5 text-sm font-extrabold uppercase tracking-wide text-white">
         COMENTARIOS - SUGERENCIAS
       </h3>
       {children}
@@ -129,27 +137,44 @@ export function SalesDayReportContent({
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 antialiased">
       <SalesDayReportMetrics quotas={report.quotas} sales={report.sales} />
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[600px] table-fixed border-collapse bg-white" aria-label="Ventas y quiebres por grupo">
+        <table
+          className="w-full min-w-[600px] table-fixed border-collapse bg-white"
+          aria-label="Ventas y quiebres por grupo"
+        >
           <SalesDayReportTableHeader />
           <tbody>
             {groups.map(({ key, label }) => {
               const item = breakages.get(key);
+              const hasBreakage = Boolean(item?.breakage);
               return (
                 <tr key={key}>
-                  <th scope="row" className={CLOSURE_TABLE_CELL + " text-left font-medium"}>
+                  <th
+                    scope="row"
+                    className={CLOSURE_TABLE_CELL + " text-left font-bold text-[#14213d]"}
+                  >
                     {label}
                   </th>
-                  <td className={CLOSURE_TABLE_CELL + " text-center tabular-nums"}>
+                  <td
+                    className={CLOSURE_TABLE_CELL + " text-center font-semibold tabular-nums"}
+                  >
                     {item?.units ?? 0}
                   </td>
-                  <td className={CLOSURE_TABLE_CELL + " text-center"}>
-                    {item?.breakage ? "SÍ" : "NO"}
+                  <td
+                    className={
+                      CLOSURE_TABLE_CELL +
+                      " text-center font-bold " +
+                      (hasBreakage ? "text-red-700" : "text-[#1f2d47]")
+                    }
+                  >
+                    {hasBreakage ? "SÍ" : "NO"}
                   </td>
-                  <td className={CLOSURE_TABLE_CELL + " whitespace-pre-wrap break-words text-left"}>
+                  <td
+                    className={CLOSURE_TABLE_CELL + " whitespace-pre-wrap break-words text-left"}
+                  >
                     {item?.detail ?? ""}
                   </td>
                 </tr>
@@ -160,7 +185,7 @@ export function SalesDayReportContent({
       </div>
 
       <SalesDayReportComments>
-        <p className="min-h-20 whitespace-pre-wrap break-words px-3.5 py-3 text-[13px] leading-5 text-[#4a5675]">
+        <p className="min-h-20 whitespace-pre-wrap break-words px-4 py-3.5 text-sm leading-6 text-[#1f2d47]">
           {report.comments || "Sin comentarios registrados."}
         </p>
       </SalesDayReportComments>
