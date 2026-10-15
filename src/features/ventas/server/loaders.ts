@@ -455,6 +455,7 @@ async function buildDayData({
     const personMetrics = metricsByPerson.get(person.id) ?? {
       laminas: 0,
       scPlus: 0,
+      amt: 0,
       units: 0,
     };
     const total = personSales.reduce(
