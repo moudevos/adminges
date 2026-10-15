@@ -110,6 +110,13 @@ export type SalesCatalogItem = {
   serials: string[];
   warehouse: string | null;
   location: string | null;
+  scPlusPlan?: {
+    coverage: "TR" | "ROBO" | "PANTALLA" | "DANOS";
+    tier: number;
+    labelMin: number;
+    labelMax: number;
+    years: 1 | 2;
+  };
 };
 
 export type SalesDayData = {
@@ -160,6 +167,8 @@ export type SaleItemInput = {
   serial?: string | null;
   cantidad: number;
   precio_unitario: number;
+  precio_equipo_etiqueta?: number | null;
+  equipo_producto_id?: string | null;
 };
 
 export type SalePaymentMethod = string;
