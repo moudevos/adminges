@@ -163,7 +163,7 @@ async function loadPeople(supabase: SupabaseClient) {
 }
 
 async function loadCatalog(supabase: SupabaseClient) {
-  const [result, priceResult] = await Promise.all([
+  const [result, priceResult, serviceResult] = await Promise.all([
     supabase
       .from("inventario_stock")
       .select(
@@ -173,6 +173,10 @@ async function loadCatalog(supabase: SupabaseClient) {
     supabase
       .from("ultimo_precio_venta")
       .select("producto_id, precio_unitario"),
+    supabase
+      .from("sc_plus_planes")
+      .select("producto_id, sku, cobertura, escala, min_etiqueta, max_etiqueta, vigencia_anios")
+      .eq("is_active", true),
   ]);
 
   if (result.error) return [] as SalesCatalogItem[];
@@ -184,7 +188,7 @@ async function loadCatalog(supabase: SupabaseClient) {
     ]),
   );
 
-  return (result.data ?? [])
+  const tangible = (result.data ?? [])
     .filter(
       (row) =>
         String(row.almacen ?? "").trim().toLowerCase() ===
@@ -227,6 +231,40 @@ async function loadCatalog(supabase: SupabaseClient) {
         location: row.ubicacion,
       };
     });
+
+  // SC+ no procede del snapshot: es un catálogo de planes, sin stock ni IMEI.
+  // Hasta ejecutar SQL 017 la lista permanecerá vacía, sin romper ventas físicas.
+  const coverageNames: Record<string, string> = {
+    TR: "Todo riesgo", ROBO: "Robo", PANTALLA: "Pantalla",
+    DANOS: "Pantalla e ingreso de líquidos",
+  };
+  const services: SalesCatalogItem[] = (serviceResult.data ?? []).map((plan) => ({
+    productId: plan.producto_id,
+    sku: plan.sku,
+    name: "SC+ " + (coverageNames[plan.cobertura] ?? plan.cobertura) +
+      " · " + plan.vigencia_anios + " año(s) · Escala " + plan.escala,
+    category: "SERVICIOS",
+    primaryCategory: "SERVICIOS",
+    saleCategory: "SC+",
+    family: "SC+",
+    variant: plan.cobertura,
+    reportGroup: "OTROS",
+    price: lastPrices.get(plan.producto_id) ?? 0,
+    basePrice: 0,
+    lastSalePrice: lastPrices.get(plan.producto_id) ?? null,
+    available: 0,
+    serials: [],
+    warehouse: null,
+    location: null,
+    scPlusPlan: {
+      coverage: plan.cobertura as "TR" | "ROBO" | "PANTALLA" | "DANOS",
+      tier: Number(plan.escala),
+      labelMin: Number(plan.min_etiqueta),
+      labelMax: Number(plan.max_etiqueta),
+      years: Number(plan.vigencia_anios) as 1 | 2,
+    },
+  }));
+  return [...tangible, ...services];
 }
 
 async function buildDayData({
