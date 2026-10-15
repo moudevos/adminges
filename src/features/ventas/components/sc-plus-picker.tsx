@@ -76,8 +76,8 @@ export function ScPlusPicker({
   return (
     <section className="space-y-4">
       <p className="text-xs leading-5 text-slate-500">
-        El rango se define por el precio de etiqueta del equipo. El importe cobrado
-        por el plan se introduce después de agregarlo a la venta.
+        La escala se determina por el precio de etiqueta del equipo. Define el
+        importe SC+ antes de agregar el plan a la venta.
       </p>
       {!available ? (
         <p className="mt-3 text-xs text-amber-800">
