@@ -20,6 +20,7 @@ import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useMemo, useRef, useState } from "react";
 import { Modal } from "@/components/ui/modal";
+import { ScPlusPicker } from "@/features/ventas/components/sc-plus-picker";
 import type {
   PaymentMethodOption,
   SalePaymentMethod,
@@ -41,6 +42,8 @@ type DraftItem = {
   basePrice: number;
   lastSalePrice: number | null;
   giftEligible: boolean;
+  scPlusPriceLabel?: number;
+  scPlusDeviceId?: string | null;
 };
 
 type DraftPayment = {
@@ -230,6 +233,11 @@ export function SaleModal({
       return;
     }
 
+    if (product.scPlusPlan) {
+      setError("Los servicios SC+ se seleccionan en el formulario de coberturas y precio de etiqueta.");
+      return;
+    }
+
     if (product.serials.length > 0) {
       setItems((current) => [
         ...current,
@@ -288,6 +296,28 @@ export function SaleModal({
     }
 
     setSearch("");
+    setError("");
+  }
+
+  function addScPlus(plan: SalesCatalogItem, labelPrice: number, deviceId: string | null) {
+    if (!plan.scPlusPlan) return;
+    setItems((current) => [...current, {
+      key: itemKey.current++,
+      productId: plan.productId,
+      sku: plan.sku,
+      name: plan.name,
+      serial: null,
+      serialized: false,
+      serialOptions: [],
+      quantity: 1,
+      available: 1,
+      price: "",
+      basePrice: 0,
+      lastSalePrice: plan.lastSalePrice,
+      giftEligible: false,
+      scPlusPriceLabel: labelPrice,
+      scPlusDeviceId: deviceId,
+    }]);
     setError("");
   }
 
@@ -377,6 +407,10 @@ export function SaleModal({
           serial: item.serial,
           cantidad: item.quantity,
           precio_unitario: cents(item.price) / 100,
+          ...(item.scPlusPriceLabel !== undefined ? {
+            precio_equipo_etiqueta: item.scPlusPriceLabel,
+            equipo_producto_id: item.scPlusDeviceId ?? null,
+          } : {}),
         })),
         payments: payments.map((payment) => ({
           metodo: payment.method,
@@ -465,6 +499,12 @@ export function SaleModal({
                       <p className="mt-0.5 font-mono text-[11px] text-slate-400">
                         {item.sku}
                       </p>
+                      {item.scPlusPriceLabel !== undefined ? (
+                        <p className="mt-1 text-xs text-indigo-700">
+                          Servicio intangible · Etiqueta del equipo: {money(item.scPlusPriceLabel)} ·
+                          Precio SC+ editable
+                        </p>
+                      ) : null}
                     </div>
                     <button
                       type="button"
@@ -518,7 +558,7 @@ export function SaleModal({
 
                     <div>
                       <span className={fieldLabel}>Cantidad</span>
-                      {item.serialized ? (
+                      {item.serialized || item.scPlusPriceLabel !== undefined ? (
                         <div className="flex h-9 items-center text-sm font-semibold tabular-nums text-slate-700">
                           1
                         </div>
@@ -557,7 +597,7 @@ export function SaleModal({
                     </div>
 
                     <div>
-                      <span className={fieldLabel}>Precio</span>
+                      <span className={fieldLabel}>{item.scPlusPriceLabel !== undefined ? "Precio SC+" : "Precio"}</span>
                       <div className="relative">
                         <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">
                           S/
@@ -611,6 +651,18 @@ export function SaleModal({
               ) : null}
             </div>
           </section>
+
+          <ScPlusPicker
+            catalog={catalog}
+            devices={items.filter((item) =>
+              catalog.some((product) =>
+                product.productId === item.productId &&
+                (product.reportGroup.startsWith("HHP_") || product.reportGroup === "TABLETS"),
+              ),
+            ).map((item) => ({ productId: item.productId, name: item.name, sku: item.sku }))}
+            disabled={saving}
+            onAdd={addScPlus}
+          />
 
           <section>
             <SectionTitle
