@@ -609,13 +609,10 @@ export function SaleModal({
                     </div>
 
                     <div>
-<<<<<<< HEAD
-                      <span className={fieldLabel}>Precio</span>
-                      {/* El prefijo S/ vive en su propio contenedor para que
-                          quede centrado respecto al input y no a las notas */}
-=======
-                      <span className={fieldLabel}>{item.scPlusPriceLabel !== undefined ? "Precio SC+" : "Precio"}</span>
->>>>>>> d5b25d073f7f9c44b31c4635454e1c592c7b4937
+                      <span className={fieldLabel}>
+                        {item.scPlusPriceLabel !== undefined ? "Precio SC+" : "Precio"}
+                      </span>
+                      {/* El prefijo S/ se centra respecto al campo de precio. */}
                       <div className="relative">
                         <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">
                           S/
