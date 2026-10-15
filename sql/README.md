@@ -21,6 +21,7 @@ Orden actual:
 014_inicio_automatico_equipo_jornada.sql
 015_trade_in_comisiones_metodos_pago.sql
 016_regalos_acc_wea_precio_cero.sql
+017_sc_plus_intangible.sql
 ```
 
 ## 001
@@ -218,3 +219,24 @@ generan la salida normal de stock en Kardex.
 **Aplicación:** ejecutar manualmente el SQL 016 en Supabase SQL Editor
 después de haber aplicado 015. Es imprescindible para registrar ventas
 exclusivamente gratuitas.
+
+## 017 · Samsung Care+ intangible
+
+- Catálogo independiente del snapshot con **64 SKU**, 4 coberturas (TR,
+  Robo, Pantalla, Daños), escalas 0–7 y vigencia de 1 o 2 años.
+- Los SKU de 1 año empiezan con `SSC+`; los de 2 años, `BA_SSC+`.
+- Rangos de precio de etiqueta del **equipo**: 400–1000, 1001–2000,
+  2001–3000, 3001–4000, 4001–5000, 5001–6000, 6001–7000,
+  7001–10000. El usuario ingresa el precio de etiqueta para elegir escala.
+- El **importe de venta SC+** es independiente y editable por el vendedor.
+  Se exige precio positivo y cantidad de un plan por línea.
+- Se registra como detalle de venta con producto SKU real, precio de etiqueta,
+  cobertura, escala, duración e importe para historial y comisiones.
+- SC+ no tiene stock, serie de almacén, Kardex ni reposición por reversa.
+- El ingreso SC+ se computa solo en su indicador; no debe sumarse a AMT.
+- Puede vincularse opcionalmente al equipo físico de la misma venta.
+- El catálogo solo se habilita tras ejecutar 017, después de 016.
+
+Comisiones muestra resumen por cobertura, plazo, escala y SKU, así como
+montos y unidades SC+ por vendedor activo. La ponderación SC+ permanece
+en 10% de acuerdo con el cuadro de referencia.
