@@ -181,6 +181,12 @@ export function SaleHistoryDetail({
                     <p className="mt-0.5 font-mono text-[10px] text-slate-400">
                       {item.sku}
                     </p>
+                    {item.scPlusLabelPrice !== null ? (
+                      <p className="mt-1 text-xs text-indigo-700">
+                        SC+ intangible · Precio etiqueta equipo: {money(item.scPlusLabelPrice)}
+                        {item.scPlusRelatedDeviceId ? " · Equipo vinculado" : ""}
+                      </p>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3.5 font-mono text-xs text-slate-500">
                     {item.serial || "No aplica"}
@@ -243,7 +249,7 @@ export function SaleHistoryDetail({
       <Modal
         open={reverseOpen}
         title="Reversar venta"
-        description="La venta no se eliminará. Se anulará y el stock operativo se restituirá mediante Kardex."
+        description="La venta se anulará. Solo los productos físicos restituyen stock; SC+ no genera movimientos de Kardex."
         onClose={() => {
           if (!busy) setReverseOpen(false);
         }}
