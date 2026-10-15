@@ -776,7 +776,14 @@ begin
   order by applied_at desc nulls last, created_at desc
   limit 1;
 
-  if v_snapshot_id is null then
+  -- No exigir snapshot para una anulación compuesta solo por SC+.
+  if v_snapshot_id is null and exists (
+    select 1 from public.venta_detalles vd
+    where vd.venta_id = p_venta_id
+      and not exists (
+        select 1 from public.sc_plus_planes cp where cp.producto_id = vd.producto_id
+      )
+  ) then
     raise exception 'NO_APPLIED_SNAPSHOT';
   end if;
 
