@@ -7,6 +7,8 @@ const itemSchema = z.object({
   serial: z.string().trim().max(120).nullable().optional(),
   cantidad: z.number().int().positive(),
   precio_unitario: z.number().finite().min(0),
+  precio_equipo_etiqueta: z.number().finite().min(400).max(10000).nullable().optional(),
+  equipo_producto_id: z.string().uuid().nullable().optional(),
 });
 
 const paymentSchema = z.object({
