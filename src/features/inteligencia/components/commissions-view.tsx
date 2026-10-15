@@ -3,6 +3,7 @@ import {
 } from "@/features/inteligencia/domain/projection";
 import type { CommercialIntelligence } from "@/features/inteligencia/server/loaders";
 import { PeriodFilter, MetricCard, pen, pct, Unavailable } from "./period-filter";
+import { SCPlusCommissionReport } from "./sc-plus-commission-report";
 
 function CommissionTable({
   result, title, description,
@@ -86,6 +87,7 @@ export function CommissionsView({ data }: { data: CommercialIntelligence }) {
             title="Cuadro de comisiones · avance real"
             description="Se calcula con ventas confirmadas del ciclo; ponderación por caja, no porcentaje del sueldo."
           />
+          <SCPlusCommissionReport data={data} />
           <CommissionTable
             result={data.projectedCommission}
             title="Simulador automático · cierre estimado"
@@ -101,6 +103,8 @@ export function CommissionsView({ data }: { data: CommercialIntelligence }) {
               <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
                 <tr><th className="p-3">Promotor</th><th className="p-3 text-right">AMT real</th>
                   <th className="p-3 text-right">Cuota AMT</th>
+                  <th className="p-3 text-right">SC+ (und.)</th>
+                  <th className="p-3 text-right">SC+ (S/)</th>
                   <th className="p-3 text-right">Ponderado parcial</th>
                   <th className="p-3 text-right">Ponderado simulado</th></tr>
               </thead>
@@ -110,6 +114,8 @@ export function CommissionsView({ data }: { data: CommercialIntelligence }) {
                     <th scope="row" className="p-3 text-left font-medium text-slate-800">{seller.name}</th>
                     <td className="p-3 text-right">{pen(seller.forecast.actual.amt)}</td>
                     <td className="p-3 text-right">{pen(seller.forecast.targets.amt)}</td>
+                    <td className="p-3 text-right">{seller.scPlusUnits}</td>
+                    <td className="p-3 text-right">{pen(seller.scPlusAmount)}</td>
                     <td className="p-3 text-right">{pct(seller.commission.knownPoints)}</td>
                     <td className="p-3 text-right">{pct(seller.projectedCommission.knownPoints)}</td>
                   </tr>
