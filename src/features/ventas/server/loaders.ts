@@ -385,10 +385,11 @@ async function buildDayData({
   const saleMap = new Map(confirmedSales.map((sale) => [sale.id, sale]));
   let laminas = 0;
   let scPlus = 0;
+  let amt = 0;
   const groupUnits = emptyGroupUnits();
   const metricsByPerson = new Map<
     string,
-    { laminas: number; scPlus: number; units: number }
+    { laminas: number; scPlus: number; amt: number; units: number }
   >();
 
   for (const detail of details) {
@@ -399,6 +400,7 @@ async function buildDayData({
     const current = metricsByPerson.get(sale.promotor_id) ?? {
       laminas: 0,
       scPlus: 0,
+      amt: 0,
       units: 0,
     };
 
@@ -406,6 +408,10 @@ async function buildDayData({
 
     if (product) {
       const reportGroup = classifySalesProduct(product);
+      if (["HHP_SERIE_A", "HHP_SERIE_S", "HHP_SERIE_Z", "TABLETS", "ACCESORIOS", "WEA"].includes(reportGroup)) {
+        amt += detail.subtotal;
+        current.amt += detail.subtotal;
+      }
       if (isClosureGroup(reportGroup)) {
         groupUnits[reportGroup] += detail.cantidad;
       }
@@ -469,7 +475,7 @@ async function buildDayData({
       units: personMetrics.units,
       total,
       progress: {
-        amt: metric(total, shift.vende_hoy ? personalTargets.amt : 0),
+        amt: metric(personMetrics.amt, shift.vende_hoy ? personalTargets.amt : 0),
         laminas: metric(
           personMetrics.laminas,
           shift.vende_hoy ? personalTargets.laminas : 0,
@@ -527,7 +533,7 @@ async function buildDayData({
     catalog,
     sellerCount,
     teamProgress: {
-      amt: metric(totalAmount, journey.quotas.amt),
+      amt: metric(amt, journey.quotas.amt),
       laminas: metric(laminas, journey.quotas.laminas),
       scPlus: metric(scPlus, journey.quotas.scPlus),
     },
