@@ -244,6 +244,8 @@ export type SaleHistoryItem = {
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  scPlusLabelPrice: number | null;
+  scPlusRelatedDeviceId: string | null;
   category: string | null;
   type: string | null;
   family: string | null;
