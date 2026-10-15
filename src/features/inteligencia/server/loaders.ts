@@ -74,6 +74,8 @@ export type CommercialIntelligence = {
   opportunities: CategoryOpportunity[];
   commission: CommissionResult | null;
   projectedCommission: CommissionResult | null;
+  scPlusBreakdown: SCPlusReportRow[];
+  scPlusCatalogAvailable: boolean;
   // Trade-in se identifica por método de pago en ventas confirmadas.
   ecoActual: number | null;
   diagnostics?: string;
