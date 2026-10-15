@@ -946,7 +946,7 @@ export async function loadSaleHistoryDetail(
       supabase
         .from("venta_detalles")
         .select(
-          "id, producto_id, sku, descripcion, serial, cantidad, precio_unitario, subtotal, productos(categoria, categoria_principal, categoria_venta, familia, variante, nombre)",
+          "id, producto_id, sku, descripcion, serial, cantidad, precio_unitario, subtotal, sc_plus_precio_etiqueta, sc_plus_equipo_producto_id, productos(categoria, categoria_principal, categoria_venta, familia, variante, nombre)",
         )
         .eq("venta_id", id)
         .order("id"),
@@ -996,6 +996,9 @@ export async function loadSaleHistoryDetail(
       quantity: Number(detail.cantidad),
       unitPrice: Number(detail.precio_unitario),
       subtotal: Number(detail.subtotal),
+      scPlusLabelPrice: detail.sc_plus_precio_etiqueta === null
+        ? null : Number(detail.sc_plus_precio_etiqueta),
+      scPlusRelatedDeviceId: detail.sc_plus_equipo_producto_id ?? null,
       category: product?.categoria_principal ?? product?.categoria ?? null,
       type: product?.categoria_venta ?? null,
       family: product?.familia ?? null,
