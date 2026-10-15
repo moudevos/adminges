@@ -73,6 +73,230 @@ alter table public.venta_detalles
  add column sc_plus_equipo_producto_id uuid
    references public.productos(id) on delete restrict;
 
+-- SC+ siempre queda excluido del stock operativo, incluso ante
+-- reversas de ventas antiguas o importaciones anteriores.
+create or replace view public.inventario_stock
+with (security_invoker = true)
+as
+with current_snapshot as (
+  select id, applied_at
+  from public.inventory_snapshots
+  where status = 'applied'
+  order by applied_at desc nulls last, created_at desc
+  limit 1
+),
+sold_serials as (
+  select distinct upper(vd.serial) as serial
+  from public.venta_detalles vd
+  join public.ventas v on v.id = vd.venta_id
+  join current_snapshot cs on true
+  where vd.serial is not null
+    and v.estado = 'confirmada'
+    and v.fecha > cs.applied_at
+),
+sold_nonserial as (
+  select
+    vd.producto_id,
+    lower(regexp_replace(trim(coalesce(vd.almacen, '')), '\s+', ' ', 'g'))
+      as almacen_key,
+    lower(regexp_replace(trim(coalesce(vd.ubicacion, '')), '\s+', ' ', 'g'))
+      as ubicacion_key,
+    sum(vd.cantidad)::bigint as cantidad
+  from public.venta_detalles vd
+  join public.ventas v on v.id = vd.venta_id
+  join current_snapshot cs on true
+  where vd.serial is null
+    and v.estado = 'confirmada'
+    and v.fecha > cs.applied_at
+  group by
+    vd.producto_id,
+    lower(regexp_replace(trim(coalesce(vd.almacen, '')), '\s+', ' ', 'g')),
+    lower(regexp_replace(trim(coalesce(vd.ubicacion, '')), '\s+', ' ', 'g'))
+),
+returned_nonserial as (
+  select
+    vd.producto_id,
+    lower(regexp_replace(trim(coalesce(vd.almacen, '')), '\s+', ' ', 'g'))
+      as almacen_key,
+    lower(regexp_replace(trim(coalesce(vd.ubicacion, '')), '\s+', ' ', 'g'))
+      as ubicacion_key,
+    max(coalesce(vd.almacen, 'KIOSKO MALL IQUITOS - KIO37')) as almacen,
+    max(coalesce(vd.ubicacion, 'Stock')) as ubicacion,
+    sum(vd.cantidad)::bigint as cantidad
+  from public.venta_detalles vd
+  join public.ventas v on v.id = vd.venta_id
+  join current_snapshot cs on true
+  where vd.serial is null
+    and v.estado = 'anulada'
+    and v.anulada_at > cs.applied_at
+    and v.fecha <= cs.applied_at
+  group by
+    vd.producto_id,
+    lower(regexp_replace(trim(coalesce(vd.almacen, '')), '\s+', ' ', 'g')),
+    lower(regexp_replace(trim(coalesce(vd.ubicacion, '')), '\s+', ' ', 'g'))
+),
+returned_serials as (
+  select
+    vd.producto_id,
+    lower(regexp_replace(trim(coalesce(vd.almacen, '')), '\s+', ' ', 'g'))
+      as almacen_key,
+    lower(regexp_replace(trim(coalesce(vd.ubicacion, '')), '\s+', ' ', 'g'))
+      as ubicacion_key,
+    max(coalesce(vd.almacen, 'KIOSKO MALL IQUITOS - KIO37')) as almacen,
+    max(coalesce(vd.ubicacion, 'Stock')) as ubicacion,
+    count(distinct upper(vd.serial))::bigint as series_count,
+    array_agg(distinct upper(vd.serial) order by upper(vd.serial)) as serials
+  from public.venta_detalles vd
+  join public.ventas v on v.id = vd.venta_id
+  join current_snapshot cs on true
+  where vd.serial is not null
+    and v.estado = 'anulada'
+    and v.anulada_at > cs.applied_at
+    and v.fecha <= cs.applied_at
+    and not exists (
+      select 1
+      from public.inventory_snapshot_items si
+      where si.snapshot_id = cs.id
+        and upper(si.serial) = upper(vd.serial)
+    )
+  group by
+    vd.producto_id,
+    lower(regexp_replace(trim(coalesce(vd.almacen, '')), '\s+', ' ', 'g')),
+    lower(regexp_replace(trim(coalesce(vd.ubicacion, '')), '\s+', ' ', 'g'))
+),
+location_base as (
+  select
+    i.producto_id,
+    lower(regexp_replace(trim(i.almacen), '\s+', ' ', 'g')) as almacen_key,
+    lower(regexp_replace(trim(i.ubicacion), '\s+', ' ', 'g')) as ubicacion_key,
+    max(i.almacen) as almacen,
+    max(i.ubicacion) as ubicacion,
+    sum(i.cantidad_fisica)::bigint as cantidad_fisica,
+    sum(
+      case
+        when i.serial is not null and ss.serial is not null then 0
+        else i.cantidad_disponible
+      end
+    )::bigint as cantidad_disponible_base,
+    sum(
+      case
+        when i.serial is not null and ss.serial is not null then 0
+        else i.cantidad_operativa
+      end
+    )::bigint as stock_actual_base,
+    count(i.serial) filter (
+      where i.serial is not null and ss.serial is null
+    )::bigint as series_count,
+    coalesce(
+      array_agg(distinct i.serial order by i.serial) filter (
+        where i.serial is not null and ss.serial is null
+      ),
+      array[]::text[]
+    ) as serials
+  from public.inventory_snapshot_items i
+  join current_snapshot cs on cs.id = i.snapshot_id
+  left join sold_serials ss on ss.serial = upper(i.serial)
+  group by
+    i.producto_id,
+    lower(regexp_replace(trim(i.almacen), '\s+', ' ', 'g')),
+    lower(regexp_replace(trim(i.ubicacion), '\s+', ' ', 'g'))
+),
+location_keys as (
+  select producto_id, almacen_key, ubicacion_key, almacen, ubicacion
+  from location_base
+  union
+  select producto_id, almacen_key, ubicacion_key, almacen, ubicacion
+  from returned_nonserial
+  union
+  select producto_id, almacen_key, ubicacion_key, almacen, ubicacion
+  from returned_serials
+),
+location_stock as (
+  select
+    lk.producto_id,
+    lk.almacen_key,
+    lk.ubicacion_key,
+    coalesce(lb.almacen, rn.almacen, rs.almacen, lk.almacen) as almacen,
+    coalesce(lb.ubicacion, rn.ubicacion, rs.ubicacion, lk.ubicacion) as ubicacion,
+    coalesce(lb.cantidad_fisica, 0)::bigint as cantidad_fisica,
+    greatest(
+      coalesce(lb.cantidad_disponible_base, 0)
+      - coalesce(sn.cantidad, 0)
+      + coalesce(rn.cantidad, 0)
+      + coalesce(rs.series_count, 0),
+      0
+    )::bigint as cantidad_disponible,
+    greatest(
+      coalesce(lb.stock_actual_base, 0)
+      - coalesce(sn.cantidad, 0)
+      + coalesce(rn.cantidad, 0)
+      + coalesce(rs.series_count, 0),
+      0
+    )::bigint as stock_actual,
+    (
+      coalesce(lb.series_count, 0) + coalesce(rs.series_count, 0)
+    )::bigint as series_count,
+    array(
+      select distinct value
+      from unnest(
+        coalesce(lb.serials, array[]::text[])
+        || coalesce(rs.serials, array[]::text[])
+      ) as value
+      order by value
+    ) as serials
+  from location_keys lk
+  left join location_base lb
+    on lb.producto_id = lk.producto_id
+   and lb.almacen_key = lk.almacen_key
+   and lb.ubicacion_key = lk.ubicacion_key
+  left join sold_nonserial sn
+    on sn.producto_id = lk.producto_id
+   and sn.almacen_key = lk.almacen_key
+   and sn.ubicacion_key = lk.ubicacion_key
+  left join returned_nonserial rn
+    on rn.producto_id = lk.producto_id
+   and rn.almacen_key = lk.almacen_key
+   and rn.ubicacion_key = lk.ubicacion_key
+  left join returned_serials rs
+    on rs.producto_id = lk.producto_id
+   and rs.almacen_key = lk.almacen_key
+   and rs.ubicacion_key = lk.ubicacion_key
+)
+select
+  (
+    p.id::text || ':' ||
+    md5(coalesce(ls.almacen, '') || '|' || coalesce(ls.ubicacion, ''))
+  ) as row_key,
+  p.id,
+  p.sku,
+  p.nombre,
+  p.marca,
+  coalesce(p.categoria_principal, p.categoria) as categoria,
+  p.categoria_principal,
+  p.categoria_venta,
+  p.familia,
+  p.variante,
+  p.costo,
+  p.precio,
+  p.stock_minimo,
+  p.is_active,
+  ls.almacen,
+  ls.ubicacion,
+  coalesce(ls.cantidad_fisica, 0)::bigint as cantidad_fisica,
+  coalesce(ls.cantidad_disponible, 0)::bigint as cantidad_disponible,
+  coalesce(ls.stock_actual, 0)::bigint as stock_actual,
+  coalesce(ls.series_count, 0)::bigint as series_count,
+  coalesce(ls.serials, array[]::text[]) as serials,
+  (
+    coalesce(ls.stock_actual, 0) * p.costo
+  )::numeric(14,2) as valor_stock
+from public.productos p
+join location_stock ls on ls.producto_id = p.id
+where not exists (
+  select 1 from public.sc_plus_planes cp where cp.producto_id = p.id
+);
+grant select on public.inventario_stock to authenticated;
+
 -- Datos de etiqueta se validan en DB, SC+ no consume inventario.
 create or replace function public.register_sale(
   p_jornada_id uuid,
