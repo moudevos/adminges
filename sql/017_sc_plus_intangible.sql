@@ -211,7 +211,7 @@ begin
       exception when others then
         raise exception 'SC_PLUS_LABEL_PRICE_REQUIRED';
       end;
-      if v_label is null or v_label < v_min_label or v_label > v_max_label then
+      if v_label is null or ceil(v_label) < v_min_label or ceil(v_label) > v_max_label then
         raise exception 'SC_PLUS_LABEL_PRICE_OUT_OF_RANGE';
       end if;
       if v_precio <= 0 or v_cantidad <> 1 or v_serial is not null then
@@ -611,6 +611,317 @@ end;
 $function$;
 revoke all on function public.reverse_sale(uuid,text) from public;
 grant execute on function public.reverse_sale(uuid,text) to authenticated;
+
+create or replace function public.close_sales_day_with_report(
+  p_jornada_id uuid,
+  p_quiebres jsonb,
+  p_comentarios text default null
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = public, pg_temp
+as $function$
+declare
+  v_jornada public.jornadas_venta%rowtype;
+  v_venta_amt numeric(12,2) := 0;
+  v_venta_laminas integer := 0;
+  v_venta_sc_plus numeric(12,2) := 0;
+  v_item jsonb;
+  v_group text;
+  v_quiebre boolean;
+  v_detalle text;
+  v_seen text[] := array[]::text[];
+  v_units integer;
+  v_expected_groups text[] := array[
+    'HHP_SERIE_S',
+    'HHP_SERIE_A',
+    'HHP_SERIE_Z',
+    'TABLETS',
+    'WEA',
+    'LAMINAS'
+  ];
+  v_group_item text;
+  v_report jsonb;
+begin
+  if auth.uid() is null then
+    raise exception 'AUTH_REQUIRED';
+  end if;
+
+  select *
+  into v_jornada
+  from public.jornadas_venta
+  where id = p_jornada_id
+  for update;
+
+  if not found then
+    raise exception 'DAY_NOT_FOUND';
+  end if;
+
+  if v_jornada.estado <> 'abierta' then
+    raise exception 'DAY_NOT_OPEN';
+  end if;
+
+  if not v_jornada.configurada then
+    raise exception 'DAY_NOT_CONFIGURED';
+  end if;
+
+  if exists (
+    select 1
+    from public.jornada_cierre_reportes
+    where jornada_id = p_jornada_id
+  ) then
+    raise exception 'DAY_REPORT_ALREADY_EXISTS';
+  end if;
+
+  if jsonb_typeof(p_quiebres) <> 'array' then
+    raise exception 'BREAKAGE_DATA_REQUIRED';
+  end if;
+
+  -- AMT debe reflejar solo HHP, Tablets y ACC, no SC+ ni Láminas.
+  select coalesce(sum(vd.subtotal), 0)::numeric(12,2)
+  into v_venta_amt
+  from public.ventas v
+  join public.venta_detalles vd on vd.venta_id = v.id
+  join public.productos p on p.id = vd.producto_id
+  where v.jornada_id = p_jornada_id
+    and v.estado = 'confirmada'
+    and public.sales_report_group(
+      p.sku, p.nombre,
+      coalesce(p.categoria_principal, p.categoria),
+      p.categoria_venta, p.familia, p.variante
+    ) in ('HHP_SERIE_S','HHP_SERIE_A','HHP_SERIE_Z','TABLETS','ACCESORIOS','WEA');
+
+  select
+    coalesce(sum(vd.cantidad) filter (
+      where public.sales_report_group(
+        p.sku,
+        p.nombre,
+        coalesce(p.categoria_principal, p.categoria),
+        p.categoria_venta,
+        p.familia,
+        p.variante
+      ) = 'LAMINAS'
+    ), 0)::integer,
+    coalesce(sum(vd.subtotal) filter (
+      where upper(
+        concat_ws(
+          ' ',
+          p.categoria_principal,
+          p.categoria,
+          p.categoria_venta,
+          p.familia,
+          p.variante,
+          p.nombre
+        )
+      ) like '%SC+%'
+      or upper(
+        concat_ws(
+          ' ',
+          p.categoria_principal,
+          p.categoria,
+          p.categoria_venta,
+          p.familia,
+          p.variante,
+          p.nombre
+        )
+      ) like '%SC PLUS%'
+      or upper(
+        concat_ws(
+          ' ',
+          p.categoria_principal,
+          p.categoria,
+          p.categoria_venta,
+          p.familia,
+          p.variante,
+          p.nombre
+        )
+      ) like '%SAMSUNG CARE%'
+    ), 0)::numeric(12,2)
+  into v_venta_laminas, v_venta_sc_plus
+  from public.venta_detalles vd
+  join public.ventas v on v.id = vd.venta_id
+  join public.productos p on p.id = vd.producto_id
+  where v.jornada_id = p_jornada_id
+    and v.estado = 'confirmada';
+
+  insert into public.jornada_cierre_reportes(
+    jornada_id,
+    cuota_amt,
+    venta_amt,
+    cuota_laminas,
+    venta_laminas,
+    cuota_sc_plus,
+    venta_sc_plus,
+    comentarios,
+    closed_by
+  )
+  values (
+    p_jornada_id,
+    v_jornada.cuota_amt,
+    v_venta_amt,
+    v_jornada.cuota_laminas,
+    v_venta_laminas,
+    v_jornada.cuota_sc_plus,
+    v_venta_sc_plus,
+    nullif(trim(coalesce(p_comentarios, '')), ''),
+    auth.uid()
+  );
+
+  for v_item in
+    select value from jsonb_array_elements(p_quiebres)
+  loop
+    v_group := upper(trim(coalesce(v_item->>'grupo', '')));
+
+    if not (v_group = any(v_expected_groups)) then
+      raise exception 'INVALID_BREAKAGE_GROUP';
+    end if;
+
+    if v_group = any(v_seen) then
+      raise exception 'DUPLICATE_BREAKAGE_GROUP';
+    end if;
+
+    v_seen := array_append(v_seen, v_group);
+
+    begin
+      v_quiebre := coalesce((v_item->>'quiebre')::boolean, false);
+    exception
+      when others then
+        raise exception 'INVALID_BREAKAGE_DATA';
+    end;
+
+    v_detalle := nullif(trim(coalesce(v_item->>'detalle', '')), '');
+
+    if v_quiebre and v_detalle is null then
+      raise exception 'BREAKAGE_DETAIL_REQUIRED';
+    end if;
+
+    select coalesce(sum(vd.cantidad), 0)::integer
+    into v_units
+    from public.venta_detalles vd
+    join public.ventas v on v.id = vd.venta_id
+    join public.productos p on p.id = vd.producto_id
+    where v.jornada_id = p_jornada_id
+      and v.estado = 'confirmada'
+      and public.sales_report_group(
+        p.sku,
+        p.nombre,
+        coalesce(p.categoria_principal, p.categoria),
+        p.categoria_venta,
+        p.familia,
+        p.variante
+      ) = v_group;
+
+    insert into public.jornada_cierre_quiebres(
+      jornada_id,
+      grupo,
+      venta_unid,
+      quiebre,
+      detalle
+    )
+    values (
+      p_jornada_id,
+      v_group,
+      v_units,
+      v_quiebre,
+      v_detalle
+    );
+  end loop;
+
+  foreach v_group_item in array v_expected_groups
+  loop
+    if not (v_group_item = any(v_seen)) then
+      select coalesce(sum(vd.cantidad), 0)::integer
+      into v_units
+      from public.venta_detalles vd
+      join public.ventas v on v.id = vd.venta_id
+      join public.productos p on p.id = vd.producto_id
+      where v.jornada_id = p_jornada_id
+        and v.estado = 'confirmada'
+        and public.sales_report_group(
+          p.sku,
+          p.nombre,
+          coalesce(p.categoria_principal, p.categoria),
+          p.categoria_venta,
+          p.familia,
+          p.variante
+        ) = v_group_item;
+
+      insert into public.jornada_cierre_quiebres(
+        jornada_id,
+        grupo,
+        venta_unid,
+        quiebre,
+        detalle
+      )
+      values (
+        p_jornada_id,
+        v_group_item,
+        v_units,
+        false,
+        null
+      );
+    end if;
+  end loop;
+
+  update public.jornadas_venta
+  set
+    estado = 'cerrada',
+    closed_at = now()
+  where id = p_jornada_id;
+
+  update public.jornada_personal
+  set
+    en_turno = false,
+    fin_turno = coalesce(fin_turno, now()),
+    updated_at = now()
+  where jornada_id = p_jornada_id
+    and en_turno = true;
+
+  select jsonb_build_object(
+    'jornada_id', r.jornada_id,
+    'cuota_amt', r.cuota_amt,
+    'venta_amt', r.venta_amt,
+    'cuota_laminas', r.cuota_laminas,
+    'venta_laminas', r.venta_laminas,
+    'cuota_sc_plus', r.cuota_sc_plus,
+    'venta_sc_plus', r.venta_sc_plus,
+    'comentarios', r.comentarios,
+    'created_at', r.created_at,
+    'quiebres', coalesce(
+      (
+        select jsonb_agg(
+          jsonb_build_object(
+            'grupo', q.grupo,
+            'venta_unid', q.venta_unid,
+            'quiebre', q.quiebre,
+            'detalle', q.detalle
+          )
+          order by case q.grupo
+            when 'HHP_SERIE_S' then 1
+            when 'HHP_SERIE_A' then 2
+            when 'HHP_SERIE_Z' then 3
+            when 'TABLETS' then 4
+            when 'WEA' then 5
+            when 'LAMINAS' then 6
+            else 99
+          end
+        )
+        from public.jornada_cierre_quiebres q
+        where q.jornada_id = r.jornada_id
+      ),
+      '[]'::jsonb
+    )
+  )
+  into v_report
+  from public.jornada_cierre_reportes r
+  where r.jornada_id = p_jornada_id;
+
+  return v_report;
+end;
+$function$;
+revoke all on function public.close_sales_day_with_report(uuid,jsonb,text) from public;
+grant execute on function public.close_sales_day_with_report(uuid,jsonb,text) to authenticated;
 
 insert into public.app_sql_versions(version,name)
 values(17,'sc_plus_intangible_64_skus');
