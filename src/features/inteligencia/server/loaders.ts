@@ -16,6 +16,17 @@ import { createClient } from "@/lib/supabase/server";
 import { loadTradeInSaleIds } from "@/features/cuotas/server/trade-in";
 import { classifySalesProduct, isScPlusProduct } from "@/features/ventas/domain/product-classification";
 
+export type SCPlusReportRow = {
+  sku: string;
+  coverage: string;
+  tier: number;
+  years: number;
+  labelMin: number;
+  labelMax: number;
+  units: number;
+  sales: number;
+};
+
 export type SellerProjection = {
   id: string;
   name: string;
@@ -24,6 +35,8 @@ export type SellerProjection = {
   forecast: ProjectedMoney;
   commission: CommissionResult;
   projectedCommission: CommissionResult;
+  scPlusUnits: number;
+  scPlusAmount: number;
 };
 
 export type ProductInsight = {
@@ -312,6 +325,7 @@ export async function loadCommercialIntelligence(
     cycle: tracking.selectedCycle,
     general: null, sellers: [], products: [], opportunities: [],
     commission: null, projectedCommission: null, ecoActual: null,
+    scPlusBreakdown: [], scPlusCatalogAvailable: false,
   };
   const cycle = tracking.selectedCycle;
   if (!tracking.schemaReady || !cycle) return empty;
@@ -345,6 +359,26 @@ export async function loadCommercialIntelligence(
       tradeIn.projected, cycle.targets.tradeInUnits, tradeIn.penetrationPct,
     );
 
+    const { data: scPlusPlans, error: scPlusError } = await supabase
+      .from("sc_plus_planes")
+      .select("producto_id, sku, cobertura, escala, vigencia_anios, min_etiqueta, max_etiqueta")
+      .order("sku");
+
+    // Las 64 referencias son intangibles: no se consultan en inventario_stock.
+    const scPlusBreakdown: SCPlusReportRow[] = (scPlusPlans ?? []).map((plan) => {
+      const matching = lines.filter((line) => line.producto_id === plan.producto_id);
+      return {
+        sku: plan.sku,
+        coverage: plan.cobertura,
+        tier: Number(plan.escala),
+        years: Number(plan.vigencia_anios),
+        labelMin: Number(plan.min_etiqueta),
+        labelMax: Number(plan.max_etiqueta),
+        units: matching.reduce((sum, line) => sum + line.cantidad, 0),
+        sales: matching.reduce((sum, line) => sum + line.subtotal, 0),
+      };
+    });
+
     const statuses = new Map((statusResult.data ?? []).map((person) => [
       person.id, person,
     ]));
@@ -363,6 +397,10 @@ export async function loadCommercialIntelligence(
         );
         return {
           id: person.id, name: person.name, role: person.role, active,
+          scPlusUnits: personLines.filter((line) => line.es_sc_plus)
+            .reduce((sum, line) => sum + line.cantidad, 0),
+          scPlusAmount: personLines.filter((line) => line.es_sc_plus)
+            .reduce((sum, line) => sum + line.subtotal, 0),
           forecast,
           commission: calculateCommission(
             forecast.actual, forecast.targets, eco, person.targets.ecoPct,
@@ -383,6 +421,7 @@ export async function loadCommercialIntelligence(
     return {
       ...common, schemaReady: true, cycle, general, sellers,
       products, opportunities, commission, projectedCommission, ecoActual,
+      scPlusBreakdown, scPlusCatalogAvailable: !scPlusError,
       diagnostics: "Ciclo original conservado. Trade-in en unidades HHP FP, pagos mixtos una vez.",
     };
   } catch (error) {
