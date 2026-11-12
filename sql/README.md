@@ -28,6 +28,7 @@ BOOTSTRAP_FIRST_OWNER.sql (manual, inmediatamente después de 018)
 020_asistencia_estructura.sql
 021_asistencia_motor.sql
 022_administracion_owner.sql
+023_personal_tiendas_equipos.sql
 ```
 
 ## 001

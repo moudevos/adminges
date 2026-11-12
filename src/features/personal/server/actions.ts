@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { requireRole } from "@/features/auth/server/authorization";
 
 export type PersonActionState = {
   ok: boolean;
@@ -39,11 +39,7 @@ const stateSchema = z.object({
 });
 
 async function authenticatedClient() {
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.getClaims();
-
-  if (error || !data?.claims?.sub) return null;
-  return supabase;
+  try { return (await requireRole("owner")).supabase; } catch { return null; }
 }
 
 export async function createPerson(
@@ -135,4 +131,15 @@ export async function updatePersonOperationalState(input: {
   revalidatePath("/personal");
   revalidatePath("/ventas/dia");
   return { ok: true, message: "Estado actualizado correctamente." };
+}
+
+const updateSchema = createSchema.extend({ personId: z.string().uuid(), is_active: z.boolean() });
+export async function updatePerson(input: unknown): Promise<PersonActionState> {
+  const parsed = updateSchema.safeParse(input);
+  if (!parsed.success) return { ok:false, message:"Datos de persona inválidos." };
+  const supabase = await authenticatedClient(); if (!supabase) return {ok:false,message:"Solo Owner puede modificar personal."};
+  const { personId, ...data } = parsed.data;
+  const { error } = await supabase.from("personas").update({ ...data, updated_at:new Date().toISOString() }).eq("id",personId);
+  if (error) return {ok:false,message:error.code === "23505" ? "El documento o correo ya existe." : "No se pudo actualizar la persona."};
+  revalidatePath("/personal"); return {ok:true,message:"Persona actualizada."};
 }
