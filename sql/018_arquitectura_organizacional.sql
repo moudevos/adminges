@@ -1,0 +1,16 @@
+-- Ejecutar manualmente en Supabase SQL Editor después de 017. No destructivo.
+begin;
+do $$ begin if exists(select 1 from public.app_sql_versions where version=18) then raise exception 'SQL 018 already applied'; end if; end $$;
+create table public.user_profiles (user_id uuid primary key references auth.users(id) on delete restrict, persona_id uuid not null unique references public.personas(id) on delete restrict, role text not null check(role in ('owner','zonal','supervisor')), is_active boolean not null default true, created_at timestamptz not null default now(), created_by uuid references auth.users(id));
+create table public.zonas (id uuid primary key default gen_random_uuid(), codigo text not null unique, nombre text not null, descripcion text, is_active boolean not null default true, created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+create table public.tiendas (id uuid primary key default gen_random_uuid(), codigo text not null unique, nombre text not null, direccion text, email text, zona_id uuid not null references public.zonas(id) on delete restrict, latitude numeric(9,6), longitude numeric(9,6), radio_metros numeric(8,2) check(radio_metros > 0), is_active boolean not null default true, created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+create table public.zona_zonales (id uuid primary key default gen_random_uuid(), zona_id uuid not null references public.zonas(id), user_id uuid not null references auth.users(id), valid_from date not null default current_date, valid_to date, check(valid_to is null or valid_to >= valid_from));
+create unique index zona_zonal_activo_unique on public.zona_zonales(zona_id,user_id) where valid_to is null;
+create table public.tienda_supervisores (id uuid primary key default gen_random_uuid(), tienda_id uuid not null references public.tiendas(id), user_id uuid not null references auth.users(id), valid_from date not null default current_date, valid_to date, check(valid_to is null or valid_to >= valid_from));
+create unique index tienda_supervisor_activo_unique on public.tienda_supervisores(tienda_id) where valid_to is null;
+create table public.tienda_promotores (id uuid primary key default gen_random_uuid(), persona_id uuid not null references public.personas(id), tienda_id uuid not null references public.tiendas(id), valid_from date not null default current_date, valid_to date, motivo text, changed_by uuid references auth.users(id), check(valid_to is null or valid_to >= valid_from));
+create unique index promotor_tienda_activa_unique on public.tienda_promotores(persona_id) where valid_to is null;
+alter table public.user_profiles enable row level security; alter table public.zonas enable row level security; alter table public.tiendas enable row level security; alter table public.zona_zonales enable row level security; alter table public.tienda_supervisores enable row level security; alter table public.tienda_promotores enable row level security;
+-- Las políticas comerciales existentes permanecen intactas en 018; 019 las sustituye tras inicializar Owner.
+insert into public.app_sql_versions(version,name) values(18,'arquitectura_organizacional');
+commit;

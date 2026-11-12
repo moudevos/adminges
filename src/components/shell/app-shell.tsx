@@ -6,6 +6,7 @@ import { useState } from "react";
 import { LoadingIndicator } from "@/components/ui/loading-indicator";
 import {
   resolveNavigationState,
+  navigationForRole,
 } from "@/config/navigation";
 import { ShellNavigationProvider } from "@/components/shell/shell-link";
 import { ShellSidebar } from "@/components/shell/sidebar";
@@ -13,6 +14,8 @@ import { ShellTopbar } from "@/components/shell/topbar";
 
 type AppShellProps = {
   email: string;
+  name: string;
+  role: "owner" | "zonal" | "supervisor" | null;
   children: ReactNode;
 };
 
@@ -21,9 +24,10 @@ type GroupOverride = {
   group: string | null;
 };
 
-export function AppShell({ email, children }: AppShellProps) {
+export function AppShell({ email, name, role, children }: AppShellProps) {
   const pathname = usePathname();
   const navigation = resolveNavigationState(pathname);
+  const navigationItems = navigationForRole(role);
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -82,6 +86,7 @@ export function AppShell({ email, children }: AppShellProps) {
             collapsed={collapsed}
             openGroup={openGroup}
             onGroupToggle={toggleGroup}
+            navigation={navigationItems}
           />
         </div>
 
@@ -100,6 +105,7 @@ export function AppShell({ email, children }: AppShellProps) {
                 collapsed={false}
                 openGroup={openGroup}
                 onGroupToggle={toggleGroup}
+                navigation={navigationItems}
               />
             </div>
           </div>
@@ -108,6 +114,8 @@ export function AppShell({ email, children }: AppShellProps) {
         <div className="flex min-w-0 flex-1 flex-col">
           <ShellTopbar
             email={email}
+            name={name}
+            role={role}
             moduleTitle={navigation.moduleLabel}
             viewTitle={navigation.viewLabel}
             collapsed={collapsed}

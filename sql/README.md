@@ -22,6 +22,12 @@ Orden actual:
 015_trade_in_comisiones_metodos_pago.sql
 016_regalos_acc_wea_precio_cero.sql
 017_sc_plus_intangible.sql
+018_arquitectura_organizacional.sql
+BOOTSTRAP_FIRST_OWNER.sql (manual, inmediatamente después de 018)
+019_roles_permisos_rls.sql
+020_asistencia_estructura.sql
+021_asistencia_motor.sql
+022_administracion_owner.sql
 ```
 
 ## 001

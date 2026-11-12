@@ -1,6 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { DEFAULT_APP_HREF } from "@/config/navigation";
 
 function copySessionState(response: NextResponse, source: NextResponse) {
   for (const cookie of source.cookies.getAll()) {
@@ -64,15 +63,22 @@ export async function updateSession(request: NextRequest) {
     );
   }
 
-  if (authenticated && isLogin) {
-    const url = request.nextUrl.clone();
-    url.pathname = DEFAULT_APP_HREF;
-    url.search = "";
-
-    return copySessionState(
-      NextResponse.redirect(url),
-      supabaseResponse,
-    );
+  // A valid session can exist before its user profile is provisioned. Redirecting
+  // that session from /login to /inicio created an endless 307 redirect loop.
+  if (authenticated && !isLogin) {
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("role,is_active")
+      .eq("user_id", data?.claims?.sub ?? "")
+      .maybeSingle();
+    const ownerPaths = ["/administracion", "/personal", "/asignaciones", "/configuraciones/usuarios", "/configuraciones/puestos", "/configuraciones/zonas", "/configuraciones/tiendas"];
+    const isOwnerPath = ownerPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+    if (profile?.is_active && profile.role === "owner" && !isOwnerPath) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/administracion";
+      url.search = "";
+      return copySessionState(NextResponse.redirect(url), supabaseResponse);
+    }
   }
 
   return supabaseResponse;

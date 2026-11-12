@@ -8,6 +8,7 @@ import {
   faChartLine,
   faCoins,
   faGear,
+  faUserClock,
 } from "@fortawesome/free-solid-svg-icons";
 
 export type NavigationChild = {
@@ -35,7 +36,10 @@ export type NavigationState = {
   viewLabel?: string;
 };
 
+export type NavigationRole = "owner" | "zonal" | "supervisor" | null;
+
 export const DEFAULT_APP_HREF = "/inicio";
+export const OWNER_APP_HREF = "/administracion";
 
 export const SHELL_NAVIGATION: NavigationSection[] = [
   {
@@ -108,6 +112,15 @@ export const SHELL_NAVIGATION: NavigationSection[] = [
     label: "Gestión",
     items: [
       {
+        key: "asistencia",
+        label: "Asistencia",
+        icon: faUserClock,
+        children: [
+          { key: "marcador", label: "Marcador", href: "/asistencia" },
+          { key: "historial", label: "Historial", href: "/asistencia/historial" },
+        ],
+      },
+      {
         key: "configuraciones",
         label: "Configuraciones",
         icon: faGear,
@@ -152,6 +165,15 @@ export const SHELL_NAVIGATION: NavigationSection[] = [
     ],
   },
 ];
+
+export function navigationForRole(role: NavigationRole) {
+  if (role === "owner") return [{ label: "Administración", items: [
+    { key: "administracion", label: "Panel administrativo", icon: faGear, children: [{ key: "inicio", label: "Resumen", href: "/administracion" }] },
+    { key: "personal", label: "Personal", icon: faPeopleGroup, children: [{ key: "personal", label: "Personal", href: "/personal" }, { key: "usuarios", label: "Usuarios", href: "/configuraciones/usuarios" }, { key: "puestos", label: "Puestos", href: "/configuraciones/puestos" }] },
+    { key: "organizacion", label: "Organización", icon: faGear, children: [{ key: "zonas", label: "Zonas", href: "/configuraciones/zonas" }, { key: "tiendas", label: "Tiendas", href: "/configuraciones/tiendas" }, { key: "asignaciones", label: "Asignaciones", href: "/asignaciones" }] },
+  ] }];
+  return SHELL_NAVIGATION;
+}
 
 function normalizedPath(pathname: string) {
   if (!pathname || pathname === "/") return DEFAULT_APP_HREF;

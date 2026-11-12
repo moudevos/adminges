@@ -7,8 +7,8 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { signOut } from "@/features/auth/server/actions";
 
-function initials(email: string) {
-  return (email.split("@")[0] || "U")
+function initials(name: string) {
+  return (name || "U")
     .split(/[\s._-]+/)
     .filter(Boolean)
     .slice(0, 2)
@@ -16,19 +16,26 @@ function initials(email: string) {
     .join("");
 }
 
-export function UserMenu({ email }: { email: string }) {
+const roleLabels = {
+  owner: { label: "Owner", description: "Administrador general" },
+  zonal: { label: "Zonal", description: "Responsable de zona" },
+  supervisor: { label: "Supervisor", description: "Responsable de tiendas" },
+} as const;
+
+export function UserMenu({ email, name, role }: { email: string; name: string; role: keyof typeof roleLabels | null }) {
+  const roleInfo = role ? roleLabels[role] : { label: "Sin rol asignado", description: "Acceso restringido" };
   return (
     <details className="group relative">
       <summary className="flex cursor-pointer list-none items-center gap-2 rounded-[10px] px-1 py-1 pr-2 transition hover:bg-slate-100 [&::-webkit-details-marker]:hidden">
         <div className="relative grid size-9 place-items-center rounded-full border border-slate-200 bg-slate-100 text-xs font-semibold text-slate-700">
-          {initials(email)}
+          {initials(name)}
           <span className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-white bg-emerald-500" />
         </div>
         <div className="hidden min-w-0 text-left sm:block">
           <div className="max-w-48 truncate text-[13px] font-semibold text-slate-800">
-            {email}
+            {name}
           </div>
-          <div className="text-xs text-slate-500">Usuario</div>
+          <div className="text-xs text-slate-500">{roleInfo.label}</div>
         </div>
         <FontAwesomeIcon
           icon={faChevronDown}
@@ -40,8 +47,10 @@ export function UserMenu({ email }: { email: string }) {
         <div className="border-b border-slate-100 px-3 py-3">
           <p className="text-xs text-slate-500">Sesión activa</p>
           <p className="mt-1 truncate text-sm font-semibold text-slate-900">
-            {email}
+            {name}
           </p>
+          <p className="mt-1 truncate text-xs text-slate-500">{email}</p>
+          <p className="mt-2 text-xs font-medium text-indigo-600">{roleInfo.label} — {roleInfo.description}</p>
         </div>
         <form action={signOut} className="pt-1.5">
           <button

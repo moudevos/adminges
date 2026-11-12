@@ -6,6 +6,8 @@ import { UserMenu } from "@/components/shell/user-menu";
 
 type ShellTopbarProps = {
   email: string;
+  name: string;
+  role: "owner" | "zonal" | "supervisor" | null;
   moduleTitle: string;
   viewTitle?: string;
   collapsed: boolean;
@@ -15,6 +17,8 @@ type ShellTopbarProps = {
 
 export function ShellTopbar({
   email,
+  name,
+  role,
   moduleTitle,
   viewTitle,
   collapsed,
@@ -55,7 +59,7 @@ export function ShellTopbar({
       </div>
 
       <div className="flex-1" />
-      <UserMenu email={email} />
+      <UserMenu email={email} name={name} role={role} />
     </header>
   );
 }

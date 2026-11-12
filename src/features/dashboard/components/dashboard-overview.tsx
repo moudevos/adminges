@@ -8,6 +8,7 @@ const money = new Intl.NumberFormat("es-PE", {
 });
 
 const shortcuts = [
+  { title: "Marcar asistencia", subtitle: "Registrar asistencia de supervisor", href: "/asistencia" },
   { title: "Día de venta", subtitle: "Registrar y revisar ventas", href: "/ventas/dia" },
   { title: "Seguimiento mensual", subtitle: "Revisar el avance de cuotas", href: "/cuotas/seguimiento-mensual" },
   { title: "Stock", subtitle: "Consultar inventario actual", href: "/inventario/stock" },

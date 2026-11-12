@@ -49,7 +49,7 @@ export function LoginForm() {
     const destination =
       next?.startsWith("/") && !next.startsWith("//")
         ? next
-        : DEFAULT_APP_HREF;
+        : (result.redirectTo ?? DEFAULT_APP_HREF);
 
     router.replace(destination);
     router.refresh();

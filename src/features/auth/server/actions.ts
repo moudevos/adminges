@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 export type LoginActionResult = {
   ok: boolean;
   message?: string;
+  redirectTo?: string;
 };
 
 const loginSchema = z.object({
@@ -34,7 +35,9 @@ export async function loginWithPassword(
     return { ok: false, message: "Correo o contraseña incorrectos." };
   }
 
-  return { ok: true };
+  const { data: claims } = await supabase.auth.getClaims();
+  const { data: profile } = await supabase.from("user_profiles").select("role,is_active").eq("user_id", claims?.claims?.sub ?? "").maybeSingle();
+  return { ok: true, redirectTo: profile?.role === "owner" && profile.is_active ? "/administracion" : "/inicio" };
 }
 
 export async function signOut() {
