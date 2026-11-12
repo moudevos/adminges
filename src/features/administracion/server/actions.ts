@@ -30,11 +30,11 @@ export async function saveZona(input: unknown): Promise<AdminActionState> {
 }
 
 export async function saveTienda(input: unknown): Promise<AdminActionState> {
-  const parsed = z.object({ id: id.optional(), codigo: text(30), nombre: text(120), direccion: optional(250), email: z.preprocess(v => typeof v === "string" && !v.trim() ? null : v, z.string().email().max(160).nullable()), zona_id: id, latitude: z.coerce.number().min(-90).max(90).nullable(), longitude: z.coerce.number().min(-180).max(180).nullable(), radio_metros: z.coerce.number().positive().max(10000).nullable(), is_active: z.boolean() }).safeParse(input);
+  const parsed = z.object({ id: id.optional(), codigo: text(30), nombre: text(120), direccion: optional(250), email: z.preprocess(v => typeof v === "string" && !v.trim() ? null : v, z.string().email().max(160).nullable()), zona_id: id, latitude: z.coerce.number().min(-90).max(90).nullable(), longitude: z.coerce.number().min(-180).max(180).nullable(), radio_metros: z.coerce.number().positive().max(10000).nullable().default(50), categoria:z.enum(["Oro","Plata","Bronce"]), tipo:z.enum(["SES","KIOSKO"]), supervisor_id:id.nullable().optional(), promotores:z.array(id).default([]), is_active: z.boolean() }).safeParse(input);
   if (!parsed.success) return { ok: false, message: "Datos de tienda inválidos." };
-  const { supabase } = await owner(); const { id: tiendaId, ...values } = parsed.data;
-  const { error } = tiendaId ? await supabase.from("tiendas").update({ ...values, updated_at: new Date().toISOString() }).eq("id", tiendaId) : await supabase.from("tiendas").insert(values);
-  refresh("/configuraciones/tiendas", "/administracion"); return result(error, tiendaId ? "Tienda actualizada." : "Tienda creada.");
+  const { supabase } = await owner(); const values=parsed.data;
+  const { error } = await supabase.rpc("save_store_with_team", { p_tienda_id:values.id ?? null,p_codigo:values.codigo,p_nombre:values.nombre,p_direccion:values.direccion,p_email:values.email,p_zona_id:values.zona_id,p_latitude:values.latitude,p_longitude:values.longitude,p_radio_metros:values.radio_metros,p_categoria:values.categoria,p_tipo:values.tipo,p_is_active:values.is_active,p_supervisor_id:values.supervisor_id ?? null,p_promotores:values.promotores });
+  refresh("/configuraciones/tiendas", "/administracion"); return result(error, values.id ? "Tienda actualizada." : "Tienda creada.");
 }
 
 export async function assign(input: unknown): Promise<AdminActionState> {

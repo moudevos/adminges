@@ -19,6 +19,7 @@ export async function loginWithPassword(
   email: string,
   password: string,
 ): Promise<LoginActionResult> {
+  // Password is intentionally scoped to this action and never logged, returned, or added to a URL.
   const parsed = loginSchema.safeParse({ email, password });
 
   if (!parsed.success) {
