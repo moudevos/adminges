@@ -29,6 +29,7 @@ BOOTSTRAP_FIRST_OWNER.sql (manual, inmediatamente después de 018)
 021_asistencia_motor.sql
 022_administracion_owner.sql
 023_personal_tiendas_equipos.sql
+024_autoregistro_personas.sql
 ```
 
 ## 001

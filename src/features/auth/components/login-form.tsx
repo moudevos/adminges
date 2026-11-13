@@ -10,6 +10,7 @@ import Swal from "sweetalert2";
 import { z } from "zod";
 import { loginWithPassword } from "@/features/auth/server/actions";
 import { DEFAULT_APP_HREF } from "@/config/navigation";
+import Link from "next/link";
 
 const loginSchema = z.object({
   email: z.string().email("Ingresa un correo válido"),
@@ -105,6 +106,7 @@ export function LoginForm() {
         <FontAwesomeIcon icon={faArrowRightToBracket} />
         {isSubmitting ? "Ingresando..." : "Ingresar"}
       </button>
+      <Link href="/registrarse" className="block text-center text-sm text-indigo-600 hover:underline">¿No tienes cuenta? Registrarse</Link>
     </form>
   );
 }

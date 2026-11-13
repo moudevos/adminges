@@ -1,0 +1,2 @@
+import Link from "next/link"; import { RegistrationForm } from "@/features/auth/components/registration-form";
+export default function RegisterPage(){return <main className="mx-auto max-w-md p-8"><h1 className="text-2xl font-semibold">Registrarse</h1><p className="my-3 text-sm text-slate-500">Usa los datos registrados por tu administrador.</p><RegistrationForm/><Link className="mt-5 block text-sm text-indigo-600" href="/login">Volver a iniciar sesión</Link></main>}
