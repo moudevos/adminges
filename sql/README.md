@@ -33,6 +33,7 @@ BOOTSTRAP_FIRST_OWNER.sql (manual, inmediatamente después de 018)
 025_personas_crud_busqueda.sql
 026_zonas_encargados.sql
 027_personas_autorizaciones.sql
+028_reparar_rpc_zonas.sql (solo si SQL 026 figura aplicado pero falta owner_save_zone)
 ```
 
 ## 001
