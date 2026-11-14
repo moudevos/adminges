@@ -62,6 +62,7 @@ export async function loadZonesManagementData(): Promise<ZonesManagementData> {
    documento: person.documento ? "••••" + person.documento.slice(-4) : null,
   }))
   .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+ const managerNameByPerson = new Map(managers.map((manager) => [manager.id, manager.nombre]));
 
  const zones: ZoneListItem[] = (zonesResult.data ?? []).map((zone) => {
   const encargadoPersonaId = managerByZone.get(zone.id) ?? null;
@@ -70,7 +71,11 @@ export async function loadZonesManagementData(): Promise<ZonesManagementData> {
    id: zone.id, codigo: zone.codigo,
    descripcion: zone.descripcion?.trim() || zone.nombre,
    encargadoPersonaId,
-   encargadoNombre: person ? [person.nombres, person.apellidos].join(" ").trim() : null,
+   // The eligible-manager list and assignments share persona_id. Use it as a
+   // fallback when RLS returns a reduced people projection in this request.
+   encargadoNombre: person
+    ? [person.nombres, person.apellidos].join(" ").trim()
+    : (encargadoPersonaId ? managerNameByPerson.get(encargadoPersonaId) ?? null : null),
    isActive: zone.is_active,
   };
  });
