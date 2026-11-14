@@ -22,6 +22,21 @@ Orden actual:
 015_trade_in_comisiones_metodos_pago.sql
 016_regalos_acc_wea_precio_cero.sql
 017_sc_plus_intangible.sql
+018_arquitectura_organizacional.sql
+BOOTSTRAP_FIRST_OWNER.sql (manual, inmediatamente después de 018)
+019_roles_permisos_rls.sql
+020_asistencia_estructura.sql
+021_asistencia_motor.sql
+022_administracion_owner.sql
+023_personal_tiendas_equipos.sql
+024_autoregistro_personas.sql
+025_personas_crud_busqueda.sql
+026_zonas_encargados.sql
+027_personas_autorizaciones.sql
+028_reparar_rpc_zonas.sql (solo si SQL 026 figura aplicado pero falta owner_save_zone)
+029_reparar_zonas_completo.sql (reparación idempotente de una aplicación parcial de 026/028)
+030_tiendas_equipo_personas.sql
+031_snapshot_asignaciones_owner.sql
 ```
 
 ## 001
@@ -240,3 +255,27 @@ exclusivamente gratuitas.
 Comisiones muestra resumen por cobertura, plazo, escala y SKU, así como
 montos y unidades SC+ por vendedor activo. La ponderación SC+ permanece
 en 10% de acuerdo con el cuadro de referencia.
+
+
+## 026 · Zonas y responsables
+
+Ejecutar manualmente `026_zonas_encargados.sql` en Supabase SQL Editor **después de 025**. No ejecutar scripts de reset.
+
+- Relaciona el encargado Zonal con `personas.id` aun sin cuenta Supabase Auth; preserva `user_id` de las asignaciones anteriores.
+- La vista `/configuraciones/zonas` presenta únicamente Código, Descripción y Encargado.
+- Selecciona personal activo de puesto Zonal con autorización Zonal vigente o cuenta activa Zonal.
+- Las funciones `owner_save_zone` y `owner_set_zone_active` exigen Owner activo, conservan historial y registran auditoría.
+- Desactivar una zona conserva el registro y está bloqueado mientras tenga tiendas activas.
+- El campo legado `zonas.nombre` se sincroniza desde `descripcion` para mantener compatibilidad con vistas existentes.
+
+Verificación posterior a la aplicación (solo lectura):
+
+```sql
+SELECT version, name FROM public.app_sql_versions WHERE version = 26;
+SELECT z.codigo,z.descripcion,p.nombres,p.apellidos
+FROM public.zonas z
+LEFT JOIN public.zona_zonales zz ON zz.zona_id=z.id AND zz.valid_to IS NULL
+LEFT JOIN public.personas p ON p.id=zz.persona_id;
+```
+
+No declarar la persistencia probada hasta confirmar en el proyecto Supabase correcto mediante un Owner auténtico.

@@ -6,6 +6,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   DEFAULT_APP_HREF,
   SHELL_NAVIGATION,
+  type NavigationSection,
 } from "@/config/navigation";
 import { ShellLink } from "@/components/shell/shell-link";
 import { SidebarGroup } from "@/components/shell/sidebar-group";
@@ -16,12 +17,14 @@ export function ShellSidebar({
   collapsed,
   openGroup,
   onGroupToggle,
+  navigation,
 }: {
   activeModule: string;
   activeView?: string;
   collapsed: boolean;
   openGroup: string | null;
   onGroupToggle: (key: string) => void;
+  navigation?: NavigationSection[];
 }) {
   return (
     <aside
@@ -77,7 +80,7 @@ export function ShellSidebar({
           </ShellLink>
         </div>
 
-        {SHELL_NAVIGATION.map((section) => (
+        {(navigation ?? SHELL_NAVIGATION).map((section) => (
           <section key={section.label} className="mb-6 last:mb-0">
             {!collapsed ? (
               <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">

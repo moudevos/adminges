@@ -20,5 +20,22 @@ export default async function ProtectedAppLayout({
   const email =
     typeof data.claims.email === "string" ? data.claims.email : "usuario";
 
-  return <AppShell email={email}>{children}</AppShell>;
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("role, is_active, personas(nombres, apellidos)")
+    .eq("user_id", data.claims.sub)
+    .maybeSingle();
+
+  const person = Array.isArray(profile?.personas)
+    ? profile.personas[0]
+    : profile?.personas;
+  const name = profile?.is_active && person
+    ? [person.nombres, person.apellidos].filter(Boolean).join(" ")
+    : "Usuario";
+  const role = profile?.is_active && ["owner", "zonal", "supervisor"].includes(profile.role)
+    ? profile.role
+    : null;
+
+  if (!role) redirect("/login?next=/inicio");
+  return <AppShell email={email} name={name} role={role}>{children}</AppShell>;
 }

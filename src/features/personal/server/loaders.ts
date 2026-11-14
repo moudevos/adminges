@@ -18,12 +18,13 @@ export type PersonaRow = {
   is_active: boolean;
   puede_vender: boolean;
   estado_laboral: "activo" | "vacaciones";
+  authorized_role: "zonal" | "supervisor" | null;
 };
 
 export async function loadPersonalData() {
   const supabase = await createClient();
 
-  const [puestoResult, personaResult] = await Promise.all([
+  const [puestoResult, personaResult, authorizationResult] = await Promise.all([
     supabase
       .from("puestos")
       .select("id, nombre")
@@ -36,7 +37,14 @@ export async function loadPersonalData() {
       )
       .order("apellidos")
       .order("nombres"),
+    supabase.from("access_authorizations").select("persona_id,role,is_active,revoked_at"),
   ]);
+
+  const authorizedByPerson = new Map(
+    (authorizationResult.data ?? [])
+      .filter((row) => row.is_active && !row.revoked_at && (row.role === "zonal" || row.role === "supervisor"))
+      .map((row) => [row.persona_id, row.role as "zonal" | "supervisor"]),
+  );
 
   const puestos: PuestoRow[] = (puestoResult.data ?? []).map((row) => ({
     id: row.id,
@@ -55,6 +63,7 @@ export async function loadPersonalData() {
     puede_vender: Boolean(row.puede_vender),
     estado_laboral:
       row.estado_laboral === "vacaciones" ? "vacaciones" : "activo",
+    authorized_role: authorizedByPerson.get(row.id) ?? null,
   }));
 
   return { puestos, personas };
