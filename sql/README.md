@@ -31,6 +31,8 @@ BOOTSTRAP_FIRST_OWNER.sql (manual, inmediatamente después de 018)
 023_personal_tiendas_equipos.sql
 024_autoregistro_personas.sql
 025_personas_crud_busqueda.sql
+026_zonas_encargados.sql
+027_personas_autorizaciones.sql
 ```
 
 ## 001

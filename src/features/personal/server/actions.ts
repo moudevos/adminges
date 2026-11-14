@@ -29,6 +29,7 @@ const createSchema = z.object({
   ),
   puede_vender: z.boolean(),
   estado_laboral: z.enum(["activo", "vacaciones"]),
+  role: z.enum(["zonal", "supervisor"]).nullable().optional(),
 });
 
 const stateSchema = z.object({
@@ -54,7 +55,7 @@ export async function createPerson(
     telefono: formData.get("telefono"),
     email: formData.get("email"),
     puede_vender: formData.get("puede_vender") === "on",
-    estado_laboral: formData.get("estado_laboral") || "activo",
+    estado_laboral: formData.get("estado_laboral") || "activo", role: formData.get("role") || null,
   });
 
   if (!parsed.success) {
@@ -70,16 +71,7 @@ export async function createPerson(
     return { ok: false, message: "La sesión expiró." };
   }
 
-  const { error } = await supabase.from("personas").insert({
-    puesto_id: parsed.data.puesto_id,
-    nombres: parsed.data.nombres,
-    apellidos: parsed.data.apellidos,
-    documento: parsed.data.documento ?? null,
-    telefono: parsed.data.telefono ?? null,
-    email: parsed.data.email ?? null,
-    puede_vender: parsed.data.puede_vender,
-    estado_laboral: parsed.data.estado_laboral,
-  });
+  const { error } = await supabase.rpc("owner_save_person", {p_persona_id:null,p_puesto_id:parsed.data.puesto_id,p_nombres:parsed.data.nombres,p_apellidos:parsed.data.apellidos,p_documento:parsed.data.documento ?? "",p_telefono:parsed.data.telefono ?? "",p_email:parsed.data.email ?? "",p_puede_vender:parsed.data.puede_vender,p_estado_laboral:parsed.data.estado_laboral,p_is_active:true,p_role:parsed.data.role ?? null});
 
   if (error) {
     return {
@@ -139,7 +131,7 @@ export async function updatePerson(input: unknown): Promise<PersonActionState> {
   if (!parsed.success) return { ok:false, message:"Datos de persona inválidos." };
   const supabase = await authenticatedClient(); if (!supabase) return {ok:false,message:"Solo Owner puede modificar personal."};
   const { personId, ...data } = parsed.data;
-  const { error } = await supabase.from("personas").update({ ...data, updated_at:new Date().toISOString() }).eq("id",personId);
+  const { error } = await supabase.rpc("owner_save_person", {p_persona_id:personId,p_puesto_id:data.puesto_id,p_nombres:data.nombres,p_apellidos:data.apellidos,p_documento:data.documento ?? "",p_telefono:data.telefono ?? "",p_email:data.email ?? "",p_puede_vender:data.puede_vender,p_estado_laboral:data.estado_laboral,p_is_active:data.is_active,p_role:data.role ?? null});
   if (error) return {ok:false,message:error.code === "23505" ? "El documento o correo ya existe." : "No se pudo actualizar la persona."};
   revalidatePath("/personal"); return {ok:true,message:"Persona actualizada."};
 }
