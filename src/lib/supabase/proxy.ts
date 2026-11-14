@@ -71,7 +71,7 @@ export async function updateSession(request: NextRequest) {
       .select("role,is_active")
       .eq("user_id", data?.claims?.sub ?? "")
       .maybeSingle();
-    const ownerPaths = ["/administracion", "/personal", "/asignaciones", "/configuraciones/usuarios", "/configuraciones/puestos", "/configuraciones/zonas", "/configuraciones/tiendas"];
+    const ownerPaths = ["/administracion", "/personal", "/configuraciones/usuarios", "/configuraciones/puestos", "/configuraciones/zonas", "/configuraciones/tiendas"];
     const isOwnerPath = ownerPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
     if (profile?.is_active && profile.role === "owner" && !isOwnerPath) {
       const url = request.nextUrl.clone();

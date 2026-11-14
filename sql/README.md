@@ -35,6 +35,8 @@ BOOTSTRAP_FIRST_OWNER.sql (manual, inmediatamente después de 018)
 027_personas_autorizaciones.sql
 028_reparar_rpc_zonas.sql (solo si SQL 026 figura aplicado pero falta owner_save_zone)
 029_reparar_zonas_completo.sql (reparación idempotente de una aplicación parcial de 026/028)
+030_tiendas_equipo_personas.sql
+031_snapshot_asignaciones_owner.sql
 ```
 
 ## 001

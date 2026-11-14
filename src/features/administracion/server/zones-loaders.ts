@@ -12,13 +12,14 @@ export type ZonesManagementData = {
 
 export async function loadZonesManagementData(): Promise<ZonesManagementData> {
  const { supabase } = await requireRole("owner");
- const [zonesResult, relationResult, peopleResult, authorizationsResult, profilesResult] =
+ const [zonesResult, relationResult, peopleResult, authorizationsResult, profilesResult, snapshotResult] =
   await Promise.all([
    supabase.from("zonas").select("id,codigo,nombre,descripcion,is_active").order("codigo"),
    supabase.from("zona_zonales").select("id,zona_id,persona_id,user_id,valid_to"),
    supabase.from("personas").select("id,nombres,apellidos,documento,is_active,puestos(nombre)"),
    supabase.from("access_authorizations").select("persona_id,role,is_active,revoked_at"),
    supabase.from("user_profiles").select("user_id,persona_id,role,is_active"),
+   supabase.rpc("owner_active_assignments_snapshot"),
   ]);
  const migration = { error: null as null };
 
@@ -46,7 +47,11 @@ export async function loadZonesManagementData(): Promise<ZonesManagementData> {
 
  const peopleMap = new Map(people.map((person) => [person.id, person]));
  const managerByZone = new Map<string, string | null>();
- for (const relation of relationResult.data ?? []) {
+ const snapshotAssignments = (snapshotResult.data ?? []) as { kind: string; entity_id: string; persona_id: string }[];
+ const zoneAssignments = snapshotResult.data && !snapshotResult.error
+  ? snapshotAssignments.filter((item) => item.kind === "zone_manager").map((item) => ({ zona_id: item.entity_id, persona_id: item.persona_id, user_id: null, valid_to: null }))
+  : relationResult.data ?? [];
+ for (const relation of zoneAssignments) {
   if (relation.valid_to !== null) continue;
   managerByZone.set(relation.zona_id, relation.persona_id ?? (relation.user_id ? userToPerson.get(relation.user_id) : null) ?? null);
  }

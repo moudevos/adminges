@@ -170,7 +170,7 @@ export function navigationForRole(role: NavigationRole) {
   if (role === "owner") return [{ label: "Administración", items: [
     { key: "administracion", label: "Panel administrativo", icon: faGear, children: [{ key: "inicio", label: "Resumen", href: "/administracion" }] },
     { key: "personal", label: "Personal", icon: faPeopleGroup, children: [{ key: "personal", label: "Personal", href: "/personal" }, { key: "usuarios", label: "Usuarios", href: "/configuraciones/usuarios" }] },
-    { key: "organizacion", label: "Organización", icon: faGear, children: [{ key: "zonas", label: "Zonas", href: "/configuraciones/zonas" }, { key: "tiendas", label: "Tiendas", href: "/configuraciones/tiendas" }, { key: "asignaciones", label: "Asignaciones", href: "/asignaciones" }] },
+    { key: "organizacion", label: "Organización", icon: faGear, children: [{ key: "zonas", label: "Zonas", href: "/configuraciones/zonas" }, { key: "tiendas", label: "Tiendas", href: "/configuraciones/tiendas" }] },
   ] }];
   return SHELL_NAVIGATION;
 }
