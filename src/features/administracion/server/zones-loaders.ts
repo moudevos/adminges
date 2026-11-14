@@ -12,21 +12,21 @@ export type ZonesManagementData = {
 
 export async function loadZonesManagementData(): Promise<ZonesManagementData> {
  const { supabase } = await requireRole("owner");
- const [zonesResult, relationResult, peopleResult, authorizationsResult, profilesResult, migration] =
+ const [zonesResult, relationResult, peopleResult, authorizationsResult, profilesResult] =
   await Promise.all([
    supabase.from("zonas").select("id,codigo,nombre,descripcion,is_active").order("codigo"),
    supabase.from("zona_zonales").select("id,zona_id,persona_id,user_id,valid_to"),
    supabase.from("personas").select("id,nombres,apellidos,documento,is_active,puestos(nombre)"),
    supabase.from("access_authorizations").select("persona_id,role,is_active,revoked_at"),
    supabase.from("user_profiles").select("user_id,persona_id,role,is_active"),
-   supabase.from("zona_zonales").select("persona_id").limit(1),
   ]);
+ const migration = { error: null as null };
 
  const firstError = [zonesResult, relationResult, peopleResult, authorizationsResult, profilesResult]
   .find((result) => result.error)?.error;
  if (firstError) {
   return {
-   zones: [], managers: [], migrationReady: !migration.error,
+   zones: [], managers: [], migrationReady: false,
    error: migration.error
     ? "La gestión de encargados requiere aplicar SQL 026 después de 025."
     : "No se pudo cargar Zonas. Verifica las migraciones y permisos de Owner.",
@@ -77,7 +77,7 @@ export async function loadZonesManagementData(): Promise<ZonesManagementData> {
 
  return {
   zones, managers,
-  migrationReady: !migration.error,
+  migrationReady: true,
   error: migration.error ? "Aplica SQL 026 para habilitar la asignación de encargados sin cuenta Auth." : null,
  };
 }
