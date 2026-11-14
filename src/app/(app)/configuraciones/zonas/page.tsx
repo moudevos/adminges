@@ -1,3 +1,8 @@
-import { adminData } from "@/features/administracion/server/loaders";
-import { CatalogManagement } from "@/features/administracion/components/catalog-management";
-export const dynamic="force-dynamic"; export default async function Page(){const d=await adminData();return <CatalogManagement type="zona" rows={d.zonas}/>}
+import { ZonesManagement } from "@/features/administracion/components/zones-management";
+import { loadZonesManagementData } from "@/features/administracion/server/zones-loaders";
+
+export const dynamic = "force-dynamic";
+
+export default async function ZonesPage() {
+ return <ZonesManagement data={await loadZonesManagementData()} />;
+}
