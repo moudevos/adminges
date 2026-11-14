@@ -20,6 +20,7 @@ type Person = {
   is_active: boolean;
   puede_vender: boolean;
   estado_laboral: "activo" | "vacaciones";
+  authorized_role?: "zonal" | "supervisor" | null;
 };
 
 type Job = { id: string; nombre: string };
@@ -457,7 +458,7 @@ export function PersonalManagement({
                 </select>
               </Field>
               <Field label="Rol autorizado">
-                <select name="role" defaultValue="" className="control-input">
+                <select name="role" defaultValue={editing?.authorized_role ?? ""} className="control-input">
                   <option value="">Promotor / sin acceso</option>
                   <option value="zonal">Zonal</option>
                   <option value="supervisor">Supervisor</option>
