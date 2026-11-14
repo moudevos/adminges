@@ -21,7 +21,7 @@ function friendlyError(code: string | undefined, message: string): string {
  if (message.includes("ZONE_NOT_FOUND")) return "La zona ya no existe. Actualiza el listado.";
  if (code === "PGRST202" || message.includes("function public.owner_")) return "SQL 026 ya puede estar aplicado, pero PostgREST no ve la función. Ejecuta NOTIFY pgrst, 'reload schema'; en SQL Editor y vuelve a intentar.";
  if (message.includes("42501") || message.includes("OWNER_REQUIRED")) return "Solo Owner puede administrar zonas.";
- return "No se pudo completar la operación. Revisa el estado de la base de datos.";
+ return `No se pudo completar la operación (código ${code ?? "desconocido"}). Aplica SQL 029 o comparte este código con el administrador.`;
 }
 function refreshZones() {
  revalidatePath("/configuraciones/zonas");
